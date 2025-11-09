@@ -121,6 +121,10 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     };
 
     const handleUpdateServer = async (name: string) => {
+        if (!name || !name.trim()) {
+            toast.error('Server name is required');
+            return;
+        }
         if (!serverForm.name.trim() || !serverForm.url.trim()) {
             toast.error('Name and URL are required');
             return;
@@ -141,6 +145,11 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     };
 
     const handleDeleteServer = async (name: string) => {
+        if (!name || !name.trim()) {
+            toast.error('Server name is required');
+            setDeletingServer(null);
+            return;
+        }
         try {
             await deleteMCPServer(name);
             toast.success('MCP server deleted');
@@ -148,6 +157,7 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
             loadMCPServers();
         } catch (error) {
             toast.error(`Failed to delete server: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            setDeletingServer(null);
         }
     };
 
@@ -323,16 +333,34 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                                                     </div>
                                                     <div className="flex gap-2 ml-4">
                                                         <button
-                                                            onClick={() => startEditServer(server)}
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                if (!server.name || !server.name.trim()) {
+                                                                    toast.error('Server name is missing');
+                                                                    return;
+                                                                }
+                                                                startEditServer(server);
+                                                            }}
                                                             className="p-2 hover:bg-[#343541] rounded-lg transition-colors"
                                                             aria-label={`Edit ${server.name}`}
+                                                            type="button"
                                                         >
                                                             <Edit2 className="w-4 h-4 text-gray-400 hover:text-[#10a37f]" />
                                                         </button>
                                                         <button
-                                                            onClick={() => setDeletingServer(server.name)}
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                if (!server.name || !server.name.trim()) {
+                                                                    toast.error('Server name is missing');
+                                                                    return;
+                                                                }
+                                                                setDeletingServer(server.name);
+                                                            }}
                                                             className="p-2 hover:bg-red-500/20 rounded-lg transition-colors"
                                                             aria-label={`Delete ${server.name}`}
+                                                            type="button"
                                                         >
                                                             <Trash2 className="w-4 h-4 text-red-400 hover:text-red-300" />
                                                         </button>
@@ -503,6 +531,10 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                                                                     checked={server.enabled !== false}
                                                                     onChange={async (e) => {
                                                                         e.preventDefault();
+                                                                        if (!server.name || !server.name.trim()) {
+                                                                            toast.error('Server name is missing');
+                                                                            return;
+                                                                        }
                                                                         try {
                                                                             const result = await toggleMCPServer(server.name);
                                                                             // Backend returns {status, server, message}, TypeScript expects {server, message}

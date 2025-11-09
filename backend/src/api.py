@@ -1031,6 +1031,9 @@ async def add_mcp_server(server: MCPServerRequest):
 @app.delete("/api/mcp-servers/{server_name}")
 async def delete_mcp_server(server_name: str):
     """Delete an MCP server from the configuration"""
+    if not server_name or not server_name.strip():
+        raise HTTPException(status_code=400, detail="Server name is required")
+    
     try:
         config_file = Config.ROOT_DIR / Config.MCP_SERVERS_FILE
         
@@ -1067,6 +1070,11 @@ async def delete_mcp_server(server_name: str):
 @app.put("/api/mcp-servers/{server_name}")
 async def update_mcp_server(server_name: str, server: MCPServerRequest):
     """Update an existing MCP server"""
+    if not server_name or not server_name.strip():
+        raise HTTPException(status_code=400, detail="Server name is required")
+    if not server.name or not server.name.strip():
+        raise HTTPException(status_code=400, detail="Server name in request body is required")
+    
     try:
         config_file = Config.ROOT_DIR / Config.MCP_SERVERS_FILE
         
@@ -1132,7 +1140,10 @@ async def update_mcp_server(server_name: str, server: MCPServerRequest):
 
 @app.patch("/api/mcp-servers/{server_name}/toggle")
 async def toggle_mcp_server(server_name: str):
-    """Toggle the enabled status of an MCP server"""
+    """Toggle enabled/disabled status of an MCP server"""
+    if not server_name or not server_name.strip():
+        raise HTTPException(status_code=400, detail="Server name is required")
+    
     try:
         config_file = Config.ROOT_DIR / Config.MCP_SERVERS_FILE
         
@@ -1197,10 +1208,11 @@ async def get_llm_config():
         config = Config.load_llm_config()
         # Don't send API key in response for security
         safe_config = {k: v for k, v in config.items() if k != "api_key" or not v}
+        # Include has_api_key in the config object for frontend compatibility
+        safe_config["has_api_key"] = bool(config.get("api_key"))
         return {
             "status": "success",
-            "config": safe_config,
-            "has_api_key": bool(config.get("api_key"))
+            "config": safe_config
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

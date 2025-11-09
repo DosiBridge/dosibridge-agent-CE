@@ -84,9 +84,14 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
                     </div>
                     {!isUser && (
                         <button
-                            onClick={handleCopy}
-                            className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 p-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white transition-all opacity-0 group-hover:opacity-100 shadow-md"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleCopy();
+                            }}
+                            className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 p-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white transition-all opacity-0 group-hover:opacity-100 shadow-md z-10"
                             aria-label="Copy message"
+                            type="button"
                         >
                             {copied ? (
                                 <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" />

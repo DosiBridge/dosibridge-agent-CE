@@ -237,8 +237,9 @@ export async function listSessions(): Promise<{ sessions: Session[] }> {
 // MCP Servers API
 export async function listMCPServers(): Promise<{ servers: MCPServer[]; count: number }> {
   const response = await fetch(`${API_BASE_URL}/api/mcp-servers`);
-  const data = await handleResponse<{ servers: MCPServer[]; count: number }>(response);
-  return data;
+  const data = await handleResponse<{ status?: string; servers: MCPServer[]; count: number }>(response);
+  // Backend returns {status, servers, count}, extract just servers and count
+  return { servers: data.servers, count: data.count };
 }
 
 export async function addMCPServer(server: MCPServerRequest): Promise<{ server: MCPServer; message: string }> {
@@ -251,7 +252,12 @@ export async function addMCPServer(server: MCPServerRequest): Promise<{ server: 
 }
 
 export async function updateMCPServer(name: string, server: MCPServerRequest): Promise<{ server: MCPServer; message: string }> {
-  const response = await fetch(`${API_BASE_URL}/api/mcp-servers/${name}`, {
+  if (!name || !name.trim()) {
+    throw new Error('Server name is required');
+  }
+  // URL encode the server name to handle special characters
+  const encodedName = encodeURIComponent(name.trim());
+  const response = await fetch(`${API_BASE_URL}/api/mcp-servers/${encodedName}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(server),
@@ -260,14 +266,24 @@ export async function updateMCPServer(name: string, server: MCPServerRequest): P
 }
 
 export async function deleteMCPServer(name: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/mcp-servers/${name}`, {
+  if (!name || !name.trim()) {
+    throw new Error('Server name is required');
+  }
+  // URL encode the server name to handle special characters
+  const encodedName = encodeURIComponent(name.trim());
+  const response = await fetch(`${API_BASE_URL}/api/mcp-servers/${encodedName}`, {
     method: 'DELETE',
   });
   await handleResponse(response);
 }
 
 export async function toggleMCPServer(name: string): Promise<{ server: MCPServer; message: string }> {
-  const response = await fetch(`${API_BASE_URL}/api/mcp-servers/${name}/toggle`, {
+  if (!name || !name.trim()) {
+    throw new Error('Server name is required');
+  }
+  // URL encode the server name to handle special characters
+  const encodedName = encodeURIComponent(name.trim());
+  const response = await fetch(`${API_BASE_URL}/api/mcp-servers/${encodedName}/toggle`, {
     method: 'PATCH',
   });
   return handleResponse(response);
@@ -276,7 +292,13 @@ export async function toggleMCPServer(name: string): Promise<{ server: MCPServer
 // LLM Config API
 export async function getLLMConfig(): Promise<{ config: LLMConfigResponse }> {
   const response = await fetch(`${API_BASE_URL}/api/llm-config`);
-  return handleResponse(response);
+  const data = await handleResponse<{ status: string; config: LLMConfigResponse; has_api_key?: boolean }>(response);
+  // Backend returns {status, config, has_api_key}, but frontend expects {config}
+  // Merge has_api_key into config if present
+  if (data.has_api_key !== undefined && data.config) {
+    data.config.has_api_key = data.has_api_key;
+  }
+  return { config: data.config };
 }
 
 export async function setLLMConfig(config: LLMConfig): Promise<{ message: string; config: LLMConfigResponse }> {
