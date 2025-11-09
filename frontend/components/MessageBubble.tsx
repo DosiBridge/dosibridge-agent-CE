@@ -53,10 +53,11 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
                             <div className="prose prose-sm dark:prose-invert max-w-none prose-pre:bg-[#1e1e1e] prose-pre:border prose-pre:border-gray-700">
                                 <ReactMarkdown
                                     components={{
-                                        code({ node, inline, className, children, ...props }) {
+                                        code({ className, children, ...props }: any) {
                                             const match = /language-(\w+)/.exec(className || '');
                                             const language = match ? match[1] : '';
                                             const codeString = String(children).replace(/\n$/, '');
+                                            const inline = !match; // If no language match, it's inline code
 
                                             return !inline && match ? (
                                                 <SyntaxHighlighter
