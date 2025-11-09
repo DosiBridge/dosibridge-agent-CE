@@ -1,0 +1,35 @@
+# Core LangGraph / LangChain
+langgraph
+langchain
+langchain-community   # For FAISS tool integration and fallback imports
+langchain-openai   # For OpenAI models (and Groq, which uses OpenAI-compatible API)
+
+# LLM Provider Support (pre-install all for flexibility - allows switching models without redeploy)
+langchain-google-genai   # For Google Gemini models (gemini-1.5-flash, gemini-1.5-pro, etc.)
+langchain-ollama   # For Ollama local models (llama3.2, etc.)
+
+# Vectorstore
+faiss-cpu   # Or faiss-gpu if using GPU
+
+# OpenAI embeddings
+openai
+
+# HTTP requests
+requests
+
+# Optional
+typing-extensions
+
+# Environment variables
+python-dotenv
+
+# MCP support
+mcp>=1.20.0
+langchain-mcp-adapters
+fastmcp>=2.13.0.2
+httpx>=0.28.1
+
+# FastAPI and Web Server
+fastapi
+uvicorn[standard]
+python-multipart

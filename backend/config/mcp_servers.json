@@ -1,0 +1,18 @@
+[
+  {
+    "name": "math",
+    "url": "http://localhost:8000/api/mcp/math/mcp"
+  },
+  {
+    "name": "people",
+    "url": "http://localhost:8000/api/mcp/people/mcp"
+  },
+  {
+    "name": "web",
+    "url": "http://localhost:8000/api/mcp/web/mcp"
+  },
+  {
+    "name": "weather",
+    "url": "http://localhost:8000/api/mcp/weather/mcp"
+  }
+]

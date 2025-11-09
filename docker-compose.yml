@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  # Backend API Service
+  agent-backend:
+    container_name: agent-backend
+    image: dosibirdge/mcp-server:latest
+    ports:
+      - "8085:8000"
+    environment:
+      PYTHONUNBUFFERED: "1"
+      PYTHONPATH: "/app"
+      PORT: "8000"
+      CORS_ORIGINS: "http://localhost:3000,http://127.0.0.1:8086"
+      # Optional API keys - set these if needed
+      OPENAI_API_KEY: ""
+      FIRECRAWL_API_KEY: ""
+    volumes:
+      - ./config:/app/config
+    restart: unless-stopped
+    networks:
+      - agent-dosi-network
+
+  # Frontend Service
+  agent-frontend:
+    container_name: agent-frontend
+    image: dosibirdge/agent-frontend:latest
+    ports:
+      - "8086:3000"
+    environment:
+      NODE_ENV: "production"
+      NEXT_PUBLIC_API_BASE_URL: "http://localhost:8000"
+    restart: unless-stopped
+    depends_on:
+      - agent-backend
+    networks:
+      - agent-dosi-network
+
+networks:
+  agent-dosi-network:
+    driver: bridge
