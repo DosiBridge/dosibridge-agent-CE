@@ -1,11 +1,16 @@
 """
 MCP (Model Context Protocol) client management
 """
+import logging
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 from langchain_mcp_adapters.tools import load_mcp_tools
 from typing import List
 from langchain_core.tools import BaseTool
+
+# Suppress verbose MCP library errors
+logging.getLogger("mcp").setLevel(logging.WARNING)
+logging.getLogger("anyio").setLevel(logging.WARNING)
 
 
 class MCPClientManager:
@@ -102,30 +107,120 @@ class MCPClientManager:
                     server_params["headers"] = headers
                 
                 # Connect to server with timeout and better error handling
-                client = streamablehttp_client(**server_params)
-                read, write, _ = await client.__aenter__()
-                session = ClientSession(read, write)
-                await session.__aenter__()
-                await session.initialize()
-                
-                # Load tools
-                tools = await load_mcp_tools(session)
-                self.tools.extend(tools)
-                self.sessions.append((client, session))
-                
-                print(f"✓ Loaded {len(tools)} tool(s) from {server_name} MCP server")
-                for tool in tools:
-                    print(f"  - {tool.name}: {tool.description}")
+                import asyncio
+                client = None
+                session = None
+                try:
+                    # Add timeout to prevent hanging on slow/unresponsive servers
+                    client = streamablehttp_client(**server_params)
+                    read, write, _ = await asyncio.wait_for(
+                        client.__aenter__(),
+                        timeout=5.0  # 5 second timeout per server connection
+                    )
+                    session = ClientSession(read, write)
+                    await asyncio.wait_for(
+                        session.__aenter__(),
+                        timeout=3.0
+                    )
+                    await asyncio.wait_for(
+                        session.initialize(),
+                        timeout=5.0  # 5 second timeout for initialization
+                    )
+                    
+                    # Load tools with timeout
+                    tools = await asyncio.wait_for(
+                        load_mcp_tools(session),
+                        timeout=10.0  # 10 second timeout for loading tools
+                    )
+                    
+                    self.tools.extend(tools)
+                    self.sessions.append((client, session))
+                    
+                    print(f"✓ Loaded {len(tools)} tool(s) from {server_name} MCP server")
+                    for tool in tools:
+                        print(f"  - {tool.name}: {tool.description}")
+                except (asyncio.TimeoutError, asyncio.CancelledError) as e:
+                    # Clean up on timeout/cancellation
+                    if session:
+                        try:
+                            await asyncio.wait_for(session.__aexit__(None, None, None), timeout=1.0)
+                        except:
+                            pass
+                    if client:
+                        try:
+                            await asyncio.wait_for(client.__aexit__(None, None, None), timeout=1.0)
+                        except:
+                            pass
+                    print(f"⏱️  Timeout connecting to MCP server: {server_name}")
+                    print(f"   Skipping this server and continuing with others...")
+                    continue
+                except BaseExceptionGroup as e:
+                    # Handle exception groups (common with MCP connection errors)
+                    # Clean up resources
+                    if session:
+                        try:
+                            await asyncio.wait_for(session.__aexit__(None, None, None), timeout=1.0)
+                        except:
+                            pass
+                    if client:
+                        try:
+                            await asyncio.wait_for(client.__aexit__(None, None, None), timeout=1.0)
+                        except:
+                            pass
+                    # Check if it's a connection error
+                    has_connection_error = any(
+                        "ConnectError" in str(exc) or "connection" in str(exc).lower() 
+                        for exc in e.exceptions
+                    )
+                    if has_connection_error:
+                        print(f"⚠️  Cannot connect to {server_name} MCP server")
+                        print(f"   Server may not be running. Skipping and continuing...")
+                    else:
+                        print(f"⚠️  Connection error with {server_name} MCP server")
+                        print(f"   Skipping this server and continuing...")
+                    continue
+                except Exception as e:
+                    # Clean up on any error
+                    if session:
+                        try:
+                            await asyncio.wait_for(session.__aexit__(None, None, None), timeout=1.0)
+                        except:
+                            pass
+                    if client:
+                        try:
+                            await asyncio.wait_for(client.__aexit__(None, None, None), timeout=1.0)
+                        except:
+                            pass
+                    
+                    error_msg = str(e)
+                    error_type = type(e).__name__
+                    
+                    # Don't fail completely on connection errors - just log and continue
+                    if "502" in error_msg or "Bad Gateway" in error_msg:
+                        print(f"⚠️  {server_name} MCP server unavailable (502)")
+                        print(f"   Skipping this server and continuing with others...")
+                    elif "ConnectError" in error_type or "ConnectError" in error_msg or "connection" in error_msg.lower() or "refused" in error_msg.lower() or "All connection attempts failed" in error_msg:
+                        print(f"⚠️  Cannot connect to {server_name} MCP server")
+                        print(f"   Server may not be running. Skipping and continuing...")
+                    elif "cancel scope" in error_msg.lower() or "RuntimeError" in error_msg or "CancelledError" in error_type:
+                        # These are cleanup/cancellation errors - suppress them
+                        print(f"⚠️  Connection issue with {server_name} (server unavailable)")
+                        print(f"   Skipping this server and continuing...")
+                    elif "BaseExceptionGroup" in error_type or "BaseExceptionGroup" in error_msg:
+                        # Suppress verbose exception groups
+                        print(f"⚠️  Connection error with {server_name} MCP server")
+                        print(f"   Skipping this server and continuing...")
+                    else:
+                        # For other errors, show a brief message
+                        print(f"⚠️  Failed to load {server_name} MCP tools: {error_type}")
+                        print(f"   Skipping this server and continuing...")
+                    # Continue with other servers instead of failing completely
+                    continue
             except Exception as e:
+                # Outer exception handler for any other errors
                 error_msg = str(e)
-                # Don't fail completely on 502/connection errors - just log and continue
-                if "502" in error_msg or "Bad Gateway" in error_msg:
-                    print(f"⚠️  {server_name} MCP server unavailable (502): {server_url}")
-                    print(f"   This is likely a temporary server issue. Consider using local servers.")
-                elif "cancel scope" in error_msg.lower():
-                    print(f"⚠️  Connection issue with {server_name}: async context error")
-                else:
-                    print(f"✗ Failed to load {server_name} MCP tools: {error_msg}")
+                print(f"✗ Unexpected error loading {server_name} MCP server: {error_msg}")
+                continue
             
             print()  # Empty line between servers
         

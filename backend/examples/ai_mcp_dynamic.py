@@ -52,7 +52,7 @@ async def main(
     # Run in selected mode
     if mode == "rag":
         await run_rag_mode(query, session_id)
-        else:
+    else:
         await run_agent_mode(query, additional_servers, session_id)
 
 

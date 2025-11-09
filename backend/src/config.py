@@ -95,6 +95,12 @@ class Config:
                     else:
                         config['model'] = config['model'].strip()
                     
+                    # Ensure API key is loaded from environment if not in config
+                    if not config.get('api_key') and config.get('type', '').lower() == 'openai':
+                        config['api_key'] = cls.OPENAI_API_KEY or os.getenv("OPENAI_API_KEY")
+                    elif not config.get('api_key') and config.get('type', '').lower() == 'gemini':
+                        config['api_key'] = os.getenv("GOOGLE_API_KEY")
+                    
                     print(f"📝 Loaded LLM config: {config.get('type', 'openai')} - {config.get('model', 'unknown')}")
                     return config
             except Exception as e:
@@ -104,9 +110,14 @@ class Config:
         default_config = {
             "type": "openai",
             "model": cls.OPENAI_MODEL,
-            "api_key": cls.OPENAI_API_KEY,
+            "api_key": cls.OPENAI_API_KEY or os.getenv("OPENAI_API_KEY"),
             "active": True
         }
+        
+        # Warn if API key is missing
+        if not default_config["api_key"]:
+            print("⚠️  Warning: OPENAI_API_KEY not set. Please set it as an environment variable or in config/llm_config.json")
+        
         return default_config
     
     @classmethod

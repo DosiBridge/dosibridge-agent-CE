@@ -1,1 +1,15 @@
 *docker-compose.yml
+.env
+*.env
+!.env.example
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/

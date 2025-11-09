@@ -487,12 +487,18 @@ async def chat_stream(request: ChatRequest):
                 
                 try:
                     async with MCPClientManager(mcp_servers) as mcp_tools:
+                        yield f"data: {json.dumps({'chunk': '', 'done': False, 'status': 'mcp_connected', 'tool_count': len(mcp_tools)})}\n\n"
+                        
                         all_tools = [retrieve_dosiblog_context] + mcp_tools
+                        yield f"data: {json.dumps({'chunk': '', 'done': False, 'status': 'loading_llm_config'})}\n\n"
                         
                         # Get LLM from config
                         llm_config = Config.load_llm_config()
+                        yield f"data: {json.dumps({'chunk': '', 'done': False, 'status': 'initializing_llm', 'llm_type': llm_config.get('type', 'unknown')})}\n\n"
+                        
                         try:
                             llm = create_llm_from_config(llm_config, streaming=True, temperature=0)
+                            yield f"data: {json.dumps({'chunk': '', 'done': False, 'status': 'llm_ready'})}\n\n"
                         except ImportError as e:
                             # Missing package - should be in requirements.txt
                             error_msg = (
@@ -621,6 +627,8 @@ async def chat_stream(request: ChatRequest):
                             return
                         
                         # For OpenAI/Groq - use agent with tools
+                        yield f"data: {json.dumps({'chunk': '', 'done': False, 'status': 'creating_agent', 'tool_count': len(all_tools)})}\n\n"
+                        
                         # Create agent - ensure tools are properly bound
                         try:
                             # Build a system prompt that lists available tools to prevent hallucination
@@ -669,6 +677,7 @@ async def chat_stream(request: ChatRequest):
                                 tools=formatted_tools,
                                 system_prompt=system_prompt
                             )
+                            yield f"data: {json.dumps({'chunk': '', 'done': False, 'status': 'agent_ready'})}\n\n"
                         except Exception as e:
                             import traceback
                             error_msg = f"Failed to create agent: {str(e)}\n{traceback.format_exc()[:300]}"
@@ -682,6 +691,7 @@ async def chat_stream(request: ChatRequest):
                         # Get history
                         history = history_manager.get_session_messages(request.session_id)
                         messages = list(history) + [HumanMessage(content=request.message)]
+                        yield f"data: {json.dumps({'chunk': '', 'done': False, 'status': 'starting_agent_execution', 'message_count': len(messages)})}\n\n"
                         
                         # Stream agent responses
                         full_response = ""
@@ -689,6 +699,7 @@ async def chat_stream(request: ChatRequest):
                         seen_tools = set()  # Track tools we've already sent
                         
                         try:
+                            yield f"data: {json.dumps({'chunk': '', 'done': False, 'status': 'streaming_response'})}\n\n"
                             async for event in agent.astream({"messages": messages}, stream_mode="values"):
                                 last_msg = event["messages"][-1]
                                 
