@@ -47,11 +47,27 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
+# Create scripts directory and copy the runtime config generation script
+RUN mkdir -p ./scripts
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/generate-runtime-config.js ./scripts/
+
+# Ensure public directory is writable for runtime config generation
+RUN chmod -R u+w ./public || true
+
+# Create startup script that generates config and starts server
+# Note: We create this as root, then chown it, since we switch users after
+RUN echo '#!/bin/sh' > /tmp/start.sh && \
+    echo 'node scripts/generate-runtime-config.js' >> /tmp/start.sh && \
+    echo 'exec node server.js' >> /tmp/start.sh && \
+    chmod +x /tmp/start.sh && \
+    mv /tmp/start.sh /app/start.sh && \
+    chown nextjs:nodejs /app/start.sh
+
 # Switch to non-root user
 USER nextjs
 
 # Expose port
 EXPOSE 3000
 
-# Start the standalone server
-CMD ["node", "server.js"]
+# Start the server with config generation
+CMD ["/app/start.sh"]

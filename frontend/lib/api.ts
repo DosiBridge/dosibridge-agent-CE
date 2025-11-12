@@ -2,8 +2,47 @@
  * API client for backend communication
  */
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL;
+// Runtime config loader - reads from public/runtime-config.json if available
+// This allows the API URL to be configured at container startup time
+let runtimeConfig: { API_BASE_URL?: string } | null = null;
+let configLoadPromise: Promise<string> | null = null;
+
+// Get API base URL - loads runtime config on first call, then caches it
+async function getApiBaseUrl(): Promise<string> {
+  // Return cached value if already loaded
+  if (runtimeConfig?.API_BASE_URL) {
+    return runtimeConfig.API_BASE_URL;
+  }
+  
+  // If already loading, return the same promise
+  if (configLoadPromise) {
+    return configLoadPromise;
+  }
+  
+  // Start loading config
+  configLoadPromise = (async () => {
+    try {
+      // Try to fetch runtime config from public directory
+      const response = await fetch('/runtime-config.json', {
+        cache: 'no-store', // Always fetch fresh config
+      });
+      if (response.ok) {
+        runtimeConfig = await response.json();
+        if (runtimeConfig?.API_BASE_URL) {
+          return runtimeConfig.API_BASE_URL;
+        }
+      }
+    } catch (error) {
+      // Silently fail and use build-time config
+      console.debug('Runtime config not available, using build-time config');
+    }
+    
+    // Fall back to build-time env var
+    return process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8085';
+  })();
+  
+  return configLoadPromise;
+}
 
 export interface ChatRequest {
   message: string;
@@ -105,7 +144,8 @@ async function handleResponse<T>(response: Response): Promise<T> {
 export async function sendChatMessage(
   request: ChatRequest
 ): Promise<ChatResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/chat`, {
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request),
@@ -123,12 +163,14 @@ export function createStreamReader(
   const abortController = new AbortController();
   let isAborted = false;
 
-  fetch(`${API_BASE_URL}/api/chat/stream`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(request),
-    signal: abortController.signal,
-  })
+  (async () => {
+    const apiBaseUrl = await getApiBaseUrl();
+    return fetch(`${apiBaseUrl}/api/chat/stream`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+      signal: abortController.signal,
+    })
     .then(async (response) => {
       if (!response.ok) {
         const error = await response
@@ -227,6 +269,7 @@ export function createStreamReader(
         onError(error instanceof Error ? error : new Error(String(error)));
       }
     });
+  })(); // Invoke the async IIFE
 
   return () => {
     isAborted = true;
@@ -236,19 +279,22 @@ export function createStreamReader(
 
 // Session API
 export async function getSession(sessionId: string): Promise<SessionInfo> {
-  const response = await fetch(`${API_BASE_URL}/api/session/${sessionId}`);
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/session/${sessionId}`);
   return handleResponse<SessionInfo>(response);
 }
 
 export async function deleteSession(sessionId: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/session/${sessionId}`, {
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/session/${sessionId}`, {
     method: "DELETE",
   });
   await handleResponse(response);
 }
 
 export async function listSessions(): Promise<{ sessions: Session[] }> {
-  const response = await fetch(`${API_BASE_URL}/api/sessions`);
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/sessions`);
   return handleResponse<{ sessions: Session[] }>(response);
 }
 
@@ -257,7 +303,8 @@ export async function listMCPServers(): Promise<{
   servers: MCPServer[];
   count: number;
 }> {
-  const response = await fetch(`${API_BASE_URL}/api/mcp-servers`);
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/mcp-servers`);
   const data = await handleResponse<{
     status?: string;
     servers: MCPServer[];
@@ -270,7 +317,8 @@ export async function listMCPServers(): Promise<{
 export async function addMCPServer(
   server: MCPServerRequest
 ): Promise<{ server: MCPServer; message: string }> {
-  const response = await fetch(`${API_BASE_URL}/api/mcp-servers`, {
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/mcp-servers`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(server),
@@ -287,8 +335,9 @@ export async function updateMCPServer(
   }
   // URL encode the server name to handle special characters
   const encodedName = encodeURIComponent(name.trim());
+  const apiBaseUrl = await getApiBaseUrl();
   const response = await fetch(
-    `${API_BASE_URL}/api/mcp-servers/${encodedName}`,
+    `${apiBaseUrl}/api/mcp-servers/${encodedName}`,
     {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -304,8 +353,9 @@ export async function deleteMCPServer(name: string): Promise<void> {
   }
   // URL encode the server name to handle special characters
   const encodedName = encodeURIComponent(name.trim());
+  const apiBaseUrl = await getApiBaseUrl();
   const response = await fetch(
-    `${API_BASE_URL}/api/mcp-servers/${encodedName}`,
+    `${apiBaseUrl}/api/mcp-servers/${encodedName}`,
     {
       method: "DELETE",
     }
@@ -321,8 +371,9 @@ export async function toggleMCPServer(
   }
   // URL encode the server name to handle special characters
   const encodedName = encodeURIComponent(name.trim());
+  const apiBaseUrl = await getApiBaseUrl();
   const response = await fetch(
-    `${API_BASE_URL}/api/mcp-servers/${encodedName}/toggle`,
+    `${apiBaseUrl}/api/mcp-servers/${encodedName}/toggle`,
     {
       method: "PATCH",
     }
@@ -332,7 +383,8 @@ export async function toggleMCPServer(
 
 // LLM Config API
 export async function getLLMConfig(): Promise<{ config: LLMConfigResponse }> {
-  const response = await fetch(`${API_BASE_URL}/api/llm-config`);
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/llm-config`);
   const data = await handleResponse<{
     status: string;
     config: LLMConfigResponse;
@@ -349,7 +401,8 @@ export async function getLLMConfig(): Promise<{ config: LLMConfigResponse }> {
 export async function setLLMConfig(
   config: LLMConfig
 ): Promise<{ message: string; config: LLMConfigResponse }> {
-  const response = await fetch(`${API_BASE_URL}/api/llm-config`, {
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/llm-config`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(config),
@@ -359,12 +412,14 @@ export async function setLLMConfig(
 
 // Health API
 export async function getHealth(): Promise<HealthStatus> {
-  const response = await fetch(`${API_BASE_URL}/health`);
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/health`);
   return handleResponse<HealthStatus>(response);
 }
 
 // Tools API
 export async function getToolsInfo(): Promise<ToolsInfo> {
-  const response = await fetch(`${API_BASE_URL}/api/tools`);
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/tools`);
   return handleResponse<ToolsInfo>(response);
 }
