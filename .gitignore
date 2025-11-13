@@ -1,4 +1,5 @@
-*docker-compose.yml
+# Don't ignore docker-compose.yml - it's needed for deployment
+# *docker-compose.yml
 .env
 *.env
 !.env.example

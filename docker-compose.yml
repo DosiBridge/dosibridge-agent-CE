@@ -1,71 +1,57 @@
 
 services:
-  # PostgreSQL Database
-  postgres:
-    container_name: mcpagent-db
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: mcpagent
-      POSTGRES_USER: sazib
-      POSTGRES_PASSWORD: "1234"
-      PGDATA: /var/lib/postgresql/data/pgdata
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    restart: unless-stopped
-    networks:
-      - agent-dosi-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U sazib -d mcpagent"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   # Backend API Service
   agent-backend:
     container_name: agent-backend
+    # Use Docker Hub image if available, otherwise build from local Dockerfile
     image: dosibirdge/mcp-server:latest
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     ports:
       - "8085:8000"
     environment:
       PYTHONUNBUFFERED: "1"
       PYTHONPATH: "/app"
       PORT: "8000"
-      # Database configuration
-      DATABASE_URL: "postgresql://sazib:1234@postgres:5432/mcpagent"
-      # CORS configuration - update with your actual frontend URL(s)
-      # Frontend runs on port 8086 (Docker) or 3000 (local dev), so include both
-      # Add your VPS IP or domain here
+      # Database URL - set DATABASE_URL environment variable before running docker-compose
+      # Example: export DATABASE_URL="postgresql://user:pass@host:5432/db"
+      # Default for Docker: postgresql://sazib:1234@host.docker.internal:5432/mcpagent
+      DATABASE_URL: "postgresql://sazib:1234@host.docker.internal:5432/mcpagent"
+      # CORS configuration - set CORS_ORIGINS environment variable to override
       CORS_ORIGINS: "http://localhost:8086,http://localhost:3000,http://127.0.0.1:3000,http://127.0.0.1:8086"
-      # API keys
-      # OPENAI_API_KEY: Only for embeddings (RAG), not for LLM model
+      # API keys - set via environment variables (optional)
       OPENAI_API_KEY: ""
-      # GOOGLE_API_KEY: For Gemini LLM model (set in database config or here as fallback)
       GOOGLE_API_KEY: ""
       FIRECRAWL_API_KEY: ""
-      # JWT Secret Key for authentication (change in production!)
+      # JWT Secret Key - set JWT_SECRET_KEY environment variable to override
       JWT_SECRET_KEY: "your-secret-key-change-in-production-use-strong-random-key"
     volumes:
       - ./config:/app/config
     restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
+    # Add host.docker.internal for accessing external PostgreSQL (Linux)
+    # Remove this if using Docker Desktop on Mac/Windows or if PostgreSQL is on a different host
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - agent-dosi-network
 
   # Frontend Service
   agent-frontend:
     container_name: agent-frontend
+    # Use Docker Hub image if available, otherwise build from local Dockerfile
     image: dosibirdge/agent-frontend:latest
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Build arg - set NEXT_PUBLIC_API_BASE_URL environment variable to override
+        NEXT_PUBLIC_API_BASE_URL: "http://localhost:8085"
     ports:
       - "8086:3000"
     environment:
       NODE_ENV: "production"
-      # Backend API URL - update with your VPS IP or domain if accessing remotely
-      # For localhost: use http://localhost:8085 (backend exposed port)
-      # For VPS: use http://your-vps-ip:8085 or https://api.yourdomain.com
+      # Backend API URL - set NEXT_PUBLIC_API_BASE_URL environment variable to override
       NEXT_PUBLIC_API_BASE_URL: "http://localhost:8085"
     restart: unless-stopped
     depends_on:
@@ -76,6 +62,3 @@ services:
 networks:
   agent-dosi-network:
     driver: bridge
-
-volumes:
-  postgres_data:

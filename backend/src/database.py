@@ -26,10 +26,15 @@ except ImportError:
     print("⚠️  psycopg2 not available. Install with: pip install psycopg2-binary")
 
 # Get database URL from environment
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://sazib:1234@localhost:5432/mcpagent"
-)
+# Must be set via environment variable or .env file
+# No hardcoded fallback - ensures explicit configuration
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError(
+        "DATABASE_URL environment variable is required. "
+        "Please set it in your .env file or environment. "
+        "Example: postgresql://user:password@host:port/database"
+    )
 
 # Initialize database components only if available
 if DB_AVAILABLE and PSYCOPG2_AVAILABLE:
