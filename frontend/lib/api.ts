@@ -290,10 +290,24 @@ export function createStreamReader(
 
   (async () => {
     const apiBaseUrl = await getApiBaseUrl();
+    // Prepare request body with optional RAG parameters
+    const requestBody: ChatRequest = {
+      message: request.message,
+      session_id: request.session_id,
+      mode: request.mode,
+    };
+    if (request.mode === "rag") {
+      if (request.collection_id !== undefined && request.collection_id !== null) {
+        requestBody.collection_id = request.collection_id;
+      }
+      if (request.use_react !== undefined) {
+        requestBody.use_react = request.use_react;
+      }
+    }
     return fetch(`${apiBaseUrl}/api/chat/stream`, {
       method: "POST",
       headers: getAuthHeaders(),
-      body: JSON.stringify(request),
+      body: JSON.stringify(requestBody),
       signal: abortController.signal,
     })
       .then(async (response) => {
