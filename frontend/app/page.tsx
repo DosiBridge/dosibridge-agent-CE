@@ -54,6 +54,38 @@ export default function Home() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Ctrl/Cmd + K: Toggle sidebar (or command palette in future)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setSidebarOpen((prev) => !prev);
+      }
+      // Ctrl/Cmd + N: New session
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault();
+        useStore.getState().createNewSession();
+        toast.success('New session created');
+      }
+      // Escape: Close modals/sidebar
+      if (e.key === 'Escape') {
+        if (settingsOpen) {
+          setSettingsOpen(false);
+        }
+        if (authModalOpen) {
+          setAuthModalOpen(false);
+        }
+        if (sidebarOpen && window.innerWidth < 1024) {
+          setSidebarOpen(false);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [settingsOpen, authModalOpen, sidebarOpen, setSettingsOpen]);
   const settingsOpen = useStore((state) => state.settingsOpen);
   const setSettingsOpen = useStore((state) => state.setSettingsOpen);
   const loadSessions = useStore((state) => state.loadSessions);

@@ -288,12 +288,15 @@ export const useStore = create<AppState>((set, get) => ({
         // If authenticated, try to sync with backend
         try {
           const backendData = await listSessions();
-          // Merge: prefer browser storage for titles, backend for message counts
+          // Merge: prefer browser storage for titles, backend for message counts and summary
           const mergedSessions: Session[] = storedSessions.map(stored => {
             const backend = backendData.sessions.find(s => s.session_id === stored.id);
             return {
               session_id: stored.id,
-              message_count: backend?.message_count || stored.messageCount,
+              title: stored.title,
+              summary: backend?.summary,
+              message_count: backend?.message_count || stored.messageCount || 0,
+              updated_at: backend?.updated_at,
             };
           });
           

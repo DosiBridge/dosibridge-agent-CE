@@ -34,6 +34,17 @@ export default function ChatWindow() {
                         <h2 className="text-xl sm:text-2xl md:text-3xl font-semibold mb-2 text-gray-200">
                             How can I help you today?
                         </h2>
+                        <div className="mt-6 space-y-2 text-sm text-gray-400">
+                            <p className="font-medium">Keyboard shortcuts:</p>
+                            <div className="flex flex-wrap gap-3 justify-center">
+                                <kbd className="px-2 py-1 bg-[#40414f] rounded text-xs">Ctrl/Cmd + N</kbd>
+                                <span className="text-gray-500">New chat</span>
+                                <kbd className="px-2 py-1 bg-[#40414f] rounded text-xs">Ctrl/Cmd + K</kbd>
+                                <span className="text-gray-500">Toggle sidebar</span>
+                                <kbd className="px-2 py-1 bg-[#40414f] rounded text-xs">Esc</kbd>
+                                <span className="text-gray-500">Close modals</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             ) : (

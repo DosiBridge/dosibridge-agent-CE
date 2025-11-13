@@ -5,7 +5,7 @@
 'use client';
 
 import { Message } from '@/lib/store';
-import { Bot, Check, Copy, User } from 'lucide-react';
+import { Bot, Check, Copy, RefreshCw, ThumbsDown, ThumbsUp, User, X } from 'lucide-react';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import ReactMarkdown from 'react-markdown';
@@ -19,6 +19,7 @@ interface MessageBubbleProps {
 export default function MessageBubble({ message }: MessageBubbleProps) {
     const isUser = message.role === 'user';
     const [copied, setCopied] = useState(false);
+    const [showActions, setShowActions] = useState(false);
 
     const handleCopy = async () => {
         try {
@@ -29,6 +30,16 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
         } catch (error) {
             toast.error('Failed to copy message');
         }
+    };
+
+    const handleRegenerate = () => {
+        // TODO: Implement regenerate functionality
+        toast.success('Regenerate feature coming soon');
+    };
+
+    const handleFeedback = (type: 'thumbs-up' | 'thumbs-down') => {
+        // TODO: Send feedback to backend
+        toast.success(`Feedback: ${type === 'thumbs-up' ? '👍' : '👎'}`);
     };
 
     return (
@@ -83,22 +94,70 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
                         )}
                     </div>
                     {!isUser && (
-                        <button
-                            onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleCopy();
-                            }}
-                            className="absolute -top-1 -right-1 sm:-top-1.5 sm:-right-1.5 md:-top-2 md:-right-2 p-1.5 sm:p-1.5 md:p-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white transition-all opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 shadow-md z-10 touch-manipulation"
-                            aria-label="Copy message"
-                            type="button"
+                        <div 
+                            className="absolute -top-1 -right-1 sm:-top-1.5 sm:-right-1.5 md:-top-2 md:-right-2 flex gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-all z-10"
+                            onMouseEnter={() => setShowActions(true)}
+                            onMouseLeave={() => setShowActions(false)}
                         >
-                            {copied ? (
-                                <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4" />
-                            ) : (
-                                <Copy className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4" />
-                            )}
-                        </button>
+                            <button
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleCopy();
+                                }}
+                                className="p-1.5 sm:p-1.5 md:p-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white transition-all shadow-md touch-manipulation"
+                                aria-label="Copy message"
+                                type="button"
+                                title="Copy"
+                            >
+                                {copied ? (
+                                    <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4" />
+                                ) : (
+                                    <Copy className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4" />
+                                )}
+                            </button>
+                            <button
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleRegenerate();
+                                }}
+                                className="p-1.5 sm:p-1.5 md:p-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white transition-all shadow-md touch-manipulation"
+                                aria-label="Regenerate response"
+                                type="button"
+                                title="Regenerate"
+                            >
+                                <RefreshCw className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4" />
+                            </button>
+                            <div className="flex gap-0.5">
+                                <button
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleFeedback('thumbs-up');
+                                    }}
+                                    className="p-1.5 sm:p-1.5 md:p-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-green-400 transition-all shadow-md touch-manipulation"
+                                    aria-label="Thumbs up"
+                                    type="button"
+                                    title="Good response"
+                                >
+                                    <ThumbsUp className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4" />
+                                </button>
+                                <button
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleFeedback('thumbs-down');
+                                    }}
+                                    className="p-1.5 sm:p-1.5 md:p-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-red-400 transition-all shadow-md touch-manipulation"
+                                    aria-label="Thumbs down"
+                                    type="button"
+                                    title="Poor response"
+                                >
+                                    <ThumbsDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4" />
+                                </button>
+                            </div>
+                        </div>
                     )}
                 </div>
 

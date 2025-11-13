@@ -7,7 +7,7 @@
 import { deleteSession } from '@/lib/api';
 import { deleteStoredSession, getStoredSessions } from '@/lib/sessionStorage';
 import { useStore } from '@/lib/store';
-import { AlertTriangle, Edit2, Loader2, MessageSquare, Plus, Save, Trash2, X } from 'lucide-react';
+import { AlertTriangle, Edit2, Loader2, MessageSquare, Plus, Save, Search, Trash2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 
@@ -34,6 +34,7 @@ export default function SessionSidebar({ isOpen = true, onClose }: SessionSideba
     const [deletingSession, setDeletingSession] = useState<string | null>(null);
     const [editingSession, setEditingSession] = useState<string | null>(null);
     const [editTitle, setEditTitle] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
 
     const handleDeleteSession = async (sessionId: string, e: React.MouseEvent) => {
         e.stopPropagation();
@@ -142,11 +143,33 @@ export default function SessionSidebar({ isOpen = true, onClose }: SessionSideba
                     </button>
                 </div>
 
+                {/* Search Bar */}
+                {sessions.length > 0 && (
+                    <div className="p-2 sm:p-3 border-b border-gray-700 shrink-0">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <input
+                                type="search"
+                                placeholder="Search conversations..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full pl-9 pr-3 py-2 bg-[#343541] border border-gray-600 rounded-lg text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#10a37f] focus:border-[#10a37f]"
+                            />
+                        </div>
+                    </div>
+                )}
+
                 {/* Sessions List */}
                 <div className="flex-1 overflow-y-auto p-2 space-y-1">
                     {sessionsLoading ? (
-                        <div className="flex items-center justify-center py-8 sm:py-12">
-                            <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-[#10a37f]" />
+                        // Skeleton loaders
+                        <div className="space-y-2">
+                            {[1, 2, 3].map((i) => (
+                                <div key={i} className="animate-pulse p-3 rounded-lg bg-[#343541]">
+                                    <div className="h-4 bg-gray-700 rounded w-3/4 mb-2" />
+                                    <div className="h-3 bg-gray-800 rounded w-1/2" />
+                                </div>
+                            ))}
                         </div>
                     ) : sessions.length === 0 ? (
                         <div className="text-center py-8 sm:py-12 px-3 sm:px-4">
@@ -154,10 +177,28 @@ export default function SessionSidebar({ isOpen = true, onClose }: SessionSideba
                             <p className="text-xs sm:text-sm text-gray-500">No conversations yet</p>
                             <p className="text-xs text-gray-600 mt-1">Start a new chat to begin</p>
                         </div>
-                    ) : (
-                        sessions.map((session) => {
+                    ) : (() => {
+                        // Filter sessions based on search query
+                        const filteredSessions = sessions.filter((session) => {
+                            if (!searchQuery.trim()) return true;
+                            const query = searchQuery.toLowerCase();
+                            const sessionTitle = getSessionTitle(session.session_id).toLowerCase();
+                            const sessionSummary = (session.summary || '').toLowerCase();
+                            return sessionTitle.includes(query) || sessionSummary.includes(query);
+                        });
+
+                        if (filteredSessions.length === 0) {
+                            return (
+                                <div className="text-center py-8 px-3">
+                                    <Search className="w-8 h-8 mx-auto mb-2 text-gray-600" />
+                                    <p className="text-xs text-gray-500">No conversations found</p>
+                                </div>
+                            );
+                        }
+
+                        return filteredSessions.map((session) => {
                             const isEditing = editingSession === session.session_id;
-                            const sessionTitle = getSessionTitle(session.session_id);
+                            const sessionTitle = session.title || getSessionTitle(session.session_id);
 
                             return (
                                 <div

@@ -3,6 +3,7 @@
 ## 🎯 Current State Analysis
 
 ### ✅ যা ভালো হয়েছে:
+
 1. **Architecture** - Clean separation (core, services, utils, api)
 2. **Security** - API key encryption, JWT enforcement
 3. **Database** - Conversation history with summary
@@ -13,10 +14,12 @@
 ## 1. **Summary Generation - Background Job** 🔄
 
 **বর্তমান সমস্যা:**
+
 - Summary generation synchronous - blocking request
 - Every 10 messages-এ summary update করলে slow হতে পারে
 
 **Better Approach:**
+
 ```python
 # Background task queue (Celery/RQ) ব্যবহার
 @background_task
@@ -27,6 +30,7 @@ async def generate_summary_async(conversation_id: int):
 ```
 
 **Benefits:**
+
 - Non-blocking requests
 - Better user experience
 - Can retry on failure
@@ -36,10 +40,12 @@ async def generate_summary_async(conversation_id: int):
 ## 2. **Message Cleanup Strategy** 🗑️
 
 **বর্তমান সমস্যা:**
+
 - Messages table-এ সব messages store হচ্ছে
 - Storage grow হতে পারে
 
 **Better Approach:**
+
 ```python
 # Option 1: Auto-delete after summary
 if conv.message_count > 50 and conv.summary:
@@ -54,6 +60,7 @@ if conv.message_count > 50 and conv.summary:
 ```
 
 **Benefits:**
+
 - Storage efficient
 - Faster queries
 - Cost effective
@@ -63,10 +70,12 @@ if conv.message_count > 50 and conv.summary:
 ## 3. **Caching Layer** ⚡
 
 **বর্তমান সমস্যা:**
+
 - Every request-এ DB query
 - LLM config load every time
 
 **Better Approach:**
+
 ```python
 # Redis cache
 @cache(ttl=300)  # 5 minutes
@@ -79,6 +88,7 @@ llm_config_cache = TTLCache(maxsize=10, ttl=60)
 ```
 
 **Benefits:**
+
 - Faster response times
 - Reduced DB load
 - Better scalability
@@ -88,10 +98,12 @@ llm_config_cache = TTLCache(maxsize=10, ttl=60)
 ## 4. **Event-Driven Architecture** 📡
 
 **বর্তমান সমস্যা:**
+
 - Tight coupling between components
 - Hard to extend
 
 **Better Approach:**
+
 ```python
 # Event bus
 from events import EventBus
@@ -110,6 +122,7 @@ async def check_summary_update(event):
 ```
 
 **Benefits:**
+
 - Loose coupling
 - Easy to add new features
 - Better testability
@@ -119,10 +132,12 @@ async def check_summary_update(event):
 ## 5. **Batch Processing** 📦
 
 **বর্তমান সমস্যা:**
+
 - Summary update every 10 messages
 - Multiple DB queries
 
 **Better Approach:**
+
 ```python
 # Batch update summaries
 async def batch_update_summaries():
@@ -131,7 +146,7 @@ async def batch_update_summaries():
         Conversation.message_count >= 50,
         Conversation.summary == None
     ).all()
-    
+
     # Process in batches
     for batch in chunks(conversations, 10):
         await asyncio.gather(*[
@@ -140,6 +155,7 @@ async def batch_update_summaries():
 ```
 
 **Benefits:**
+
 - Efficient processing
 - Better resource utilization
 - Can run as cron job
@@ -149,10 +165,12 @@ async def batch_update_summaries():
 ## 6. **Smart Summary Strategy** 🧠
 
 **বর্তমান সমস্যা:**
+
 - Fixed 50 messages limit
 - No incremental updates
 
 **Better Approach:**
+
 ```python
 # Incremental summary updates
 class SummaryStrategy:
@@ -160,7 +178,7 @@ class SummaryStrategy:
         # Update at: 10, 25, 50, 100, 200...
         milestones = [10, 25, 50, 100, 200, 500]
         return message_count in milestones
-    
+
     def get_messages_to_summarize(self, total: int) -> int:
         # First 50, then incremental
         if total <= 50:
@@ -172,6 +190,7 @@ class SummaryStrategy:
 ```
 
 **Benefits:**
+
 - Adaptive to conversation length
 - Better summary quality
 - Efficient updates
@@ -181,10 +200,12 @@ class SummaryStrategy:
 ## 7. **Vector Search for Conversations** 🔍
 
 **বর্তমান সমস্যা:**
+
 - No search functionality
 - Hard to find old conversations
 
 **Better Approach:**
+
 ```python
 # Embed conversation summaries
 summary_embedding = embed_text(conv.summary)
@@ -194,12 +215,13 @@ vector_db.add(conversation_id, summary_embedding)
 
 # Semantic search
 similar_conversations = vector_db.search(
-    query_embedding, 
+    query_embedding,
     top_k=5
 )
 ```
 
 **Benefits:**
+
 - Semantic search
 - Better UX
 - Find related conversations
@@ -209,17 +231,19 @@ similar_conversations = vector_db.search(
 ## 8. **Message Streaming to Summary** 📊
 
 **বর্তমান সমস্যা:**
+
 - Summary generated from all messages at once
 - Memory intensive for long conversations
 
 **Better Approach:**
+
 ```python
 # Streaming summary update
 class StreamingSummary:
     def __init__(self):
         self.current_summary = ""
         self.message_buffer = []
-    
+
     def add_message(self, message: str):
         self.message_buffer.append(message)
         if len(self.message_buffer) >= 10:
@@ -232,6 +256,7 @@ class StreamingSummary:
 ```
 
 **Benefits:**
+
 - Lower memory usage
 - Real-time updates
 - Better for long conversations
@@ -241,9 +266,11 @@ class StreamingSummary:
 ## 9. **Configuration-Based Approach** ⚙️
 
 **বর্তমান সমস্যা:**
+
 - Hard-coded values (50 messages, every 10 updates)
 
 **Better Approach:**
+
 ```python
 # Config file
 SUMMARY_CONFIG = {
@@ -257,6 +284,7 @@ SUMMARY_CONFIG = {
 ```
 
 **Benefits:**
+
 - Easy to tune
 - Environment-specific configs
 - A/B testing possible
@@ -266,10 +294,12 @@ SUMMARY_CONFIG = {
 ## 10. **Monitoring & Observability** 📈
 
 **বর্তমান সমস্যা:**
+
 - No metrics on summary generation
 - No error tracking
 
 **Better Approach:**
+
 ```python
 # Metrics
 summary_metrics = {
@@ -288,6 +318,7 @@ logger.info('summary_generated', extra={
 ```
 
 **Benefits:**
+
 - Better debugging
 - Performance monitoring
 - Alert on failures
@@ -297,16 +328,19 @@ logger.info('summary_generated', extra={
 ## 🚀 Implementation Priority
 
 ### Phase 1 (Quick Wins):
+
 1. ✅ Background job for summary (Celery/RQ)
 2. ✅ Message cleanup after summary
 3. ✅ Caching layer (Redis)
 
 ### Phase 2 (Medium):
+
 4. ✅ Event-driven architecture
 5. ✅ Batch processing
 6. ✅ Smart summary strategy
 
 ### Phase 3 (Advanced):
+
 7. ✅ Vector search
 8. ✅ Streaming summary
 9. ✅ Advanced monitoring
@@ -335,7 +369,7 @@ async def chat(
 ):
     # Process chat
     result = await ChatService.process_chat(...)
-    
+
     # Schedule summary update in background
     if should_update_summary(message_count):
         background_tasks.add_task(
@@ -343,7 +377,7 @@ async def chat(
             session_id=session_id,
             user_id=user_id
         )
-    
+
     return result
 
 async def update_summary_async(session_id: str, user_id: int):
@@ -357,4 +391,3 @@ async def update_summary_async(session_id: str, user_id: int):
 ---
 
 **Note:** এই approaches gradually implement করতে হবে, একসাথে সব না।
-

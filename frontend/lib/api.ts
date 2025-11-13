@@ -77,7 +77,10 @@ export interface StreamChunk {
 
 export interface Session {
   session_id: string;
+  title?: string;
+  summary?: string;
   message_count: number;
+  updated_at?: string;
 }
 
 export interface SessionInfo {
