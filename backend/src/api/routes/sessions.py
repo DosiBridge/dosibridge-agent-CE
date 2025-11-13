@@ -48,16 +48,31 @@ async def clear_session(
     current_user: Optional[User] = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Clear session history"""
+    """
+    Delete a session - removes conversation and all messages.
+    
+    - If authenticated: Deletes from database (permanent storage)
+    - If not authenticated: Deletes from in-memory storage (temporary, lost on server restart)
+    """
     user_id = current_user.id if current_user else None
     
     # Use database history if available and user is authenticated
     if DB_AVAILABLE and user_id:
+        # Delete from database (permanent)
         db_history_manager.clear_session(session_id, user_id, db)
+        return {
+            "status": "success", 
+            "message": f"Session {session_id} deleted from database",
+            "deleted_from": "database"
+        }
     else:
+        # Delete from in-memory (temporary)
         history_manager.clear_session(session_id, user_id)
-    
-    return {"status": "success", "message": f"Session {session_id} cleared"}
+        return {
+            "status": "success", 
+            "message": f"Session {session_id} cleared (temporary - will be lost on server restart)",
+            "deleted_from": "memory"
+        }
 
 
 @router.get("/sessions")

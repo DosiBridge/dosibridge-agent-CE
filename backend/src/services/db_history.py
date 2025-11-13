@@ -182,10 +182,15 @@ class DatabaseChatMessageHistory(BaseChatMessageHistory):
         self.add_message(AIMessage(content=content))
     
     def clear(self) -> None:
-        """Clear all messages from the conversation"""
+        """Clear all messages and delete the conversation"""
         conv = self.conversation
-        self.db.query(Message).filter(Message.conversation_id == conv.id).delete()
-        self.db.commit()
+        if conv:
+            # Delete all messages (cascade will handle this, but explicit delete is cleaner)
+            self.db.query(Message).filter(Message.conversation_id == conv.id).delete()
+            # Delete the conversation itself
+            self.db.delete(conv)
+            self.db.commit()
+            print(f"🗑️  Deleted conversation {self.session_id} and all messages for user {self.user_id}")
 
 
 class DatabaseConversationHistoryManager:
@@ -216,8 +221,11 @@ class DatabaseConversationHistoryManager:
             return history_manager.get_session_history(session_id, user_id)
         
         if user_id is None:
-            raise ValueError("user_id is required for database-backed history")
+            # Without login: use temporary in-memory storage (not persisted to DB)
+            from .history import history_manager
+            return history_manager.get_session_history(session_id, user_id)
         
+        # With login: use database storage (persistent)
         # Use provided session or create new one
         if db:
             return DatabaseChatMessageHistory(session_id, user_id, db)
@@ -250,18 +258,58 @@ class DatabaseConversationHistoryManager:
         return history.messages
     
     def clear_session(self, session_id: str, user_id: Optional[int] = None, db: Optional[Session] = None) -> None:
-        """Clear history for a specific session"""
+        """
+        Clear history for a specific session - deletes conversation and all messages.
+        For authenticated users: deletes from database.
+        For unauthenticated users: falls back to in-memory storage (temporary).
+        """
         if not DB_AVAILABLE or user_id is None:
+            # Without login: use in-memory storage (temporary, browser reload will clear)
             from .history import history_manager
-            return history_manager.clear_session(session_id, user_id)
+            history_manager.clear_session(session_id, user_id)
+            print(f"🗑️  Cleared temporary session {session_id} (not logged in - will be lost on reload)")
+            return
         
+        # With login: delete from database (permanent)
         if db:
-            history = DatabaseChatMessageHistory(session_id, user_id, db)
+            # Use provided session
+            conv = db.query(Conversation).filter(
+                and_(
+                    Conversation.user_id == user_id,
+                    Conversation.session_id == session_id
+                )
+            ).first()
+            
+            if conv:
+                # Delete all messages (cascade will handle this automatically, but explicit is cleaner)
+                message_count = db.query(Message).filter(Message.conversation_id == conv.id).count()
+                db.query(Message).filter(Message.conversation_id == conv.id).delete()
+                # Delete the conversation itself
+                db.delete(conv)
+                db.commit()
+                print(f"🗑️  Deleted conversation {session_id} and {message_count} messages from database for user {user_id}")
+            else:
+                print(f"⚠️  Conversation {session_id} not found for user {user_id}")
         else:
+            # Create new session
             with get_db_context() as session:
-                history = DatabaseChatMessageHistory(session_id, user_id, session)
-        
-        history.clear()
+                conv = session.query(Conversation).filter(
+                    and_(
+                        Conversation.user_id == user_id,
+                        Conversation.session_id == session_id
+                    )
+                ).first()
+                
+                if conv:
+                    # Delete all messages
+                    message_count = session.query(Message).filter(Message.conversation_id == conv.id).count()
+                    session.query(Message).filter(Message.conversation_id == conv.id).delete()
+                    # Delete the conversation
+                    session.delete(conv)
+                    session.commit()
+                    print(f"🗑️  Deleted conversation {session_id} and {message_count} messages from database for user {user_id}")
+                else:
+                    print(f"⚠️  Conversation {session_id} not found for user {user_id}")
     
     def list_sessions(self, user_id: Optional[int] = None, db: Optional[Session] = None) -> List[dict]:
         """List all conversations for a user (with summary, not full messages)"""

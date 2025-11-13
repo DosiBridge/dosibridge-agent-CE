@@ -58,27 +58,35 @@ export default function SessionSidebar({
 
   const confirmDelete = async (sessionId: string) => {
     try {
-      // Delete from backend if authenticated
+      // Delete from backend if authenticated (permanent storage)
       if (isAuthenticated) {
         try {
           await deleteSession(sessionId);
+          console.log(`✓ Deleted session ${sessionId} from database`);
         } catch (error) {
           console.warn(
             "Failed to delete from backend, deleting from browser storage:",
             error
           );
+          // Continue to delete from browser storage even if backend fails
         }
       }
 
-      // Always delete from browser storage
+      // Always delete from browser storage (temporary storage)
+      // This ensures cleanup even if not authenticated
       deleteStoredSession(sessionId);
-      toast.success("Session deleted");
+      console.log(`✓ Deleted session ${sessionId} from browser storage`);
 
+      // If deleted session was current, create a new one
       if (sessionId === currentSessionId) {
         createNewSession();
       }
+      
+      // Reload sessions list
       loadSessions();
+      toast.success("Session deleted");
     } catch (error) {
+      console.error("Error deleting session:", error);
       toast.error(
         `Failed to delete session: ${
           error instanceof Error ? error.message : "Unknown error"
