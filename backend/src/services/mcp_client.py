@@ -38,7 +38,7 @@ class MCPClientManager:
         if self.prefer_local:
             try:
                 import os
-                from mcp_servers.registry import get_mcp_server
+                from src.mcp import get_mcp_server
                 
                 # Get base URL for local servers
                 # For local server connections, ALWAYS use localhost - this is more efficient

@@ -6,9 +6,8 @@ from fastapi.security import HTTPBearer
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from src.database import get_db
-from src.models import User
-from src.auth import (
+from src.core import get_db, User
+from src.core.auth import (
     get_password_hash,
     verify_password,
     create_access_token,

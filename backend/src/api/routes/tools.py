@@ -2,7 +2,7 @@
 Tools information endpoints
 """
 from fastapi import APIRouter
-from src.config import Config
+from src.core import Config
 
 router = APIRouter()
 

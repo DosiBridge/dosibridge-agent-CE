@@ -2,7 +2,7 @@
 MCP routes setup
 """
 from fastapi import FastAPI
-from mcp_servers.registry import MCP_SERVERS, get_mcp_server, list_available_servers
+from src.mcp import MCP_SERVERS, get_mcp_server, list_available_servers
 from fastapi import HTTPException, APIRouter
 
 router = APIRouter()

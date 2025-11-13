@@ -18,18 +18,33 @@ if [ -z "$CORS_ORIGINS" ]; then
 fi
 
 # Create virtual environment if it doesn't exist
-if [ ! -d "venv" ]; then
+if [ ! -d ".venv" ]; then
     echo "📦 Creating virtual environment..."
-    python -m venv venv
+    python -m venv .venv
 fi
 
 # Activate virtual environment
-source venv/bin/activate
+source .venv/bin/activate
 
-# Install dependencies if needed
+# Check and install dependencies
+echo "📦 Checking dependencies..."
+MISSING_DEPS=false
+if ! python -c "import fastapi" 2>/dev/null; then
+    MISSING_DEPS=true
+fi
 if ! python -c "import uvicorn" 2>/dev/null; then
-    echo "📦 Installing dependencies..."
+    MISSING_DEPS=true
+fi
+if ! python -c "import slowapi" 2>/dev/null; then
+    MISSING_DEPS=true
+fi
+
+if [ "$MISSING_DEPS" = true ]; then
+    echo "📦 Installing dependencies from requirements.txt..."
     pip install -q -r requirements.txt 2>&1 | grep -v "already satisfied" || true
+    echo "✓ Dependencies installed"
+else
+    echo "✓ All dependencies are installed"
 fi
 
 echo "🚀 Starting AI MCP Agent Server..."

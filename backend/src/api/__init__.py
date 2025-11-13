@@ -4,9 +4,6 @@ FastAPI application with streaming chat endpoints
 import os
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
 from .lifespan import mcp_lifespan
 from .routes import (
     chat_router,
@@ -19,6 +16,25 @@ from .routes import (
     setup_mcp_routes,
 )
 
+# Try to import slowapi for rate limiting (optional)
+try:
+    from slowapi import Limiter, _rate_limit_exceeded_handler
+    from slowapi.util import get_remote_address
+    from slowapi.errors import RateLimitExceeded
+    from slowapi.middleware import SlowAPIMiddleware
+    from src.core.constants import RATE_LIMIT_DEFAULT
+    SLOWAPI_AVAILABLE = True
+except ImportError:
+    print("⚠️  Warning: slowapi not installed. Rate limiting will be disabled.")
+    print("   Install with: pip install slowapi")
+    SLOWAPI_AVAILABLE = False
+    Limiter = None
+    _rate_limit_exceeded_handler = None
+    get_remote_address = None
+    RateLimitExceeded = None
+    SlowAPIMiddleware = None
+    RATE_LIMIT_DEFAULT = "200/minute"
+
 # Initialize FastAPI app with MCP lifespan
 app = FastAPI(
     title="AI MCP Agent API",
@@ -27,22 +43,34 @@ app = FastAPI(
     lifespan=mcp_lifespan
 )
 
-# Initialize rate limiter
-# Rate limits: 100 requests per minute for chat endpoints, 200 for others
-limiter = Limiter(
-    key_func=get_remote_address,
-    default_limits=["200/minute"],
-    storage_uri="memory://"
-)
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+# Initialize rate limiter (if available)
+if SLOWAPI_AVAILABLE:
+    limiter = Limiter(
+        key_func=get_remote_address,
+        default_limits=[RATE_LIMIT_DEFAULT],
+        storage_uri="memory://"
+    )
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    
+    # Apply rate limiting middleware (applies default limits to all routes)
+    app.add_middleware(SlowAPIMiddleware)
+    print("✓ Rate limiting enabled")
+else:
+    # Create a dummy limiter for compatibility
+    app.state.limiter = None
+    print("⚠️  Rate limiting disabled (slowapi not installed)")
 
-# Apply rate limiting middleware (applies default limits to all routes)
-from slowapi.middleware import SlowAPIMiddleware
-app.add_middleware(SlowAPIMiddleware)
+# Add custom middleware for request ID and logging
+try:
+    from .middleware import RequestIDMiddleware, LoggingMiddleware
+    app.add_middleware(RequestIDMiddleware)
+    app.add_middleware(LoggingMiddleware)
+    print("✓ Custom middleware enabled")
+except Exception as e:
+    print(f"⚠️  Warning: Could not load custom middleware: {e}")
 
 # Configure CORS origins from environment variable
-# Format: comma-separated list of origins, e.g., "http://localhost:3000,http://localhost:3001,https://example.com"
 CORS_ORIGINS_ENV = os.getenv("CORS_ORIGINS", "")
 
 # Default CORS origins for local development if not set
@@ -52,7 +80,6 @@ if not CORS_ORIGINS_ENV:
         "http://localhost:8086",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:8086",
-        "http://localhost:8086",
     ]
     cors_origins = default_origins
     print(f"⚠️  CORS_ORIGINS not set, using defaults: {cors_origins}")
@@ -66,12 +93,12 @@ else:
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins,  # List of allowed origins
+    allow_origins=cors_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],  # Explicitly allow all methods
-    allow_headers=["*"],  # Allow all headers
-    expose_headers=["*"],  # Expose all headers to the client
-    max_age=3600,  # Cache preflight requests for 1 hour
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=3600,
 )
 
 # Include routers
@@ -102,4 +129,3 @@ async def root():
 async def health_check():
     """Health check endpoint"""
     return {"status": "healthy"}
-

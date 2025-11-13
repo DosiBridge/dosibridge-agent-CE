@@ -4,9 +4,9 @@ Session management endpoints
 from fastapi import APIRouter, Depends
 from langchain_core.messages import HumanMessage
 from typing import Optional
-from src.history import history_manager
-from src.auth import get_current_user
-from src.models import User
+from src.services import history_manager
+from src.core import User
+from src.core.auth import get_current_user
 from ..models import SessionInfo
 
 router = APIRouter()

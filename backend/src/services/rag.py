@@ -10,7 +10,7 @@ from langchain_classic.chains import create_retrieval_chain, create_history_awar
 from langchain_classic.chains.combine_documents import create_stuff_documents_chain
 
 from .history import history_manager
-from .config import Config
+from src.core import Config
 
 
 class EnhancedRAGSystem:

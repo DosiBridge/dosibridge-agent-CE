@@ -6,10 +6,9 @@ import contextlib
 import os
 from sqlalchemy import and_, not_
 from fastapi import FastAPI
-from src.database import get_db_context, DB_AVAILABLE, init_db
-from src.models import LLMConfig
-from mcp_servers.registry import MCP_SERVERS
-from .utils import suppress_mcp_cleanup_errors
+from src.core import get_db_context, DB_AVAILABLE, init_db, LLMConfig
+from src.mcp import MCP_SERVERS
+from src.utils import suppress_mcp_cleanup_errors
 
 
 @contextlib.asynccontextmanager
@@ -26,10 +25,11 @@ async def mcp_lifespan(app: FastAPI):
                 openai_api_key = os.getenv("OPENAI_API_KEY")
                 
                 with get_db_context() as db:
-                    # Check if primary gpt-4o config exists
+                    # Check if primary gpt-4o config exists (system-wide, user_id is NULL)
                     primary_config = db.query(LLMConfig).filter(
                         LLMConfig.type == "openai",
-                        LLMConfig.model == "gpt-4o"
+                        LLMConfig.model == "gpt-4o",
+                        LLMConfig.user_id == None  # System-wide config
                     ).first()
                     
                     if primary_config:
@@ -46,15 +46,24 @@ async def mcp_lifespan(app: FastAPI):
                         else:
                             print("⚠️  Primary LLM model (gpt-4o) exists, but OPENAI_API_KEY is not set in environment")
                     else:
-                        # Primary model doesn't exist - create it
+                        # Primary model doesn't exist - create it (system-wide, no user_id)
                         primary_config = LLMConfig(
                             type="openai",
                             model="gpt-4o",
                             api_key=openai_api_key,  # Get from environment (may be None)
-                            active=True
+                            active=True,
+                            user_id=None  # System-wide config, no user_id
                         )
                         db.add(primary_config)
-                        db.commit()
+                        try:
+                            db.commit()
+                        except Exception as commit_error:
+                            # If commit fails due to NOT NULL constraint, try to fix the schema
+                            db.rollback()
+                            print(f"⚠️  Failed to create primary config: {commit_error}")
+                            print("   Attempting to fix database schema...")
+                            # The init_db() migration should handle this, but if it didn't, we'll skip
+                            raise
                         if openai_api_key:
                             print("✓ Created primary LLM model (gpt-4o) with API key from environment")
                         else:

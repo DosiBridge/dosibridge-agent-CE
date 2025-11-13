@@ -6,32 +6,20 @@ import json
 from typing import AsyncGenerator
 from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.responses import StreamingResponse
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 from langchain.agents import create_agent
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.tools import BaseTool
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from src.config import Config
-from src.history import history_manager
-from src.mcp_client import MCPClientManager
-from src.tools import retrieve_dosiblog_context
-from src.llm_factory import create_llm_from_config
-from src.rag import rag_system
-from src.auth import get_current_active_user, get_current_user
-from src.models import User
+from src.core import Config, User
+from src.core.auth import get_current_active_user, get_current_user
+from src.services import history_manager, MCPClientManager, create_llm_from_config, rag_system
+from src.services.tools import retrieve_dosiblog_context
 from typing import Optional
 from ..models import ChatRequest, ChatResponse
-from ..utils import sanitize_tools_for_gemini
+from src.utils import sanitize_tools_for_gemini
 
 router = APIRouter()
-
-
-def get_limiter():
-    """Get limiter from app state"""
-    from src.api import app
-    return app.state.limiter
 
 
 @router.post("/chat", response_model=ChatResponse)

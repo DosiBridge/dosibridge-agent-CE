@@ -5,7 +5,7 @@ from langchain.agents import create_agent
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, AIMessage
 
-from .config import Config
+from src.core import Config
 from .history import history_manager
 from .rag import rag_system
 from .mcp_client import MCPClientManager
@@ -83,7 +83,7 @@ async def run_rag_query(question: str, session_id: str = "default"):
     
     # Use RAG system with history
     # Load LLM from config (includes API key)
-    from src.llm_factory import create_llm_from_config
+    from .llm_factory import create_llm_from_config
     llm_config = Config.load_llm_config()
     try:
         llm = create_llm_from_config(llm_config, streaming=False, temperature=0)
@@ -137,7 +137,7 @@ async def run_agent_mode(
             # Create the agent with all tools
             print("🔧 Creating agent...")
             # Load LLM from config (includes API key)
-            from src.llm_factory import create_llm_from_config
+            from .llm_factory import create_llm_from_config
             llm_config = Config.load_llm_config()
             try:
                 llm = create_llm_from_config(llm_config, streaming=False, temperature=0)
@@ -181,7 +181,7 @@ async def run_agent_mode(
         # Create agent with just RAG tool
         print("🔧 Creating agent (RAG-only mode)...")
         # Load LLM from config (includes API key)
-        from src.llm_factory import create_llm_from_config
+        from .llm_factory import create_llm_from_config
         llm_config = Config.load_llm_config()
         try:
             llm = create_llm_from_config(llm_config, streaming=False, temperature=0)

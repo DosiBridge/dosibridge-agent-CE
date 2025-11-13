@@ -147,7 +147,7 @@ def init_db():
                     conn.commit()
                     print("✓ Added user_id column to mcp_servers table")
                 
-                # Check and add user_id to llm_config table
+                # Check and add user_id to llm_config table (nullable for system-wide configs)
                 result = conn.execute(
                     text("SELECT column_name FROM information_schema.columns "
                          "WHERE table_name='llm_config' AND column_name='user_id'")
@@ -161,8 +161,24 @@ def init_db():
                     conn.execute(text("CREATE INDEX IF NOT EXISTS ix_llm_config_user_id ON llm_config(user_id)"))
                     conn.commit()
                     print("✓ Added user_id column to llm_config table")
+                else:
+                    # Check if user_id is NOT NULL and make it nullable for system-wide configs
+                    result = conn.execute(
+                        text("SELECT is_nullable FROM information_schema.columns "
+                             "WHERE table_name='llm_config' AND column_name='user_id'")
+                    )
+                    row = result.fetchone()
+                    if row and row[0] == 'NO':
+                        print("📝 Making user_id nullable in llm_config table (for system-wide configs)...")
+                        try:
+                            conn.execute(
+                                text("ALTER TABLE llm_config ALTER COLUMN user_id DROP NOT NULL")
+                            )
+                            conn.commit()
+                            print("✓ Made user_id nullable in llm_config table")
+                        except Exception as e:
+                            print(f"⚠️  Could not make user_id nullable: {e}")
         except Exception as e:
             print(f"⚠️  Migration check failed (this is okay if columns already exist): {e}")
     except Exception as e:
         print(f"⚠️  Failed to initialize database tables: {e}")
-

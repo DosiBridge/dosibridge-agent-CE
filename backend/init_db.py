@@ -9,8 +9,8 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.database import init_db
-from src.migrate_to_db import main as migrate_main
+from src.core import init_db
+from src.utils.migrate_to_db import main as migrate_main
 
 if __name__ == "__main__":
     print("🔄 Initializing database...")

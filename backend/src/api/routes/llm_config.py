@@ -4,10 +4,8 @@ LLM Configuration Management Endpoints
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 import os
-from src.config import Config
-from src.database import get_db
-from src.models import LLMConfig
-from src.llm_factory import create_llm_from_config
+from src.core import Config, get_db, LLMConfig
+from src.services import create_llm_from_config
 from ..models import LLMConfigRequest
 
 router = APIRouter()

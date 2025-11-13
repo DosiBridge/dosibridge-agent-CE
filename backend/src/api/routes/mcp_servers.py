@@ -4,10 +4,8 @@ MCP Server Management Endpoints
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from typing import Optional
-from src.config import Config
-from src.database import get_db
-from src.models import MCPServer, User
-from src.auth import get_current_active_user, get_current_user
+from src.core import Config, get_db, MCPServer, User
+from src.core.auth import get_current_active_user, get_current_user
 from ..models import MCPServerRequest
 
 router = APIRouter()
