@@ -59,6 +59,7 @@ if Base is not None:
         url = Column(String(500), nullable=False)
         connection_type = Column(String(20), nullable=False, default="http")  # "stdio", "http", or "sse"
         api_key = Column(Text, nullable=True)  # Optional API key for the MCP server
+        headers = Column(Text, nullable=True)  # Optional custom headers as JSON string
         enabled = Column(Boolean, default=True, nullable=False)
         created_at = Column(DateTime(timezone=True), server_default=func.now())
         updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -73,6 +74,7 @@ if Base is not None:
         
         def to_dict(self, include_api_key: bool = False) -> dict:
             """Convert model to dictionary"""
+            import json
             from src.utils.encryption import decrypt_value
             
             result = {
@@ -85,6 +87,16 @@ if Base is not None:
             if include_api_key and self.api_key:
                 # Decrypt API key when returning
                 result["api_key"] = decrypt_value(self.api_key)
+            
+            # Parse headers JSON if present
+            if self.headers:
+                try:
+                    result["headers"] = json.loads(self.headers)
+                except (json.JSONDecodeError, TypeError):
+                    result["headers"] = {}
+            else:
+                result["headers"] = {}
+            
             return result
         
         def set_api_key(self, api_key: Optional[str]) -> None:
@@ -104,6 +116,24 @@ if Base is not None:
             """Get decrypted API key"""
             from src.utils.encryption import decrypt_value
             return decrypt_value(self.api_key) if self.api_key else None
+        
+        def set_headers(self, headers: Optional[dict]) -> None:
+            """Set headers as JSON string"""
+            import json
+            if not headers:
+                self.headers = None
+            else:
+                self.headers = json.dumps(headers)
+        
+        def get_headers(self) -> dict:
+            """Get headers as dictionary"""
+            import json
+            if not self.headers:
+                return {}
+            try:
+                return json.loads(self.headers)
+            except (json.JSONDecodeError, TypeError):
+                return {}
 
     class User(Base):
         """User model for authentication"""

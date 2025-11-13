@@ -23,6 +23,9 @@ import {
   AlertTriangle,
   CheckCircle,
   Edit2,
+  Eye,
+  EyeOff,
+  FileJson,
   Loader2,
   Lock,
   Plus,
@@ -58,7 +61,16 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     url: "",
     connection_type: "http",
     api_key: "",
+    headers: {},
   });
+  const [headerPairs, setHeaderPairs] = useState<
+    Array<{ key: string; value: string; enabled: boolean }>
+  >([]);
+  const [headerJsonMode, setHeaderJsonMode] = useState(false);
+  const [headerJsonText, setHeaderJsonText] = useState("{}");
+  const [headerVisibility, setHeaderVisibility] = useState<
+    Record<number, boolean>
+  >({});
   const [testingConnection, setTestingConnection] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<{
     connected: boolean;
@@ -134,6 +146,8 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   }, [llmConfig]);
 
   const handleTestConnection = async () => {
+    // Sync headers before testing
+    updateHeadersFromPairs();
     if (!serverForm.url.trim()) {
       toast.error("URL is required to test connection");
       return;
@@ -143,6 +157,7 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     try {
       const serverToTest: MCPServerRequest = {
         ...serverForm,
+        headers: buildHeadersFromPairs(),
         enabled: true,
       };
       const result = await testMCPServerConnection(serverToTest);
@@ -171,17 +186,72 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     }
   };
 
+  // Build headers object from headerPairs (only enabled ones with both key and value)
+  const buildHeadersFromPairs = (): Record<string, string> | undefined => {
+    const headers: Record<string, string> = {};
+    headerPairs.forEach((pair) => {
+      if (pair.enabled && pair.key.trim() && pair.value.trim()) {
+        headers[pair.key.trim()] = pair.value;
+      }
+    });
+    return Object.keys(headers).length > 0 ? headers : undefined;
+  };
+
+  // Sync JSON text to headerPairs
+  const syncJsonToPairs = () => {
+    try {
+      const parsed = JSON.parse(headerJsonText);
+      if (
+        typeof parsed === "object" &&
+        parsed !== null &&
+        !Array.isArray(parsed)
+      ) {
+        const pairs = Object.entries(parsed).map(([key, value]) => ({
+          key,
+          value: String(value),
+          enabled: true,
+        }));
+        setHeaderPairs(
+          pairs.length > 0 ? pairs : [{ key: "", value: "", enabled: true }]
+        );
+      }
+    } catch (e) {
+      toast.error("Invalid JSON format");
+    }
+  };
+
+  // Sync headerPairs to JSON text
+  const syncPairsToJson = () => {
+    const headers = buildHeadersFromPairs() || {};
+    setHeaderJsonText(JSON.stringify(headers, null, 2));
+  };
+
+  // Sync headerPairs to serverForm.headers
+  const updateHeadersFromPairs = () => {
+    // If in JSON mode, sync JSON to pairs first
+    if (headerJsonMode) {
+      syncJsonToPairs();
+      setHeaderJsonMode(false);
+    }
+    const headers = buildHeadersFromPairs();
+    setServerForm({ ...serverForm, headers });
+  };
+
   const handleAddServer = async () => {
     if (!serverForm.name.trim() || !serverForm.url.trim()) {
       toast.error("Name and URL are required");
       return;
     }
 
+    // Sync headers before testing
+    updateHeadersFromPairs();
+
     // Test connection before adding
     setTestingConnection(true);
     try {
       const serverToTest: MCPServerRequest = {
         ...serverForm,
+        headers: buildHeadersFromPairs(),
         enabled: true,
       };
       const testResult = await testMCPServerConnection(serverToTest);
@@ -199,6 +269,7 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
       // Connection successful, proceed to add
       const serverToAdd: MCPServerRequest = {
         ...serverForm,
+        headers: buildHeadersFromPairs(),
         enabled: true, // New servers are enabled by default
       };
       await addMCPServer(serverToAdd);
@@ -208,7 +279,12 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
         url: "",
         connection_type: "http",
         api_key: "",
+        headers: {},
       });
+      setHeaderPairs([]);
+      setHeaderJsonText("{}");
+      setHeaderJsonMode(false);
+      setHeaderVisibility({});
       setConnectionStatus(null);
       loadMCPServers();
     } catch (error) {
@@ -234,11 +310,15 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
       return;
     }
 
+    // Sync headers before testing
+    updateHeadersFromPairs();
+
     // Test connection before updating (if URL or API key changed)
     setTestingConnection(true);
     try {
       const serverToTest: MCPServerRequest = {
         ...serverForm,
+        headers: buildHeadersFromPairs(),
         enabled: serverForm.enabled !== false,
       };
       const testResult = await testMCPServerConnection(serverToTest);
@@ -256,6 +336,7 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
       // Connection successful, proceed to update
       const serverToUpdate: MCPServerRequest = {
         ...serverForm,
+        headers: buildHeadersFromPairs(),
         enabled: serverForm.enabled !== false, // Ensure enabled is set
       };
       await updateMCPServer(name, serverToUpdate);
@@ -266,7 +347,12 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
         url: "",
         connection_type: "http",
         api_key: "",
+        headers: {},
       });
+      setHeaderPairs([]);
+      setHeaderJsonText("{}");
+      setHeaderJsonMode(false);
+      setHeaderVisibility({});
       setConnectionStatus(null);
       loadMCPServers();
     } catch (error) {
@@ -360,11 +446,24 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
 
   const startEditServer = (server: (typeof mcpServers)[0]) => {
     setEditingServer(server.name);
+    const headers = server.headers || {};
+    const pairs = Object.entries(headers).map(([key, value]) => ({
+      key,
+      value: String(value),
+      enabled: true,
+    }));
+    setHeaderPairs(
+      pairs.length > 0 ? pairs : [{ key: "", value: "", enabled: true }]
+    );
+    setHeaderJsonText(JSON.stringify(headers, null, 2));
+    setHeaderJsonMode(false);
+    setHeaderVisibility({});
     setServerForm({
       name: server.name,
       url: server.url,
       connection_type: server.connection_type || "http",
       api_key: "",
+      headers: headers,
       enabled: server.enabled !== false, // Preserve enabled status
     });
   };
@@ -599,6 +698,191 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                       />
                     </div>
 
+                    {/* Authentication Section */}
+                    <div className="border-t border-gray-700 pt-4 mt-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-sm font-semibold text-gray-200">
+                          Authentication
+                        </h4>
+                      </div>
+
+                      {/* Custom Headers */}
+                      <div>
+                        <div className="flex items-center justify-between mb-3">
+                          <label className="text-xs sm:text-sm font-medium text-gray-300">
+                            Custom Headers
+                          </label>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (headerJsonMode) {
+                                  syncJsonToPairs();
+                                  setHeaderJsonMode(false);
+                                } else {
+                                  syncPairsToJson();
+                                  setHeaderJsonMode(true);
+                                }
+                              }}
+                              className={`px-3 py-1.5 text-xs border rounded-lg transition-colors flex items-center gap-1.5 ${
+                                headerJsonMode
+                                  ? "bg-[#10a37f] border-[#10a37f] text-white"
+                                  : "bg-[#40414f] border-gray-600 text-gray-300 hover:bg-[#2d2d2f]"
+                              }`}
+                            >
+                              <FileJson className="w-3.5 h-3.5" />
+                              JSON
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (headerJsonMode) {
+                                  setHeaderJsonText("{}");
+                                } else {
+                                  setHeaderPairs([
+                                    ...headerPairs,
+                                    { key: "", value: "", enabled: true },
+                                  ]);
+                                }
+                              }}
+                              className="px-3 py-1.5 text-xs bg-[#40414f] border border-gray-600 text-gray-300 rounded-lg hover:bg-[#2d2d2f] transition-colors flex items-center gap-1.5"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                              Add
+                            </button>
+                          </div>
+                        </div>
+
+                        {headerJsonMode ? (
+                          <div>
+                            <textarea
+                              value={headerJsonText}
+                              onChange={(e) =>
+                                setHeaderJsonText(e.target.value)
+                              }
+                              className="w-full px-3 py-2 text-sm border border-gray-600 rounded-lg bg-[#343541] text-gray-100 font-mono focus:outline-none focus:ring-2 focus:ring-[#10a37f] focus:border-[#10a37f] min-h-[120px]"
+                              placeholder='{\n  "Authorization": "Bearer token",\n  "X-Custom-Header": "value"\n}'
+                            />
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {headerPairs.length === 0 ? (
+                              <div className="text-center py-4 text-sm text-gray-500">
+                                No headers added. Click "+ Add" to add a header.
+                              </div>
+                            ) : (
+                              headerPairs.map((pair, index) => (
+                                <div key={index} className="space-y-2">
+                                  <div className="flex items-center gap-3">
+                                    {/* Toggle Switch */}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const newPairs = [...headerPairs];
+                                        newPairs[index].enabled =
+                                          !newPairs[index].enabled;
+                                        setHeaderPairs(newPairs);
+                                      }}
+                                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#10a37f] focus:ring-offset-2 focus:ring-offset-[#343541] ${
+                                        pair.enabled
+                                          ? "bg-[#10a37f]"
+                                          : "bg-gray-600"
+                                      }`}
+                                      role="switch"
+                                      aria-checked={pair.enabled}
+                                    >
+                                      <span
+                                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                          pair.enabled
+                                            ? "translate-x-5"
+                                            : "translate-x-1"
+                                        }`}
+                                      />
+                                    </button>
+
+                                    {/* Header Name */}
+                                    <input
+                                      type="text"
+                                      value={pair.key}
+                                      onChange={(e) => {
+                                        const newPairs = [...headerPairs];
+                                        newPairs[index].key = e.target.value;
+                                        setHeaderPairs(newPairs);
+                                      }}
+                                      className="flex-1 px-3 py-2 text-sm border border-gray-600 rounded-lg bg-[#343541] text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#10a37f] focus:border-[#10a37f]"
+                                      placeholder="Header Name"
+                                    />
+
+                                    {/* Delete Button */}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const newPairs = headerPairs.filter(
+                                          (_, i) => i !== index
+                                        );
+                                        setHeaderPairs(
+                                          newPairs.length > 0 ? newPairs : []
+                                        );
+                                      }}
+                                      className="p-2 text-gray-400 hover:text-red-400 transition-colors"
+                                      aria-label="Remove header"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </div>
+
+                                  {/* Header Value */}
+                                  <div className="flex items-center gap-2 ml-8">
+                                    <input
+                                      type={
+                                        headerVisibility[index]
+                                          ? "text"
+                                          : "password"
+                                      }
+                                      value={pair.value}
+                                      onChange={(e) => {
+                                        const newPairs = [...headerPairs];
+                                        newPairs[index].value = e.target.value;
+                                        setHeaderPairs(newPairs);
+                                      }}
+                                      className="flex-1 px-3 py-2 text-sm border border-gray-600 rounded-lg bg-[#343541] text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#10a37f] focus:border-[#10a37f]"
+                                      placeholder="Header Value"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setHeaderVisibility({
+                                          ...headerVisibility,
+                                          [index]: !headerVisibility[index],
+                                        });
+                                      }}
+                                      className="p-2 text-gray-400 hover:text-gray-200 transition-colors"
+                                      aria-label={
+                                        headerVisibility[index]
+                                          ? "Hide value"
+                                          : "Show value"
+                                      }
+                                    >
+                                      {headerVisibility[index] ? (
+                                        <EyeOff className="w-4 h-4" />
+                                      ) : (
+                                        <Eye className="w-4 h-4" />
+                                      )}
+                                    </button>
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        )}
+
+                        <p className="text-xs text-gray-500 mt-3">
+                          Use the toggle to enable/disable headers. Only enabled
+                          headers with both name and value will be sent.
+                        </p>
+                      </div>
+                    </div>
+
                     {/* Connection Status */}
                     {connectionStatus && (
                       <div
@@ -680,7 +964,12 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                               url: "",
                               connection_type: "http",
                               api_key: "",
+                              headers: {},
                             });
+                            setHeaderPairs([]);
+                            setHeaderJsonText("{}");
+                            setHeaderJsonMode(false);
+                            setHeaderVisibility({});
                             setConnectionStatus(null);
                           }}
                           disabled={testingConnection}

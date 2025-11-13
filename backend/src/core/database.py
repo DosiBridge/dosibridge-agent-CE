@@ -193,6 +193,20 @@ def init_db():
                     conn.commit()
                     print("✓ Added connection_type column to mcp_servers table")
                 
+                # Check and add headers column to mcp_servers table
+                result = conn.execute(
+                    text("SELECT column_name FROM information_schema.columns "
+                         "WHERE table_name='mcp_servers' AND column_name='headers'")
+                )
+                if not result.fetchone():
+                    print("📝 Adding headers column to mcp_servers table...")
+                    conn.execute(
+                        text("ALTER TABLE mcp_servers "
+                             "ADD COLUMN headers TEXT")
+                    )
+                    conn.commit()
+                    print("✓ Added headers column to mcp_servers table")
+                
                 # Check if conversations table exists
                 result = conn.execute(
                     text("SELECT table_name FROM information_schema.tables "
