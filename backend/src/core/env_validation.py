@@ -22,28 +22,34 @@ def validate_environment() -> Tuple[bool, List[str]]:
     errors = []
     warnings = []
     
-    # Required variables
+    # Check if we're in production
+    env = os.getenv("ENVIRONMENT", "").lower()
+    is_production = env in ("production", "prod") or os.getenv("NODE_ENV", "").lower() == "production"
+    
+    # Required variables (strict only in production)
     required_vars = {
         "DATABASE_URL": "PostgreSQL database connection string",
-        "JWT_SECRET_KEY": "JWT secret key for token signing",
     }
+    
+    # JWT_SECRET_KEY is required in production, but can use default in development
+    jwt_secret = os.getenv("JWT_SECRET_KEY")
+    if not jwt_secret:
+        if is_production:
+            errors.append("❌ JWT_SECRET_KEY is required: JWT secret key for token signing")
+        else:
+            # Use default for development
+            warnings.append("⚠️  JWT_SECRET_KEY not set: Using default (change for production)")
+            os.environ["JWT_SECRET_KEY"] = "your-secret-key-change-in-production-use-env-var"
+    elif jwt_secret == "your-secret-key-change-in-production-use-env-var" and is_production:
+        errors.append("❌ JWT_SECRET_KEY must be changed from default value in production environment")
+    elif jwt_secret == "your-secret-key-change-in-production-use-env-var":
+        warnings.append("⚠️  JWT_SECRET_KEY is using default value - change it for production")
     
     # Check required variables
     for var_name, description in required_vars.items():
         value = os.getenv(var_name)
         if not value:
             errors.append(f"❌ {var_name} is required: {description}")
-        elif var_name == "JWT_SECRET_KEY" and value == "your-secret-key-change-in-production-use-env-var":
-            # Check if we're in production
-            env = os.getenv("ENVIRONMENT", "").lower()
-            if env in ("production", "prod") or os.getenv("NODE_ENV", "").lower() == "production":
-                errors.append(
-                    f"❌ {var_name} must be changed from default value in production environment"
-                )
-            else:
-                warnings.append(
-                    f"⚠️  {var_name} is using default value - change it for production"
-                )
     
     # Optional but recommended variables
     recommended_vars = {
