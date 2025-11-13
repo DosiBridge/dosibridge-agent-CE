@@ -391,7 +391,7 @@ export default function SessionSidebar({
 
       {/* Delete Confirmation Modal */}
       {deletingSession && (
-            <div className="fixed inset-0 bg-black/60 z-60 flex items-center justify-center p-3 sm:p-4">
+        <div className="fixed inset-0 bg-black/60 z-60 flex items-center justify-center p-3 sm:p-4">
           <div className="bg-[#343541] rounded-xl shadow-2xl max-w-md w-full border border-gray-700">
             <div className="p-4 sm:p-5 md:p-6">
               <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
