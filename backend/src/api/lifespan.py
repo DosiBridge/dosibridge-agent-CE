@@ -7,6 +7,7 @@ import os
 from sqlalchemy import and_, not_
 from fastapi import FastAPI
 from src.core import get_db_context, DB_AVAILABLE, init_db, LLMConfig
+from src.core.env_validation import validate_and_exit_on_error
 from src.mcp import MCP_SERVERS
 from src.utils import suppress_mcp_cleanup_errors
 
@@ -14,6 +15,9 @@ from src.utils import suppress_mcp_cleanup_errors
 @contextlib.asynccontextmanager
 async def mcp_lifespan(app: FastAPI):
     """Lifespan context manager for MCP servers"""
+    # Validate environment variables on startup
+    validate_and_exit_on_error()
+    
     # Initialize database on startup
     try:
         init_db()

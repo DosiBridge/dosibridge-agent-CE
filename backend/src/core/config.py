@@ -71,7 +71,7 @@ class Config:
                     if user_id is not None:
                         query = query.filter(MCPServer.user_id == user_id)
                     db_servers = query.all()
-                    servers = [s.to_dict() for s in db_servers]
+                    servers = [s.to_dict(include_api_key=True) for s in db_servers]
                 else:
                     # Create new session
                     with get_db_context() as session:
@@ -79,7 +79,7 @@ class Config:
                         if user_id is not None:
                             query = query.filter(MCPServer.user_id == user_id)
                         db_servers = query.all()
-                        servers = [s.to_dict() for s in db_servers]
+                        servers = [s.to_dict(include_api_key=True) for s in db_servers]
                 
                 if servers:
                     print(f"📝 Loaded {len(servers)} server(s) from database" + (f" for user {user_id}" if user_id else ""))

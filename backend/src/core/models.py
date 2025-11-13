@@ -1,6 +1,7 @@
 """
 Database models for LLM config, MCP servers, and Users
 """
+from typing import Optional
 from sqlalchemy import Column, Integer, String, Boolean, Text, DateTime, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -58,6 +59,7 @@ if Base is not None:
         url = Column(String(500), nullable=False)
         connection_type = Column(String(20), nullable=False, default="http")  # "stdio", "http", or "sse"
         api_key = Column(Text, nullable=True)  # Optional API key for the MCP server
+        headers = Column(Text, nullable=True)  # Optional custom headers as JSON string
         enabled = Column(Boolean, default=True, nullable=False)
         created_at = Column(DateTime(timezone=True), server_default=func.now())
         updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -72,6 +74,9 @@ if Base is not None:
         
         def to_dict(self, include_api_key: bool = False) -> dict:
             """Convert model to dictionary"""
+            import json
+            from src.utils.encryption import decrypt_value
+            
             result = {
                 "name": self.name,
                 "url": self.url,
@@ -79,9 +84,56 @@ if Base is not None:
                 "enabled": self.enabled,
                 "has_api_key": bool(self.api_key)
             }
-            if include_api_key:
-                result["api_key"] = self.api_key
+            if include_api_key and self.api_key:
+                # Decrypt API key when returning
+                result["api_key"] = decrypt_value(self.api_key)
+            
+            # Parse headers JSON if present
+            if self.headers:
+                try:
+                    result["headers"] = json.loads(self.headers)
+                except (json.JSONDecodeError, TypeError):
+                    result["headers"] = {}
+            else:
+                result["headers"] = {}
+            
             return result
+        
+        def set_api_key(self, api_key: Optional[str]) -> None:
+            """Set API key with automatic encryption"""
+            from src.utils.encryption import encrypt_value, is_encrypted
+            
+            if not api_key:
+                self.api_key = None
+            elif is_encrypted(api_key):
+                # Already encrypted, store as-is
+                self.api_key = api_key
+            else:
+                # Encrypt before storing
+                self.api_key = encrypt_value(api_key)
+        
+        def get_api_key(self) -> Optional[str]:
+            """Get decrypted API key"""
+            from src.utils.encryption import decrypt_value
+            return decrypt_value(self.api_key) if self.api_key else None
+        
+        def set_headers(self, headers: Optional[dict]) -> None:
+            """Set headers as JSON string"""
+            import json
+            if not headers:
+                self.headers = None
+            else:
+                self.headers = json.dumps(headers)
+        
+        def get_headers(self) -> dict:
+            """Get headers as dictionary"""
+            import json
+            if not self.headers:
+                return {}
+            try:
+                return json.loads(self.headers)
+            except (json.JSONDecodeError, TypeError):
+                return {}
 
     class User(Base):
         """User model for authentication"""
@@ -104,8 +156,76 @@ if Base is not None:
                 "is_active": self.is_active,
                 "created_at": self.created_at.isoformat() if self.created_at else None,
             }
+
+    class Conversation(Base):
+        """Conversation model for storing chat sessions with summary"""
+        __tablename__ = "conversations"
+        
+        id = Column(Integer, primary_key=True, index=True)
+        user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+        session_id = Column(String(255), nullable=False, index=True)
+        title = Column(String(500), nullable=True)  # Auto-generated from first message
+        summary = Column(Text, nullable=True)  # Summary of conversation (first 50 messages)
+        message_count = Column(Integer, default=0, nullable=False)  # Total message count
+        created_at = Column(DateTime(timezone=True), server_default=func.now())
+        updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+        
+        # Relationships
+        user = relationship("User", backref="conversations")
+        messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan", order_by="Message.created_at")
+        
+        # Unique constraint on user_id + session_id
+        __table_args__ = (
+            UniqueConstraint('user_id', 'session_id', name='uq_conversation_user_session'),
+        )
+        
+        def to_dict(self) -> dict:
+            """Convert model to dictionary"""
+            return {
+                "id": self.id,
+                "session_id": self.session_id,
+                "title": self.title or f"Conversation {self.session_id}",
+                "summary": self.summary,
+                "message_count": self.message_count,
+                "created_at": self.created_at.isoformat() if self.created_at else None,
+                "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            }
+
+    class Message(Base):
+        """Message model for storing individual chat messages (optional - can be deleted after summary)"""
+        __tablename__ = "messages"
+        
+        id = Column(Integer, primary_key=True, index=True)
+        conversation_id = Column(Integer, ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False, index=True)
+        role = Column(String(50), nullable=False)  # "user", "assistant", "system"
+        content = Column(Text, nullable=False)
+        tool_calls = Column(Text, nullable=True)  # JSON string of tool calls
+        created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+        
+        # Relationship
+        conversation = relationship("Conversation", back_populates="messages")
+        
+        def to_dict(self) -> dict:
+            """Convert model to dictionary"""
+            import json
+            tool_calls_data = None
+            if self.tool_calls:
+                try:
+                    tool_calls_data = json.loads(self.tool_calls)
+                except json.JSONDecodeError:
+                    tool_calls_data = None
+            
+            return {
+                "id": self.id,
+                "role": self.role,
+                "content": self.content,
+                "tool_calls": tool_calls_data,
+                "created_at": self.created_at.isoformat() if self.created_at else None,
+            }
 else:
     # Dummy classes when database is not available
     LLMConfig = None  # type: ignore
     MCPServer = None  # type: ignore
     User = None  # type: ignore
+    Conversation = None  # type: ignore
+    Message = None  # type: ignore

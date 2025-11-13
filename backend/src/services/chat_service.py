@@ -6,8 +6,13 @@ from langchain.agents import create_agent
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from src.core import Config, User
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+from src.core import Config, User, DB_AVAILABLE
 from src.services import history_manager, MCPClientManager, create_llm_from_config, rag_system
+from src.services.db_history import db_history_manager
 from src.services.tools import retrieve_dosiblog_context
 from src.utils import sanitize_tools_for_gemini
 from src.core.constants import CHAT_MODE_AGENT, CHAT_MODE_RAG
@@ -21,7 +26,8 @@ class ChatService:
         message: str,
         session_id: str,
         mode: str,
-        user: Optional[User] = None
+        user: Optional[User] = None,
+        db: Optional["Session"] = None
     ) -> dict:
         """
         Process a chat message and return response
@@ -38,17 +44,26 @@ class ChatService:
         user_id = user.id if user else None
         
         if mode == CHAT_MODE_RAG:
-            return await ChatService._process_rag(message, session_id, user_id)
+            return await ChatService._process_rag(message, session_id, user_id, db)
         else:
-            return await ChatService._process_agent(message, session_id, user_id)
+            return await ChatService._process_agent(message, session_id, user_id, db)
     
     @staticmethod
-    async def _process_rag(message: str, session_id: str, user_id: Optional[int]) -> dict:
+    async def _process_rag(message: str, session_id: str, user_id: Optional[int], db: Optional["Session"] = None) -> dict:
         """Process RAG-only mode"""
         llm_config = Config.load_llm_config()
         llm = create_llm_from_config(llm_config, streaming=False, temperature=0)
         
-        answer = rag_system.query_with_history(message, session_id, llm)
+        # Use database history if available
+        if DB_AVAILABLE and user_id and db:
+            history = db_history_manager.get_session_history(session_id, user_id, db)
+            # RAG system uses history_manager internally, so we need to save messages separately
+            answer = rag_system.query_with_history(message, session_id, llm)
+            # Save to database history
+            history.add_user_message(HumanMessage(content=message))
+            history.add_ai_message(AIMessage(content=answer))
+        else:
+            answer = rag_system.query_with_history(message, session_id, llm)
         
         return {
             "response": answer,
@@ -58,7 +73,7 @@ class ChatService:
         }
     
     @staticmethod
-    async def _process_agent(message: str, session_id: str, user_id: Optional[int]) -> dict:
+    async def _process_agent(message: str, session_id: str, user_id: Optional[int], db: Optional["Session"] = None) -> dict:
         """Process agent mode with tools"""
         mcp_servers = Config.load_mcp_servers(user_id=user_id)
         tools_used = []
@@ -81,7 +96,13 @@ class ChatService:
             agent = ChatService._create_agent(llm, all_tools, llm_config)
             
             # Get history and run agent
-            history = history_manager.get_session_messages(session_id, user_id)
+            if DB_AVAILABLE and user_id and db:
+                history = db_history_manager.get_session_messages(session_id, user_id, db)
+                session_history = db_history_manager.get_session_history(session_id, user_id, db)
+            else:
+                history = history_manager.get_session_messages(session_id, user_id)
+                session_history = history_manager.get_session_history(session_id, user_id)
+            
             messages = list(history) + [HumanMessage(content=message)]
             
             # Run agent
@@ -97,9 +118,8 @@ class ChatService:
                         final_answer = ChatService._extract_content(last_msg.content)
             
             # Save to history
-            session_history = history_manager.get_session_history(session_id, user_id)
-            session_history.add_user_message(message)
-            session_history.add_ai_message(final_answer)
+            session_history.add_user_message(HumanMessage(content=message))
+            session_history.add_ai_message(AIMessage(content=final_answer))
             
             return {
                 "response": final_answer,
@@ -110,7 +130,7 @@ class ChatService:
     
     @staticmethod
     async def _process_ollama_fallback(message: str, session_id: str, user_id: Optional[int],
-                                      all_tools: list, llm) -> dict:
+                                      all_tools: list, llm, db: Optional["Session"] = None) -> dict:
         """Fallback for Ollama which doesn't support bind_tools"""
         from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
         
@@ -122,7 +142,13 @@ class ChatService:
         
         tools_context = "\n".join(tool_descriptions) if tool_descriptions else "No tools available"
         
-        history = history_manager.get_session_messages(session_id, user_id)
+        if DB_AVAILABLE and user_id and db:
+            history = db_history_manager.get_session_messages(session_id, user_id, db)
+            session_history = db_history_manager.get_session_history(session_id, user_id, db)
+        else:
+            history = history_manager.get_session_messages(session_id, user_id)
+            session_history = history_manager.get_session_history(session_id, user_id)
+        
         context = rag_system.retrieve_context(message)
         
         prompt = ChatPromptTemplate.from_messages([
@@ -144,9 +170,8 @@ class ChatService:
         )).content
         
         # Save to history
-        session_history = history_manager.get_session_history(session_id, user_id)
-        session_history.add_user_message(message)
-        session_history.add_ai_message(answer)
+        session_history.add_user_message(HumanMessage(content=message))
+        session_history.add_ai_message(AIMessage(content=answer))
         
         return {
             "response": answer,

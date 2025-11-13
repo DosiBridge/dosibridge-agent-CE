@@ -47,3 +47,6 @@ python-multipart
 
 # Rate limiting
 slowapi>=0.1.9
+
+# Encryption for sensitive data (MCP API keys)
+cryptography>=41.0.0

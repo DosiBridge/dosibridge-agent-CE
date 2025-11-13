@@ -12,6 +12,7 @@ async def test_mcp_connection(
     url: str,
     connection_type: str = "http",
     api_key: Optional[str] = None,
+    headers: Optional[dict] = None,
     timeout: float = 5.0
 ) -> Tuple[bool, str]:
     """
@@ -22,6 +23,7 @@ async def test_mcp_connection(
         url: MCP server URL or command (for stdio)
         connection_type: Connection type - "stdio", "http", or "sse" (default: "http")
         api_key: Optional API key for authentication
+        headers: Optional custom headers as key-value pairs
         timeout: Connection timeout in seconds (default: 5.0)
         
     Returns:
@@ -77,11 +79,13 @@ async def test_mcp_connection(
                 from mcp.client.sse import sse_client
                 
                 server_params = {"url": normalized_url}
-                headers = {}
+                # Start with custom headers if provided
+                header_dict = dict(headers) if headers else {}
+                # Add API key header if provided
                 if api_key:
-                    headers["x-api-key"] = api_key
-                if headers:
-                    server_params["headers"] = headers
+                    header_dict["x-api-key"] = api_key
+                if header_dict:
+                    server_params["headers"] = header_dict
                 
                 client = sse_client(**server_params)
                 
@@ -90,11 +94,13 @@ async def test_mcp_connection(
                 from mcp.client.streamable_http import streamablehttp_client
                 
                 server_params = {"url": normalized_url}
-                headers = {}
+                # Start with custom headers if provided
+                header_dict = dict(headers) if headers else {}
+                # Add API key header if provided
                 if api_key:
-                    headers["x-api-key"] = api_key
-                if headers:
-                    server_params["headers"] = headers
+                    header_dict["x-api-key"] = api_key
+                if header_dict:
+                    server_params["headers"] = header_dict
                 
                 client = streamablehttp_client(**server_params)
             
@@ -161,6 +167,7 @@ async def test_mcp_connection_sync(
     url: str,
     connection_type: str = "http",
     api_key: Optional[str] = None,
+    headers: Optional[dict] = None,
     timeout: float = 5.0
 ) -> Tuple[bool, str]:
     """
@@ -173,5 +180,5 @@ async def test_mcp_connection_sync(
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
     
-    return await test_mcp_connection(url, connection_type, api_key, timeout)
+    return await test_mcp_connection(url, connection_type, api_key, headers, timeout)
 

@@ -2,7 +2,7 @@
 Core domain models and database configuration
 """
 from .database import Base, get_db, get_db_context, init_db, DB_AVAILABLE
-from .models import User, LLMConfig, MCPServer
+from .models import User, LLMConfig, MCPServer, Conversation, Message
 from .config import Config
 from .constants import (
     RATE_LIMIT_CHAT,
@@ -38,6 +38,8 @@ __all__ = [
     "User",
     "LLMConfig",
     "MCPServer",
+    "Conversation",
+    "Message",
     "Config",
     "get_password_hash",
     "verify_password",

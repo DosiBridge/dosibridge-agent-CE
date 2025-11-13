@@ -29,6 +29,7 @@ class MCPServerRequest(BaseModel):
     url: str
     connection_type: Optional[str] = "http"  # "stdio", "http", or "sse"
     api_key: Optional[str] = None  # Optional API key/auth key for MCP server
+    headers: Optional[dict] = None  # Optional custom headers as key-value pairs
     enabled: Optional[bool] = True  # Whether the server is enabled
 
 

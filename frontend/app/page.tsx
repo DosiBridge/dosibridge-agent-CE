@@ -2,23 +2,25 @@
  * Main chat page
  */
 
-'use client';
+"use client";
 
-import AuthModal from '@/components/AuthModal';
-import ChatInput from '@/components/ChatInput';
-import ChatWindow from '@/components/ChatWindow';
-import HealthStatus from '@/components/HealthStatus';
-import SessionSidebar from '@/components/SessionSidebar';
-import SettingsPanel from '@/components/SettingsPanel';
-import { useStore } from '@/lib/store';
-import { LogOut, Menu, Settings, User } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { Toaster, toast } from 'react-hot-toast';
+import AuthModal from "@/components/AuthModal";
+import ChatInput from "@/components/ChatInput";
+import ChatWindow from "@/components/ChatWindow";
+import HealthStatus from "@/components/HealthStatus";
+import SessionSidebar from "@/components/SessionSidebar";
+import SettingsPanel from "@/components/SettingsPanel";
+import { useStore } from "@/lib/store";
+import { LogOut, Menu, Settings, User } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Toaster, toast } from "react-hot-toast";
 
 export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
+  const [authModalMode, setAuthModalMode] = useState<"login" | "register">(
+    "login"
+  );
 
   const isAuthenticated = useStore((state) => state.isAuthenticated);
   const authLoading = useStore((state) => state.authLoading);
@@ -32,16 +34,16 @@ export default function Home() {
 
   useEffect(() => {
     const handleOpenAuth = (e: CustomEvent) => {
-      if (e.detail?.mode === 'register') {
-        setAuthModalMode('register');
+      if (e.detail?.mode === "register") {
+        setAuthModalMode("register");
       } else {
-        setAuthModalMode('login');
+        setAuthModalMode("login");
       }
       setAuthModalOpen(true);
     };
 
-    window.addEventListener('open-auth' as any, handleOpenAuth);
-    return () => window.removeEventListener('open-auth' as any, handleOpenAuth);
+    window.addEventListener("open-auth" as any, handleOpenAuth);
+    return () => window.removeEventListener("open-auth" as any, handleOpenAuth);
   }, []);
 
   // Close sidebar on mobile when clicking outside
@@ -51,15 +53,48 @@ export default function Home() {
         setSidebarOpen(false); // Sidebar is always visible on desktop
       }
     };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
-  const settingsOpen = useStore((state) => state.settingsOpen);
-  const setSettingsOpen = useStore((state) => state.setSettingsOpen);
+
   const loadSessions = useStore((state) => state.loadSessions);
   const loadSession = useStore((state) => state.loadSession);
   const currentSessionId = useStore((state) => state.currentSessionId);
   const messages = useStore((state) => state.messages);
+  const settingsOpen = useStore((state) => state.settingsOpen);
+  const setSettingsOpen = useStore((state) => state.setSettingsOpen);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Ctrl/Cmd + K: Toggle sidebar (or command palette in future)
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        setSidebarOpen((prev) => !prev);
+      }
+      // Ctrl/Cmd + N: New session
+      if ((e.ctrlKey || e.metaKey) && e.key === "n") {
+        e.preventDefault();
+        useStore.getState().createNewSession();
+        toast.success("New session created");
+      }
+      // Escape: Close modals/sidebar
+      if (e.key === "Escape") {
+        if (settingsOpen) {
+          setSettingsOpen(false);
+        }
+        if (authModalOpen) {
+          setAuthModalOpen(false);
+        }
+        if (sidebarOpen && window.innerWidth < 1024) {
+          setSidebarOpen(false);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyPress);
+    return () => window.removeEventListener("keydown", handleKeyPress);
+  }, [settingsOpen, authModalOpen, sidebarOpen, setSettingsOpen]);
 
   useEffect(() => {
     // Load sessions and current session on mount
@@ -84,18 +119,21 @@ export default function Home() {
         toastOptions={{
           duration: 4000,
           style: {
-            background: 'var(--background)',
-            color: 'var(--foreground)',
-            borderRadius: '12px',
-            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
-            maxWidth: '90vw',
-            fontSize: '14px',
+            background: "var(--background)",
+            color: "var(--foreground)",
+            borderRadius: "12px",
+            boxShadow: "0 10px 25px rgba(0, 0, 0, 0.1)",
+            maxWidth: "90vw",
+            fontSize: "14px",
           },
         }}
       />
 
       {/* Session Sidebar */}
-      <SessionSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <SessionSidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col min-w-0 w-full">
@@ -121,7 +159,9 @@ export default function Home() {
               <>
                 <div className="hidden sm:flex items-center gap-2 text-sm text-gray-400">
                   <User className="w-4 h-4" />
-                  <span className="truncate max-w-[150px]">{user?.name || user?.email}</span>
+                  <span className="truncate max-w-[150px]">
+                    {user?.name || user?.email}
+                  </span>
                 </div>
                 <div className="hidden sm:block">
                   <HealthStatus />
@@ -129,7 +169,7 @@ export default function Home() {
                 <button
                   onClick={() => {
                     if (!isAuthenticated) {
-                      setAuthModalMode('login');
+                      setAuthModalMode("login");
                       setAuthModalOpen(true);
                     } else {
                       setSettingsOpen(true);
@@ -137,14 +177,21 @@ export default function Home() {
                   }}
                   className="p-2 sm:p-2.5 hover:bg-[#40414f] rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#10a37f] active:scale-95 touch-manipulation"
                   aria-label="Open settings"
-                  title={isAuthenticated ? "Settings (MCP & Model Configuration)" : "Log in to access settings"}
+                  title={
+                    isAuthenticated
+                      ? "Settings (MCP & Model Configuration)"
+                      : "Log in to access settings"
+                  }
                 >
-                  <Settings className="w-5 h-5 sm:w-6 sm:h-6 text-gray-300" aria-hidden="true" />
+                  <Settings
+                    className="w-5 h-5 sm:w-6 sm:h-6 text-gray-300"
+                    aria-hidden="true"
+                  />
                 </button>
                 <button
                   onClick={async () => {
                     await handleLogout();
-                    toast.success('Logged out successfully');
+                    toast.success("Logged out successfully");
                   }}
                   className="p-2 sm:p-2.5 hover:bg-[#40414f] rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#10a37f]"
                   aria-label="Logout"
@@ -160,7 +207,7 @@ export default function Home() {
                 </div>
                 <button
                   onClick={() => {
-                    setAuthModalMode('login');
+                    setAuthModalMode("login");
                     setAuthModalOpen(true);
                   }}
                   className="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors"
@@ -169,7 +216,7 @@ export default function Home() {
                 </button>
                 <button
                   onClick={() => {
-                    setAuthModalMode('register');
+                    setAuthModalMode("register");
                     setAuthModalOpen(true);
                   }}
                   className="px-4 py-2 text-sm font-medium bg-white text-gray-900 rounded-lg hover:bg-gray-100 transition-colors"
@@ -189,7 +236,10 @@ export default function Home() {
       </div>
 
       {/* Settings Panel */}
-      <SettingsPanel isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <SettingsPanel
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+      />
 
       {/* Auth Modal */}
       <AuthModal

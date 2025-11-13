@@ -97,6 +97,7 @@ async def add_mcp_server(
             normalized_url,
             connection_type=connection_type,
             api_key=server.api_key if server.api_key else None,
+            headers=server.headers if server.headers else None,
             timeout=5.0
         )
         
@@ -114,9 +115,12 @@ async def add_mcp_server(
             name=server.name,
             url=normalized_url,
             connection_type=connection_type,
-            api_key=server.api_key if server.api_key else None,
             enabled=server.enabled if server.enabled is not None else True
         )
+        # Use set_api_key() method to automatically encrypt
+        mcp_server.set_api_key(server.api_key if server.api_key else None)
+        # Set headers
+        mcp_server.set_headers(server.headers if server.headers else None)
         db.add(mcp_server)
         db.commit()
         db.refresh(mcp_server)
@@ -227,17 +231,21 @@ async def update_mcp_server(
                 if not normalized_url.endswith('/mcp'):
                     normalized_url = normalized_url.rstrip('/') + '/mcp'
         
-        # Test connection before updating (only if URL, connection_type, or API key changed)
+        # Test connection before updating (only if URL, connection_type, API key, or headers changed)
         url_changed = mcp_server.url != normalized_url
         connection_type_changed = mcp_server.connection_type != connection_type
         api_key_changed = server.api_key and server.api_key != mcp_server.api_key
+        headers_changed = server.headers is not None and server.headers != mcp_server.get_headers()
         
-        if url_changed or connection_type_changed or api_key_changed:
+        if url_changed or connection_type_changed or api_key_changed or headers_changed:
             print(f"🔍 Testing {connection_type} connection to updated MCP server: {normalized_url}")
+            # Use new headers if provided, otherwise use existing
+            test_headers = server.headers if server.headers is not None else mcp_server.get_headers()
             connection_ok, connection_message = await test_mcp_connection(
                 normalized_url,
                 connection_type=connection_type,
-                api_key=server.api_key if server.api_key else mcp_server.api_key,
+                api_key=server.api_key if server.api_key else mcp_server.get_api_key(),
+                headers=test_headers if test_headers else None,
                 timeout=5.0
             )
             
@@ -254,8 +262,12 @@ async def update_mcp_server(
         mcp_server.url = normalized_url
         mcp_server.connection_type = connection_type
         mcp_server.enabled = server.enabled if server.enabled is not None else True
-        if server.api_key:
-            mcp_server.api_key = server.api_key
+        # Use set_api_key() method to automatically encrypt
+        if server.api_key is not None:
+            mcp_server.set_api_key(server.api_key)
+        # Set headers if provided
+        if server.headers is not None:
+            mcp_server.set_headers(server.headers)
         
         db.commit()
         db.refresh(mcp_server)
@@ -312,6 +324,7 @@ async def test_mcp_server_connection(
             normalized_url,
             connection_type=connection_type,
             api_key=server.api_key if server.api_key else None,
+            headers=server.headers if server.headers else None,
             timeout=5.0
         )
         
@@ -355,7 +368,7 @@ async def toggle_mcp_server(
             connection_ok, connection_message = await test_mcp_connection(
                 mcp_server.url,
                 connection_type=connection_type,
-                api_key=mcp_server.api_key,
+                api_key=mcp_server.get_api_key(),
                 timeout=5.0
             )
             

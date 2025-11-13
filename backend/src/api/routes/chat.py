@@ -4,18 +4,20 @@ Chat endpoints (streaming and non-streaming)
 import asyncio
 import json
 from typing import AsyncGenerator
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends, Request, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from langchain.agents import create_agent
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.tools import BaseTool
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from src.core import Config, User
+from src.core import Config, User, get_db, DB_AVAILABLE
 from src.core.auth import get_current_active_user, get_current_user
 from src.services import history_manager, MCPClientManager, create_llm_from_config, rag_system
+from src.services.chat_service import ChatService
 from src.services.tools import retrieve_dosiblog_context
 from typing import Optional
+from sqlalchemy.orm import Session
 from ..models import ChatRequest, ChatResponse
 from src.utils import sanitize_tools_for_gemini
 
@@ -26,7 +28,9 @@ router = APIRouter()
 async def chat(
     request: Request,
     chat_request: ChatRequest,
-    current_user: Optional[User] = Depends(get_current_user)
+    background_tasks: BackgroundTasks,
+    current_user: Optional[User] = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """
     Non-streaming chat endpoint
@@ -34,189 +38,41 @@ async def chat(
     Args:
         request: FastAPI Request object (for rate limiting)
         chat_request: ChatRequest with message, session_id, and mode
+        background_tasks: FastAPI BackgroundTasks for async operations
         current_user: Optional authenticated user
+        db: Database session
         
     Returns:
         ChatResponse with answer
     """
     try:
-        user_id = current_user.id if current_user else None
+        # Use ChatService for processing
+        result = await ChatService.process_chat(
+            message=chat_request.message,
+            session_id=chat_request.session_id,
+            mode=chat_request.mode,
+            user=current_user,
+            db=db
+        )
         
-        if chat_request.mode == "rag":
-            # RAG-only mode
-            llm_config = Config.load_llm_config()
-            try:
-                llm = create_llm_from_config(llm_config, streaming=False, temperature=0)
-            except ImportError as e:
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Missing LLM package: {str(e)}\n\nAll required packages should be in requirements.txt. Please redeploy after ensuring requirements.txt includes all LLM provider packages."
-                )
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to initialize LLM: {str(e)}")
-            answer = rag_system.query_with_history(
-                chat_request.message, 
-                chat_request.session_id, 
-                llm
-            )
+        # Schedule async summary update in background (non-blocking)
+        # Note: We pass user_id and session_id, not db session (will create new session)
+        if current_user and DB_AVAILABLE:
+            from src.services.db_history import db_history_manager
+            from src.core import get_db_context
             
-            return ChatResponse(
-                response=answer,
-                session_id=chat_request.session_id,
-                mode="rag",
-                tools_used=["retrieve_dosiblog_context"]
-            )
-        else:
-            # Agent mode
-            mcp_servers = Config.load_mcp_servers(user_id=user_id)
-            tools_used = []
+            async def update_summary_task():
+                # Create new DB session for background task
+                with get_db_context() as bg_db:
+                    await db_history_manager.update_summary(
+                        chat_request.session_id,
+                        current_user.id,
+                        bg_db
+                    )
             
-            async with MCPClientManager(mcp_servers) as mcp_tools:
-                all_tools = [retrieve_dosiblog_context] + mcp_tools
-                
-                # Get LLM from config
-                llm_config = Config.load_llm_config()
-                try:
-                    llm = create_llm_from_config(llm_config, streaming=False, temperature=0)
-                except ImportError as e:
-                    raise HTTPException(
-                        status_code=500,
-                        detail=f"Missing LLM package: {str(e)}\n\nAll required packages should be in requirements.txt. Please redeploy after ensuring requirements.txt includes all LLM provider packages."
-                    )
-                except Exception as e:
-                    raise HTTPException(status_code=500, detail=f"Failed to initialize LLM: {str(e)}")
-                
-                # Check if LLM is Ollama (doesn't support bind_tools)
-                is_ollama = llm_config.get("type", "").lower() == "ollama"
-                
-                if is_ollama:
-                    # For Ollama, fall back to RAG mode with tool descriptions
-                    tool_descriptions = []
-                    for tool in all_tools:
-                        if hasattr(tool, 'name'):
-                            tool_desc = getattr(tool, 'description', 'No description')
-                            tool_descriptions.append(f"- {tool.name}: {tool_desc}")
-                    
-                    tools_context = "\n".join(tool_descriptions) if tool_descriptions else "No tools available"
-                    
-                    user_id = current_user.id if current_user else None
-                    history = history_manager.get_session_messages(chat_request.session_id, user_id)
-                    context = rag_system.retrieve_context(chat_request.message)
-                    
-                    prompt = ChatPromptTemplate.from_messages([
-                        ("system", (
-                            "You are a helpful AI assistant.\n\n"
-                            "Available tools:\n{tools_context}\n\n"
-                            "Context:\n{context}\n\n"
-                            "Use the context to answer questions accurately."
-                        )),
-                        MessagesPlaceholder("chat_history"),
-                        ("human", "{input}"),
-                    ])
-                    
-                    answer = llm.invoke(prompt.format(
-                        tools_context=tools_context,
-                        context=context,
-                        chat_history=history,
-                        input=chat_request.message
-                    )).content
-                    
-                    # Save to history
-                    user_id = current_user.id if current_user else None
-                    session_history = history_manager.get_session_history(chat_request.session_id, user_id)
-                    session_history.add_user_message(chat_request.message)
-                    session_history.add_ai_message(answer)
-                    
-                    return ChatResponse(
-                        response=answer,
-                        session_id=chat_request.session_id,
-                        mode="agent",
-                        tools_used=[]
-                    )
-                
-                # For OpenAI/Groq - use agent with tools
-                # Create agent - ensure tools are properly bound
-                try:
-                    # Build a system prompt that lists available tools to prevent hallucination
-                    tool_names = []
-                    tool_descriptions = []
-                    for tool in all_tools:
-                        if hasattr(tool, 'name'):
-                            tool_names.append(tool.name)
-                            tool_desc = getattr(tool, 'description', '')
-                            if tool_desc:
-                                tool_descriptions.append(f"- {tool.name}: {tool_desc}")
-                        elif hasattr(tool, '__name__'):
-                            tool_names.append(tool.__name__)
-                    
-                    tools_list = '\n'.join(tool_descriptions) if tool_descriptions else ', '.join(tool_names)
-                    system_prompt = (
-                        "You are a helpful AI assistant with access to these tools ONLY:\n"
-                        f"{tools_list}\n\n"
-                        "ONLY use tools from this exact list. Do not call any tool that is not in this list."
-                    )
-                    
-                    # Sanitize tools for Gemini compatibility
-                    sanitized_tools = sanitize_tools_for_gemini(all_tools, llm_config.get("type", ""))
-                    
-                    agent = create_agent(
-                        model=llm,
-                        tools=sanitized_tools,
-                        system_prompt=system_prompt
-                    )
-                except Exception as e:
-                    raise HTTPException(status_code=500, detail=f"Failed to create agent: {str(e)}")
-                
-                # Get history
-                history = history_manager.get_session_messages(chat_request.session_id)
-                messages = list(history) + [HumanMessage(content=chat_request.message)]
-                
-                # Run agent
-                final_answer = ""
-                async for event in agent.astream({"messages": messages}, stream_mode="values"):
-                    last_msg = event["messages"][-1]
-                    
-                    if isinstance(last_msg, AIMessage):
-                        if getattr(last_msg, "tool_calls", None):
-                            for call in last_msg.tool_calls:
-                                tools_used.append(call['name'])
-                        else:
-                            # Handle different content types (string, list, dict)
-                            content_raw = last_msg.content
-                            if isinstance(content_raw, str):
-                                final_answer = content_raw
-                            elif isinstance(content_raw, list):
-                                # Handle list of content blocks (e.g., from Gemini)
-                                final_answer = ""
-                                for item in content_raw:
-                                    if isinstance(item, dict):
-                                        if "text" in item:
-                                            final_answer += item["text"]
-                                        elif "type" in item and item.get("type") == "text":
-                                            final_answer += item.get("text", "")
-                                    elif isinstance(item, str):
-                                        final_answer += item
-                            elif isinstance(content_raw, dict):
-                                # Handle dict content
-                                if "text" in content_raw:
-                                    final_answer = content_raw["text"]
-                                else:
-                                    final_answer = str(content_raw)
-                            else:
-                                final_answer = str(content_raw)
-                
-                # Save to history
-                session_history = history_manager.get_session_history(chat_request.session_id)
-                session_history.add_user_message(chat_request.message)
-                session_history.add_ai_message(final_answer)
-                
-                return ChatResponse(
-                    response=final_answer,
-                    session_id=chat_request.session_id,
-                    mode="agent",
-                    tools_used=tools_used
-                )
-                
+            background_tasks.add_task(update_summary_task)
+        
+        return ChatResponse(**result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -225,7 +81,8 @@ async def chat(
 async def chat_stream(
     request: Request,
     chat_request: ChatRequest,
-    current_user: Optional[User] = Depends(get_current_user)
+    current_user: Optional[User] = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """
     Streaming chat endpoint - returns chunks as they're generated
@@ -269,8 +126,14 @@ async def chat_stream(
                     stream_completed = True
                     return
                 
-                # Get history
-                history = history_manager.get_session_messages(chat_request.session_id, user_id)
+                # Get history (use database if available)
+                from src.core import DB_AVAILABLE
+                from src.services.db_history import db_history_manager
+                
+                if DB_AVAILABLE and user_id:
+                    history = db_history_manager.get_session_messages(chat_request.session_id, user_id, db)
+                else:
+                    history = history_manager.get_session_messages(chat_request.session_id, user_id)
                 
                 # Build context
                 prompt = ChatPromptTemplate.from_messages([
@@ -357,9 +220,16 @@ async def chat_stream(
                         stream_completed = True
                     return
                 
-                # Save to history
+                # Save to history (use database if available)
                 if full_response:
-                    session_history = history_manager.get_session_history(chat_request.session_id, user_id)
+                    from src.core import DB_AVAILABLE
+                    from src.services.db_history import db_history_manager
+                    
+                    if DB_AVAILABLE and user_id:
+                        session_history = db_history_manager.get_session_history(chat_request.session_id, user_id, db)
+                    else:
+                        session_history = history_manager.get_session_history(chat_request.session_id, user_id)
+                    
                     session_history.add_user_message(chat_request.message)
                     session_history.add_ai_message(full_response)
                 
@@ -418,7 +288,14 @@ async def chat_stream(
                             tools_context = "\n".join(tool_descriptions) if tool_descriptions else "No tools available"
                             
                             # Build enhanced prompt with tool information
-                            history = history_manager.get_session_messages(chat_request.session_id, user_id)
+                            # Get history (use database if available)
+                            from src.core import DB_AVAILABLE
+                            from src.services.db_history import db_history_manager
+                            
+                            if DB_AVAILABLE and user_id:
+                                history = db_history_manager.get_session_messages(chat_request.session_id, user_id, db)
+                            else:
+                                history = history_manager.get_session_messages(chat_request.session_id, user_id)
                             context = rag_system.retrieve_context(chat_request.message)
                             
                             prompt = ChatPromptTemplate.from_messages([
@@ -501,9 +378,16 @@ async def chat_stream(
                                     stream_completed = True
                                 return
                             
-                            # Save to history
+                            # Save to history (use database if available)
                             if full_response:
-                                session_history = history_manager.get_session_history(chat_request.session_id, user_id)
+                                from src.core import DB_AVAILABLE
+                                from src.services.db_history import db_history_manager
+                                
+                                if DB_AVAILABLE and user_id:
+                                    session_history = db_history_manager.get_session_history(chat_request.session_id, user_id, db)
+                                else:
+                                    session_history = history_manager.get_session_history(chat_request.session_id, user_id)
+                                
                                 session_history.add_user_message(chat_request.message)
                                 session_history.add_ai_message(full_response)
                             
@@ -575,8 +459,14 @@ async def chat_stream(
                                 stream_completed = True
                             return
                         
-                        # Get history
-                        history = history_manager.get_session_messages(chat_request.session_id, user_id)
+                        # Get history (use database if available)
+                        from src.core import DB_AVAILABLE
+                        from src.services.db_history import db_history_manager
+                        
+                        if DB_AVAILABLE and user_id:
+                            history = db_history_manager.get_session_messages(chat_request.session_id, user_id, db)
+                        else:
+                            history = history_manager.get_session_messages(chat_request.session_id, user_id)
                         messages = list(history) + [HumanMessage(content=chat_request.message)]
                         yield f"data: {json.dumps({'chunk': '', 'done': False, 'status': 'starting_agent_execution', 'message_count': len(messages)})}\n\n"
                         
@@ -693,11 +583,18 @@ async def chat_stream(
                                 stream_completed = True
                             return
                         
-                        # Save to history
+                            # Save to history (use database if available)
                         if full_response:
-                            session_history = history_manager.get_session_history(chat_request.session_id, user_id)
-                            session_history.add_user_message(chat_request.message)
-                            session_history.add_ai_message(full_response)
+                                from src.core import DB_AVAILABLE
+                                from src.services.db_history import db_history_manager
+                                
+                                if DB_AVAILABLE and user_id:
+                                    session_history = db_history_manager.get_session_history(chat_request.session_id, user_id, db)
+                                else:
+                                    session_history = history_manager.get_session_history(chat_request.session_id, user_id)
+                                
+                                session_history.add_user_message(chat_request.message)
+                                session_history.add_ai_message(full_response)
                         
                         yield f"data: {json.dumps({'chunk': '', 'done': True, 'tools_used': tool_calls_made})}\n\n"
                         stream_completed = True

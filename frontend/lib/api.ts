@@ -77,7 +77,10 @@ export interface StreamChunk {
 
 export interface Session {
   session_id: string;
+  title?: string;
+  summary?: string;
   message_count: number;
+  updated_at?: string;
 }
 
 export interface SessionInfo {
@@ -94,6 +97,7 @@ export interface MCPServer {
   url: string;
   connection_type?: "stdio" | "http" | "sse";
   has_api_key?: boolean;
+  headers?: Record<string, string>;
   enabled?: boolean;
 }
 
@@ -102,6 +106,7 @@ export interface MCPServerRequest {
   url: string;
   connection_type?: "stdio" | "http" | "sse";
   api_key?: string;
+  headers?: Record<string, string>;
   enabled?: boolean;
 }
 
