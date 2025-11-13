@@ -25,13 +25,13 @@ DEFAULT_LLM_MODEL = "gpt-4o"
 # Token expiration
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 
-    # Streaming delays
-    STREAM_CHAR_DELAY = 0.005  # seconds between characters for smooth streaming
-    
-    # Conversation summary configuration
-    SUMMARY_UPDATE_MILESTONES = [10, 25, 50, 100, 200, 500]  # Message counts to update summary
-    SUMMARY_MAX_MESSAGES = 50  # Max messages to include in summary (for short conversations)
-    SUMMARY_MAX_MESSAGES_LONG = 100  # Max messages for longer conversations (>100 messages)
-    ENABLE_MESSAGE_CLEANUP = True  # Auto-delete old messages after summary
-    KEEP_LAST_N_MESSAGES = 20  # Keep last N messages even after cleanup
+# Streaming delays
+STREAM_CHAR_DELAY = 0.005  # seconds between characters for smooth streaming
+
+# Conversation summary configuration
+SUMMARY_UPDATE_MILESTONES = [10, 25, 50, 100, 200, 500]  # Message counts to update summary
+SUMMARY_MAX_MESSAGES = 50  # Max messages to include in summary (for short conversations)
+SUMMARY_MAX_MESSAGES_LONG = 100  # Max messages for longer conversations (>100 messages)
+ENABLE_MESSAGE_CLEANUP = True  # Auto-delete old messages after summary
+KEEP_LAST_N_MESSAGES = 20  # Keep last N messages even after cleanup
 

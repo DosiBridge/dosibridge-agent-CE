@@ -56,14 +56,21 @@ async def chat(
         )
         
         # Schedule async summary update in background (non-blocking)
+        # Note: We pass user_id and session_id, not db session (will create new session)
         if current_user and DB_AVAILABLE:
             from src.services.db_history import db_history_manager
-            background_tasks.add_task(
-                db_history_manager.update_summary,
-                chat_request.session_id,
-                current_user.id,
-                db
-            )
+            from src.core import get_db_context
+            
+            async def update_summary_task():
+                # Create new DB session for background task
+                with get_db_context() as bg_db:
+                    await db_history_manager.update_summary(
+                        chat_request.session_id,
+                        current_user.id,
+                        bg_db
+                    )
+            
+            background_tasks.add_task(update_summary_task)
         
         return ChatResponse(**result)
     except Exception as e:
