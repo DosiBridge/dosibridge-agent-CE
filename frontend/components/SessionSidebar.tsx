@@ -258,14 +258,19 @@ export default function SessionSidebar({ isOpen = true, onClose }: SessionSideba
                                                     </button>
                                                 </div>
                                             ) : (
-                                                <>
-                                                    <div className="text-xs sm:text-sm font-medium truncate">
-                                                        {sessionTitle}
-                                                    </div>
-                                                    <div className="text-xs text-gray-500 mt-0.5">
-                                                        {session.message_count} {session.message_count === 1 ? 'message' : 'messages'}
-                                                    </div>
-                                                </>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-medium text-gray-200 truncate">{sessionTitle}</p>
+                                                    {/* Show summary if available */}
+                                                    {session.summary && (
+                                                        <p className="text-xs text-gray-500 truncate mt-0.5 line-clamp-2">
+                                                            {session.summary}
+                                                        </p>
+                                                    )}
+                                                    {/* Show message count */}
+                                                    <p className="text-xs text-gray-600 mt-0.5">
+                                                        {session.message_count || 0} {session.message_count === 1 ? 'message' : 'messages'}
+                                                    </p>
+                                                </div>
                                             )}
                                         </div>
                                     </div>
