@@ -4,7 +4,7 @@ Chat endpoints (streaming and non-streaming)
 import asyncio
 import json
 from typing import AsyncGenerator
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends, Request, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from langchain.agents import create_agent
 from langchain_core.messages import HumanMessage, AIMessage
@@ -28,6 +28,7 @@ router = APIRouter()
 async def chat(
     request: Request,
     chat_request: ChatRequest,
+    background_tasks: BackgroundTasks,
     current_user: Optional[User] = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -37,6 +38,7 @@ async def chat(
     Args:
         request: FastAPI Request object (for rate limiting)
         chat_request: ChatRequest with message, session_id, and mode
+        background_tasks: FastAPI BackgroundTasks for async operations
         current_user: Optional authenticated user
         db: Database session
         
@@ -52,6 +54,16 @@ async def chat(
             user=current_user,
             db=db
         )
+        
+        # Schedule async summary update in background (non-blocking)
+        if current_user and DB_AVAILABLE:
+            from src.services.db_history import db_history_manager
+            background_tasks.add_task(
+                db_history_manager.update_summary,
+                chat_request.session_id,
+                current_user.id,
+                db
+            )
         
         return ChatResponse(**result)
     except Exception as e:
