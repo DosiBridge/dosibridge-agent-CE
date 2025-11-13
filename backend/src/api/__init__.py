@@ -2,8 +2,11 @@
 FastAPI application with streaming chat endpoints
 """
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 from .lifespan import mcp_lifespan
 from .routes import (
     chat_router,
@@ -23,6 +26,20 @@ app = FastAPI(
     version="1.0.0",
     lifespan=mcp_lifespan
 )
+
+# Initialize rate limiter
+# Rate limits: 100 requests per minute for chat endpoints, 200 for others
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=["200/minute"],
+    storage_uri="memory://"
+)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Apply rate limiting middleware (applies default limits to all routes)
+from slowapi.middleware import SlowAPIMiddleware
+app.add_middleware(SlowAPIMiddleware)
 
 # Configure CORS origins from environment variable
 # Format: comma-separated list of origins, e.g., "http://localhost:3000,http://localhost:3001,https://example.com"

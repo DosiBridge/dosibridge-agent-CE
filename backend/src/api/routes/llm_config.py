@@ -33,16 +33,9 @@ async def get_llm_config(db: Session = Depends(get_db)):
 @router.post("/llm-config")
 async def set_llm_config(config: LLMConfigRequest, db: Session = Depends(get_db)):
     """
-    Set LLM configuration - DISABLED.
-    LLM model configuration is fixed and cannot be changed.
-    The system always uses the default OpenAI GPT (gpt-4o) configuration.
+    Set LLM configuration - allows switching to any model/LLM.
+    The default OpenAI GPT (gpt-4o) config is preserved (deactivated) and can be restored via reset.
     """
-    raise HTTPException(
-        status_code=403,
-        detail="LLM configuration changes are not allowed. The system uses a fixed OpenAI GPT (gpt-4o) configuration that cannot be modified."
-    )
-    
-    # Original code below is disabled - kept for reference
     try:
         # Validate required fields based on type
         if config.type.lower() == "ollama":

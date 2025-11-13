@@ -110,68 +110,56 @@ class Config:
     @classmethod
     def load_llm_config(cls, db: Optional[Session] = None) -> dict:
         """
-        Load LLM configuration - always returns fixed default OpenAI GPT config.
-        LLM model configuration is fixed and cannot be changed.
-        The system always uses OpenAI GPT (gpt-4o) with API key from environment.
-        Note: OPENAI_API_KEY from env is used for both embeddings (RAG) and LLM model.
+        Load LLM configuration from database, with fallback to environment variables.
+        Checks database for active config first, then falls back to OpenAI GPT (gpt-4o) from env.
         Args:
-            db: Optional database session (ignored - config is fixed)
+            db: Optional database session (if None, creates a new one)
         """
-        # Always return the fixed default OpenAI GPT config
-        # Database configs are ignored - model cannot be changed
-        openai_api_key = os.getenv("OPENAI_API_KEY")
-        default_config = {
-            "type": "openai",
-            "model": "gpt-4o",
-            "api_key": openai_api_key,  # Get from environment (may be None)
-            "active": True
-        }
-        
-        # Warn if API key is missing
-        if not default_config["api_key"]:
-            print("⚠️  Warning: OPENAI_API_KEY not set. Please set it as an environment variable")
-            print("   Set it with: export OPENAI_API_KEY='your-api-key'")
-        else:
-            print(f"📝 Using fixed LLM config: OpenAI GPT (gpt-4o)")
-        
-        return default_config
-        
-        # Database loading code below is disabled - kept for reference
-        # Load from database
-        if False and DB_AVAILABLE:
+        # Load from database first
+        if DB_AVAILABLE:
             try:
-                session_to_use = db
-                if not session_to_use:
-                    # Create new session if none provided
-                    session_to_use = get_db_context().__enter__()
-                    should_close = True
-                else:
-                    should_close = False
-                
-                try:
-                    llm_config = session_to_use.query(LLMConfig).filter(LLMConfig.active == True).first()
+                if db:
+                    # Use provided session
+                    llm_config = db.query(LLMConfig).filter(LLMConfig.active == True).first()
                     if llm_config:
-                        # Extract data while session is active
                         config = llm_config.to_dict(include_api_key=True)
                         # Ensure API key is loaded from environment if not in database
                         if not config.get('api_key'):
                             if config.get('type', '').lower() == 'gemini':
                                 config['api_key'] = os.getenv("GOOGLE_API_KEY")
                             elif config.get('type', '').lower() == 'openai':
-                                # For OpenAI, use a separate key if available, otherwise use embeddings key
                                 config['api_key'] = os.getenv("OPENAI_LLM_API_KEY") or os.getenv("OPENAI_API_KEY")
                             elif config.get('type', '').lower() == 'groq':
                                 config['api_key'] = os.getenv("GROQ_API_KEY")
+                            elif config.get('type', '').lower() == 'ollama':
+                                # Ollama doesn't need API key
+                                pass
                         
-                        print(f"📝 Loaded LLM config from database: {config.get('type', 'gemini')} - {config.get('model', 'unknown')}")
+                        print(f"📝 Loaded LLM config from database: {config.get('type', 'unknown')} - {config.get('model', 'unknown')}")
                         return config
-                finally:
-                    if should_close:
-                        get_db_context().__exit__(None, None, None)
+                else:
+                    # Create new session
+                    with get_db_context() as session:
+                        llm_config = session.query(LLMConfig).filter(LLMConfig.active == True).first()
+                        if llm_config:
+                            config = llm_config.to_dict(include_api_key=True)
+                            # Ensure API key is loaded from environment if not in database
+                            if not config.get('api_key'):
+                                if config.get('type', '').lower() == 'gemini':
+                                    config['api_key'] = os.getenv("GOOGLE_API_KEY")
+                                elif config.get('type', '').lower() == 'openai':
+                                    config['api_key'] = os.getenv("OPENAI_LLM_API_KEY") or os.getenv("OPENAI_API_KEY")
+                                elif config.get('type', '').lower() == 'groq':
+                                    config['api_key'] = os.getenv("GROQ_API_KEY")
+                                elif config.get('type', '').lower() == 'ollama':
+                                    pass
+                            
+                            print(f"📝 Loaded LLM config from database: {config.get('type', 'unknown')} - {config.get('model', 'unknown')}")
+                            return config
             except Exception as e:
                 print(f"⚠️  Failed to load LLM config from database: {e}")
         
-        # Default to OpenAI GPT
+        # Fallback to OpenAI GPT from environment
         openai_api_key = os.getenv("OPENAI_API_KEY")
         default_config = {
             "type": "openai",
@@ -185,6 +173,8 @@ class Config:
             print("⚠️  Warning: OPENAI_API_KEY not set. Please set it as an environment variable or configure in database")
             print("   Set it with: export OPENAI_API_KEY='your-api-key'")
             print("   Or configure it in the frontend Settings panel")
+        else:
+            print(f"📝 Using fallback LLM config: OpenAI GPT (gpt-4o) from environment")
         
         return default_config
     

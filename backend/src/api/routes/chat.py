@@ -4,8 +4,10 @@ Chat endpoints (streaming and non-streaming)
 import asyncio
 import json
 from typing import AsyncGenerator
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.responses import StreamingResponse
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from langchain.agents import create_agent
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.tools import BaseTool
@@ -26,16 +28,25 @@ from ..utils import sanitize_tools_for_gemini
 router = APIRouter()
 
 
+def get_limiter():
+    """Get limiter from app state"""
+    from src.api import app
+    return app.state.limiter
+
+
 @router.post("/chat", response_model=ChatResponse)
 async def chat(
-    request: ChatRequest,
+    request: Request,
+    chat_request: ChatRequest,
     current_user: Optional[User] = Depends(get_current_user)
 ):
     """
     Non-streaming chat endpoint
     
     Args:
-        request: ChatRequest with message, session_id, and mode
+        request: FastAPI Request object (for rate limiting)
+        chat_request: ChatRequest with message, session_id, and mode
+        current_user: Optional authenticated user
         
     Returns:
         ChatResponse with answer
@@ -43,7 +54,7 @@ async def chat(
     try:
         user_id = current_user.id if current_user else None
         
-        if request.mode == "rag":
+        if chat_request.mode == "rag":
             # RAG-only mode
             llm_config = Config.load_llm_config()
             try:
@@ -56,14 +67,14 @@ async def chat(
             except Exception as e:
                 raise HTTPException(status_code=500, detail=f"Failed to initialize LLM: {str(e)}")
             answer = rag_system.query_with_history(
-                request.message, 
-                request.session_id, 
+                chat_request.message, 
+                chat_request.session_id, 
                 llm
             )
             
             return ChatResponse(
                 response=answer,
-                session_id=request.session_id,
+                session_id=chat_request.session_id,
                 mode="rag",
                 tools_used=["retrieve_dosiblog_context"]
             )
@@ -101,8 +112,8 @@ async def chat(
                     tools_context = "\n".join(tool_descriptions) if tool_descriptions else "No tools available"
                     
                     user_id = current_user.id if current_user else None
-                    history = history_manager.get_session_messages(request.session_id, user_id)
-                    context = rag_system.retrieve_context(request.message)
+                    history = history_manager.get_session_messages(chat_request.session_id, user_id)
+                    context = rag_system.retrieve_context(chat_request.message)
                     
                     prompt = ChatPromptTemplate.from_messages([
                         ("system", (
@@ -119,18 +130,18 @@ async def chat(
                         tools_context=tools_context,
                         context=context,
                         chat_history=history,
-                        input=request.message
+                        input=chat_request.message
                     )).content
                     
                     # Save to history
                     user_id = current_user.id if current_user else None
-                    session_history = history_manager.get_session_history(request.session_id, user_id)
-                    session_history.add_user_message(request.message)
+                    session_history = history_manager.get_session_history(chat_request.session_id, user_id)
+                    session_history.add_user_message(chat_request.message)
                     session_history.add_ai_message(answer)
                     
                     return ChatResponse(
                         response=answer,
-                        session_id=request.session_id,
+                        session_id=chat_request.session_id,
                         mode="agent",
                         tools_used=[]
                     )
@@ -169,8 +180,8 @@ async def chat(
                     raise HTTPException(status_code=500, detail=f"Failed to create agent: {str(e)}")
                 
                 # Get history
-                history = history_manager.get_session_messages(request.session_id)
-                messages = list(history) + [HumanMessage(content=request.message)]
+                history = history_manager.get_session_messages(chat_request.session_id)
+                messages = list(history) + [HumanMessage(content=chat_request.message)]
                 
                 # Run agent
                 final_answer = ""
@@ -207,13 +218,13 @@ async def chat(
                                 final_answer = str(content_raw)
                 
                 # Save to history
-                session_history = history_manager.get_session_history(request.session_id)
-                session_history.add_user_message(request.message)
+                session_history = history_manager.get_session_history(chat_request.session_id)
+                session_history.add_user_message(chat_request.message)
                 session_history.add_ai_message(final_answer)
                 
                 return ChatResponse(
                     response=final_answer,
-                    session_id=request.session_id,
+                    session_id=chat_request.session_id,
                     mode="agent",
                     tools_used=tools_used
                 )
@@ -224,14 +235,17 @@ async def chat(
 
 @router.post("/chat/stream")
 async def chat_stream(
-    request: ChatRequest,
+    request: Request,
+    chat_request: ChatRequest,
     current_user: Optional[User] = Depends(get_current_user)
 ):
     """
     Streaming chat endpoint - returns chunks as they're generated
     
     Args:
-        request: ChatRequest with message, session_id, and mode
+        request: FastAPI Request object (for rate limiting)
+        chat_request: ChatRequest with message, session_id, and mode
+        current_user: Optional authenticated user
         
     Returns:
         StreamingResponse with Server-Sent Events
@@ -246,7 +260,7 @@ async def chat_stream(
             # Add a small delay to ensure connection is established
             await asyncio.sleep(0.1)
             
-            if request.mode == "rag":
+            if chat_request.mode == "rag":
                 # For RAG mode, we'll stream the response
                 llm_config = Config.load_llm_config()
                 try:
@@ -268,7 +282,7 @@ async def chat_stream(
                     return
                 
                 # Get history
-                history = history_manager.get_session_messages(request.session_id)
+                history = history_manager.get_session_messages(chat_request.session_id, user_id)
                 
                 # Build context
                 prompt = ChatPromptTemplate.from_messages([
@@ -278,7 +292,7 @@ async def chat_stream(
                 ])
                 
                 # Retrieve context
-                context = rag_system.retrieve_context(request.message)
+                context = rag_system.retrieve_context(chat_request.message)
                 
                 # Stream response
                 full_response = ""
@@ -286,7 +300,7 @@ async def chat_stream(
                     prompt_messages = prompt.format(
                         context=context,
                         chat_history=history,
-                        input=request.message
+                        input=chat_request.message
                     )
                     async for chunk in llm.astream(prompt_messages):
                         if hasattr(chunk, 'content') and chunk.content:
@@ -357,9 +371,8 @@ async def chat_stream(
                 
                 # Save to history
                 if full_response:
-                    user_id = current_user.id if current_user else None
-                    session_history = history_manager.get_session_history(request.session_id, user_id)
-                    session_history.add_user_message(request.message)
+                    session_history = history_manager.get_session_history(chat_request.session_id, user_id)
+                    session_history.add_user_message(chat_request.message)
                     session_history.add_ai_message(full_response)
                 
                 yield f"data: {json.dumps({'chunk': '', 'done': True})}\n\n"
@@ -417,9 +430,8 @@ async def chat_stream(
                             tools_context = "\n".join(tool_descriptions) if tool_descriptions else "No tools available"
                             
                             # Build enhanced prompt with tool information
-                            user_id = current_user.id if current_user else None
-                            history = history_manager.get_session_messages(request.session_id, user_id)
-                            context = rag_system.retrieve_context(request.message)
+                            history = history_manager.get_session_messages(chat_request.session_id, user_id)
+                            context = rag_system.retrieve_context(chat_request.message)
                             
                             prompt = ChatPromptTemplate.from_messages([
                                 ("system", (
@@ -441,7 +453,7 @@ async def chat_stream(
                                     tools_context=tools_context,
                                     context=context,
                                     chat_history=history,
-                                    input=request.message
+                                    input=chat_request.message
                                 )
                                 async for chunk in llm.astream(prompt_messages):
                                     if hasattr(chunk, 'content') and chunk.content:
@@ -503,9 +515,8 @@ async def chat_stream(
                             
                             # Save to history
                             if full_response:
-                                user_id = current_user.id if current_user else None
-                                session_history = history_manager.get_session_history(request.session_id, user_id)
-                                session_history.add_user_message(request.message)
+                                session_history = history_manager.get_session_history(chat_request.session_id, user_id)
+                                session_history.add_user_message(chat_request.message)
                                 session_history.add_ai_message(full_response)
                             
                             yield f"data: {json.dumps({'chunk': '', 'done': True})}\n\n"
@@ -577,9 +588,8 @@ async def chat_stream(
                             return
                         
                         # Get history
-                        user_id = current_user.id if current_user else None
-                        history = history_manager.get_session_messages(request.session_id, user_id)
-                        messages = list(history) + [HumanMessage(content=request.message)]
+                        history = history_manager.get_session_messages(chat_request.session_id, user_id)
+                        messages = list(history) + [HumanMessage(content=chat_request.message)]
                         yield f"data: {json.dumps({'chunk': '', 'done': False, 'status': 'starting_agent_execution', 'message_count': len(messages)})}\n\n"
                         
                         # Stream agent responses
@@ -697,9 +707,8 @@ async def chat_stream(
                         
                         # Save to history
                         if full_response:
-                            user_id = current_user.id if current_user else None
-                            session_history = history_manager.get_session_history(request.session_id, user_id)
-                            session_history.add_user_message(request.message)
+                            session_history = history_manager.get_session_history(chat_request.session_id, user_id)
+                            session_history.add_user_message(chat_request.message)
                             session_history.add_ai_message(full_response)
                         
                         yield f"data: {json.dumps({'chunk': '', 'done': True, 'tools_used': tool_calls_made})}\n\n"

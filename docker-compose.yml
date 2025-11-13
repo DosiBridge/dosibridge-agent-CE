@@ -1,5 +1,25 @@
-
 services:
+  # PostgreSQL Database Service
+  db:
+    image: postgres:15
+    container_name: agent-postgres
+    environment:
+      POSTGRES_USER: sazib
+      POSTGRES_PASSWORD: 1234
+      POSTGRES_DB: mcpagent
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - agent-dosi-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sazib"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # Backend API Service
   agent-backend:
     container_name: agent-backend
@@ -14,10 +34,9 @@ services:
       PYTHONUNBUFFERED: "1"
       PYTHONPATH: "/app"
       PORT: "8000"
-      # Database URL - set DATABASE_URL environment variable before running docker-compose
-      # Example: export DATABASE_URL="postgresql://user:pass@host:5432/db"
-      # Default for Docker: postgresql://sazib:1234@host.docker.internal:5432/mcpagent
-      DATABASE_URL: "postgresql://sazib:1234@host.docker.internal:5432/mcpagent"
+      # Database URL - automatically set to use the db service in docker-compose
+      # For local development outside Docker, use: postgresql://sazib:1234@localhost:5432/mcpagent
+      DATABASE_URL: "postgresql://sazib:1234@db:5432/mcpagent"
       # CORS configuration - set CORS_ORIGINS environment variable to override
       CORS_ORIGINS: "http://localhost:8086,http://localhost:3000,http://127.0.0.1:3000,http://127.0.0.1:8086"
       # API keys - set via environment variables
@@ -30,10 +49,9 @@ services:
     volumes:
       - ./config:/app/config
     restart: unless-stopped
-    # Add host.docker.internal for accessing external PostgreSQL (Linux)
-    # Remove this if using Docker Desktop on Mac/Windows or if PostgreSQL is on a different host
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    depends_on:
+      db:
+        condition: service_healthy
     networks:
       - agent-dosi-network
 
@@ -63,3 +81,7 @@ services:
 networks:
   agent-dosi-network:
     driver: bridge
+
+volumes:
+  pgdata:
+    driver: local

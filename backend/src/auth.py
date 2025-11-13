@@ -28,9 +28,19 @@ except ImportError:
         pwd_context = None
 
 # JWT settings
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-in-production-use-env-var")
+# Enforce non-default secret key in production
+DEFAULT_SECRET_KEY = "your-secret-key-change-in-production-use-env-var"
+SECRET_KEY = os.getenv("JWT_SECRET_KEY", DEFAULT_SECRET_KEY)
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
+
+# Check if we're in production and enforce secret key
+IS_PRODUCTION = os.getenv("ENVIRONMENT", "").lower() in ("production", "prod") or os.getenv("NODE_ENV", "").lower() == "production"
+if IS_PRODUCTION and SECRET_KEY == DEFAULT_SECRET_KEY:
+    raise ValueError(
+        "JWT_SECRET_KEY must be set to a secure random value in production. "
+        "Do not use the default secret key. Set JWT_SECRET_KEY environment variable."
+    )
 
 # HTTP Bearer token
 security = HTTPBearer()
