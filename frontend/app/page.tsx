@@ -86,8 +86,6 @@ export default function Home() {
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [settingsOpen, authModalOpen, sidebarOpen, setSettingsOpen]);
-  const settingsOpen = useStore((state) => state.settingsOpen);
-  const setSettingsOpen = useStore((state) => state.setSettingsOpen);
   const loadSessions = useStore((state) => state.loadSessions);
   const loadSession = useStore((state) => state.loadSession);
   const currentSessionId = useStore((state) => state.currentSessionId);
