@@ -9,7 +9,7 @@ from src.core import Config
 from .history import history_manager
 from .rag import rag_system
 from .mcp_client import MCPClientManager
-from .tools import retrieve_dosiblog_context
+from .tools import retrieve_dosiblog_context, load_custom_rag_tools
 
 
 async def run_agent_query(agent_executor, question: str, session_id: str = "default"):

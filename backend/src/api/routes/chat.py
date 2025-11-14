@@ -16,7 +16,7 @@ from src.core import Config, User, get_db, DB_AVAILABLE
 from src.core.auth import get_current_active_user, get_current_user
 from src.services import history_manager, MCPClientManager, create_llm_from_config, rag_system
 from src.services.chat_service import ChatService
-from src.services.tools import retrieve_dosiblog_context
+from src.services.tools import retrieve_dosiblog_context, load_custom_rag_tools
 from typing import Optional
 from sqlalchemy.orm import Session
 from ..models import ChatRequest, ChatResponse
@@ -303,7 +303,9 @@ async def chat_stream(
                 # If no MCP servers, use only default tools (works without login)
                 if not mcp_servers:
                     mcp_tools = []
-                    all_tools = [retrieve_dosiblog_context]
+                    # Load custom RAG tools if authenticated
+                    custom_rag_tools = load_custom_rag_tools(user_id, db) if user_id and db else []
+                    all_tools = [retrieve_dosiblog_context] + custom_rag_tools
                     yield f"data: {json.dumps({'chunk': '', 'done': False, 'status': 'no_mcp_servers', 'tool_count': len(all_tools)})}\n\n"
                     
                     # Get LLM from config
@@ -520,7 +522,9 @@ async def chat_stream(
                     async with MCPClientManager(mcp_servers) as mcp_tools:
                         yield f"data: {json.dumps({'chunk': '', 'done': False, 'status': 'mcp_connected', 'tool_count': len(mcp_tools)})}\n\n"
                         
-                        all_tools = [retrieve_dosiblog_context] + mcp_tools
+                        # Load custom RAG tools if authenticated
+                        custom_rag_tools = load_custom_rag_tools(user_id, db) if user_id and db else []
+                        all_tools = [retrieve_dosiblog_context] + custom_rag_tools + mcp_tools
                         yield f"data: {json.dumps({'chunk': '', 'done': False, 'status': 'loading_llm_config'})}\n\n"
                         
                         # Get LLM from config

@@ -336,6 +336,40 @@ if Base is not None:
                 "has_embedding": bool(self.embedding),
                 "created_at": self.created_at.isoformat() if self.created_at else None,
             }
+
+    class CustomRAGTool(Base):
+        """Custom RAG tool model for user-defined retrieval tools"""
+        __tablename__ = "custom_rag_tools"
+        
+        id = Column(Integer, primary_key=True, index=True)
+        user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+        name = Column(String(255), nullable=False)  # Tool name (e.g., "retrieve_my_docs")
+        description = Column(Text, nullable=False)  # Tool description
+        collection_id = Column(Integer, ForeignKey("document_collections.id", ondelete="SET NULL"), nullable=True, index=True)
+        enabled = Column(Boolean, default=True, nullable=False)
+        created_at = Column(DateTime(timezone=True), server_default=func.now())
+        updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+        
+        # Relationships
+        user = relationship("User", backref="custom_rag_tools")
+        collection = relationship("DocumentCollection", backref="custom_rag_tools")
+        
+        # Unique constraint on user_id + name
+        __table_args__ = (
+            UniqueConstraint('user_id', 'name', name='uq_custom_rag_tool_user_name'),
+        )
+        
+        def to_dict(self) -> dict:
+            """Convert model to dictionary"""
+            return {
+                "id": self.id,
+                "name": self.name,
+                "description": self.description,
+                "collection_id": self.collection_id,
+                "enabled": self.enabled,
+                "created_at": self.created_at.isoformat() if self.created_at else None,
+                "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            }
 else:
     # Dummy classes when database is not available
     LLMConfig = None  # type: ignore
@@ -346,3 +380,4 @@ else:
     DocumentCollection = None  # type: ignore
     Document = None  # type: ignore
     DocumentChunk = None  # type: ignore
+    CustomRAGTool = None  # type: ignore

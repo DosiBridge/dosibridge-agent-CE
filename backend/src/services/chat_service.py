@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 from src.core import Config, User, DB_AVAILABLE
 from src.services import history_manager, MCPClientManager, create_llm_from_config, rag_system
 from src.services.db_history import db_history_manager
-from src.services.tools import retrieve_dosiblog_context
+from src.services.tools import retrieve_dosiblog_context, load_custom_rag_tools
 from src.services.advanced_rag import advanced_rag_system
 from src.services.react_agent import create_react_agent
 from src.utils import sanitize_tools_for_gemini
@@ -156,7 +156,9 @@ class ChatService:
         tools_used = []
         
         async with MCPClientManager(mcp_servers) as mcp_tools:
-            all_tools = [retrieve_dosiblog_context] + mcp_tools
+            # Load custom RAG tools
+            custom_rag_tools = load_custom_rag_tools(user_id, db) if user_id and db else []
+            all_tools = [retrieve_dosiblog_context] + custom_rag_tools + mcp_tools
             
             llm_config = Config.load_llm_config()
             llm = create_llm_from_config(llm_config, streaming=False, temperature=0)

@@ -17,6 +17,7 @@ from .routes import (
 )
 from .routes.documents import router as documents_router
 from .routes.websocket import router as websocket_router
+from .routes.custom_rag_tools import router as custom_rag_tools_router
 
 # Try to import slowapi for rate limiting (optional)
 try:
@@ -113,6 +114,7 @@ app.include_router(llm_config_router, prefix="/api", tags=["llm-config"])
 app.include_router(mcp_routes_router, prefix="/api", tags=["mcp-routes"])
 app.include_router(documents_router, prefix="/api", tags=["documents"])
 app.include_router(websocket_router, prefix="/api", tags=["websocket"])
+app.include_router(custom_rag_tools_router, prefix="/api", tags=["custom-rag-tools"])
 
 # Setup MCP routes
 setup_mcp_routes(app)

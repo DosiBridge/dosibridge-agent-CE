@@ -132,12 +132,97 @@ export interface ToolsInfo {
     name: string;
     description: string;
     type: string;
+    custom?: boolean;
+    id?: number;
+    collection_id?: number | null;
   }>;
   mcp_servers: Array<{
     name: string;
     url: string;
     status: string;
   }>;
+}
+
+// Custom RAG Tools API
+export interface CustomRAGTool {
+  id: number;
+  name: string;
+  description: string;
+  collection_id: number | null;
+  enabled: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CustomRAGToolRequest {
+  name: string;
+  description: string;
+  collection_id?: number | null;
+  enabled?: boolean;
+}
+
+export async function createCustomRAGTool(
+  tool: CustomRAGToolRequest
+): Promise<CustomRAGTool> {
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/custom-rag-tools`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(tool),
+  });
+  return handleResponse<CustomRAGTool>(response);
+}
+
+export async function listCustomRAGTools(): Promise<CustomRAGTool[]> {
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/custom-rag-tools`, {
+    headers: getAuthHeaders(),
+  });
+  return handleResponse<CustomRAGTool[]>(response);
+}
+
+export async function getCustomRAGTool(toolId: number): Promise<CustomRAGTool> {
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/custom-rag-tools/${toolId}`, {
+    headers: getAuthHeaders(),
+  });
+  return handleResponse<CustomRAGTool>(response);
+}
+
+export async function updateCustomRAGTool(
+  toolId: number,
+  tool: CustomRAGToolRequest
+): Promise<CustomRAGTool> {
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/custom-rag-tools/${toolId}`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(tool),
+  });
+  return handleResponse<CustomRAGTool>(response);
+}
+
+export async function deleteCustomRAGTool(toolId: number): Promise<void> {
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/custom-rag-tools/${toolId}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+  await handleResponse(response);
+}
+
+export async function toggleCustomRAGTool(
+  toolId: number
+): Promise<CustomRAGTool> {
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(
+    `${apiBaseUrl}/api/custom-rag-tools/${toolId}/toggle`,
+    {
+      method: "PATCH",
+      headers: getAuthHeaders(),
+    }
+  );
+  return handleResponse<CustomRAGTool>(response);
 }
 
 // Token management

@@ -145,9 +145,10 @@ dmypy.json
 .ppt
 .pptx
 
-.faiss
-.faiss.index
-.pkl
+*.faiss
+*.faiss.index
+*.pkl
+*index.faiss
 
 # OS - macOS
 .DS_Store

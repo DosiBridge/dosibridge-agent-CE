@@ -6,16 +6,25 @@
 "use client";
 
 import {
-  addMCPServer,
-  deleteMCPServer,
-  getToolsInfo,
+  CustomRAGTool,
+  CustomRAGToolRequest,
+  DocumentCollection,
   LLMConfig,
   MCPServerRequest,
+  ToolsInfo,
+  addMCPServer,
+  createCustomRAGTool,
+  deleteCustomRAGTool,
+  deleteMCPServer,
+  getToolsInfo,
+  listCollections,
+  listCustomRAGTools,
   resetLLMConfig,
   setLLMConfig,
   testMCPServerConnection,
+  toggleCustomRAGTool,
   toggleMCPServer,
-  ToolsInfo,
+  updateCustomRAGTool,
   updateMCPServer,
 } from "@/lib/api";
 import { useStore } from "@/lib/store";
@@ -57,6 +66,17 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   const [activeTab, setActiveTab] = useState<"mcp" | "llm" | "tools">("mcp");
   const [editingServer, setEditingServer] = useState<string | null>(null);
   const [deletingServer, setDeletingServer] = useState<string | null>(null);
+  const [customRAGTools, setCustomRAGTools] = useState<CustomRAGTool[]>([]);
+  const [collections, setCollections] = useState<DocumentCollection[]>([]);
+  const [editingTool, setEditingTool] = useState<number | null>(null);
+  const [deletingTool, setDeletingTool] = useState<number | null>(null);
+  const [toolForm, setToolForm] = useState<CustomRAGToolRequest>({
+    name: "",
+    description: "",
+    collection_id: null,
+    enabled: true,
+  });
+  const [showToolForm, setShowToolForm] = useState(false);
   const [serverForm, setServerForm] = useState<MCPServerRequest>({
     name: "",
     url: "",
@@ -93,6 +113,26 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     }
   }, []);
 
+  const loadCustomRAGTools = useCallback(async () => {
+    if (!isAuthenticated) return;
+    try {
+      const tools = await listCustomRAGTools();
+      setCustomRAGTools(tools);
+    } catch (error) {
+      console.error("Failed to load custom RAG tools:", error);
+    }
+  }, [isAuthenticated]);
+
+  const loadCollections = useCallback(async () => {
+    if (!isAuthenticated) return;
+    try {
+      const result = await listCollections();
+      setCollections(result.collections);
+    } catch (error) {
+      console.error("Failed to load collections:", error);
+    }
+  }, [isAuthenticated]);
+
   useEffect(() => {
     if (isOpen) {
       (async () => {
@@ -100,12 +140,21 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
           await loadMCPServers();
           await loadLLMConfig();
           await loadToolsInfo();
+          await loadCustomRAGTools();
+          await loadCollections();
         } catch (error) {
           console.error("Failed to load settings:", error);
         }
       })();
     }
-  }, [isOpen, loadMCPServers, loadLLMConfig, loadToolsInfo]);
+  }, [
+    isOpen,
+    loadMCPServers,
+    loadLLMConfig,
+    loadToolsInfo,
+    loadCustomRAGTools,
+    loadCollections,
+  ]);
 
   // Close on Escape key
   useEffect(() => {
@@ -1217,6 +1266,209 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                         )}
                       </div>
                     </div>
+
+                    {/* Custom RAG Tools Section */}
+                    {isAuthenticated && (
+                      <div>
+                        <div className="flex items-center justify-between mb-3 sm:mb-4">
+                          <div className="flex-1">
+                            <h4 className="font-medium text-sm sm:text-base text-gray-300 flex items-center gap-2 mb-1">
+                              <FileJson className="w-4 h-4 shrink-0 text-[#10a37f]" />
+                              <span>Custom RAG Tools</span>
+                              <span className="text-xs text-gray-500 font-normal">
+                                ({customRAGTools.length})
+                              </span>
+                            </h4>
+                            <p className="text-xs text-gray-500 ml-6">
+                              Supported file types: PDF, TXT, DOCX, DOC, MD (Max
+                              100MB)
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setShowToolForm(true);
+                              setEditingTool(null);
+                              setToolForm({
+                                name: "",
+                                description: "",
+                                collection_id: null,
+                                enabled: true,
+                              });
+                            }}
+                            className="flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium text-white bg-[#10a37f] hover:bg-[#0d8f6e] rounded-lg transition-colors touch-manipulation active:scale-95"
+                          >
+                            <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+                            <span className="hidden sm:inline">Add Tool</span>
+                            <span className="sm:hidden">Add</span>
+                          </button>
+                        </div>
+                        <div className="space-y-2">
+                          {customRAGTools.length === 0 ? (
+                            <div className="text-center py-8 sm:py-12 px-3 sm:px-4 bg-gradient-to-br from-[#40414f] to-[#343541] rounded-xl border-2 border-dashed border-gray-700">
+                              <div className="p-4 bg-[#2d2d2f] rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                                <FileJson className="w-8 h-8 text-gray-500" />
+                              </div>
+                              <p className="text-sm sm:text-base font-medium text-gray-300 mb-1">
+                                No custom RAG tools
+                              </p>
+                              <p className="text-xs sm:text-sm text-gray-500 mb-2">
+                                Create custom retrieval tools from your document
+                                collections
+                              </p>
+                              <div className="text-xs text-gray-500 mb-4 px-4 py-2 bg-[#2d2d2f] rounded-lg border border-gray-700">
+                                <p className="font-medium text-gray-400 mb-1">
+                                  Supported File Types:
+                                </p>
+                                <ul className="list-disc list-inside space-y-0.5 text-gray-500">
+                                  <li>PDF (.pdf) — PDF files</li>
+                                  <li>TXT (.txt) — Plain text files</li>
+                                  <li>
+                                    DOCX (.docx) — Microsoft Word documents
+                                  </li>
+                                  <li>DOC (.doc) — Older Word documents</li>
+                                  <li>MD (.md) — Markdown files</li>
+                                </ul>
+                                <p className="mt-2 text-gray-400">
+                                  Maximum file size: 100MB per file
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  setShowToolForm(true);
+                                  setEditingTool(null);
+                                  setToolForm({
+                                    name: "",
+                                    description: "",
+                                    collection_id: null,
+                                    enabled: true,
+                                  });
+                                }}
+                                className="px-4 py-2 text-sm font-medium text-white bg-[#10a37f] hover:bg-[#0d8f6e] rounded-lg transition-colors"
+                              >
+                                Create Your First Tool
+                              </button>
+                            </div>
+                          ) : (
+                            customRAGTools.map((tool) => (
+                              <div
+                                key={tool.id}
+                                className="p-4 sm:p-5 bg-gradient-to-br from-[#40414f] to-[#343541] border border-gray-700 rounded-xl hover:border-[#10a37f]/50 transition-all duration-200 hover:shadow-lg hover:shadow-[#10a37f]/10"
+                              >
+                                <div className="flex items-start gap-3">
+                                  <div className="p-2 bg-[#10a37f]/10 rounded-lg shrink-0">
+                                    <FileJson className="w-4 h-4 text-[#10a37f]" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-start justify-between gap-2 mb-2">
+                                      <div className="flex-1">
+                                        <div className="font-semibold text-sm sm:text-base text-gray-200 mb-1">
+                                          {tool.name}
+                                        </div>
+                                        <div className="text-xs sm:text-sm text-gray-400 mb-2 leading-relaxed">
+                                          {tool.description}
+                                        </div>
+                                        {tool.collection_id && (
+                                          <div className="text-xs text-gray-500 mb-2">
+                                            Collection:{" "}
+                                            {collections.find(
+                                              (c) => c.id === tool.collection_id
+                                            )?.name || "Unknown"}
+                                          </div>
+                                        )}
+                                        <div className="flex items-center gap-2">
+                                          <div className="inline-flex items-center px-2 py-1 bg-[#2d2d2f] rounded-md text-xs text-gray-500 border border-gray-700">
+                                            Type: RAG
+                                          </div>
+                                          <div
+                                            className={`inline-flex items-center px-2 py-1 rounded-md text-xs border ${
+                                              tool.enabled
+                                                ? "bg-green-500/10 text-green-400 border-green-500/20"
+                                                : "bg-red-500/10 text-red-400 border-red-500/20"
+                                            }`}
+                                          >
+                                            {tool.enabled
+                                              ? "Enabled"
+                                              : "Disabled"}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-2 shrink-0">
+                                        <button
+                                          onClick={async () => {
+                                            try {
+                                              await toggleCustomRAGTool(
+                                                tool.id
+                                              );
+                                              toast.success(
+                                                `Tool ${
+                                                  tool.enabled
+                                                    ? "disabled"
+                                                    : "enabled"
+                                                }`
+                                              );
+                                              await loadCustomRAGTools();
+                                              await loadToolsInfo();
+                                            } catch (error) {
+                                              toast.error(
+                                                `Failed to toggle tool: ${
+                                                  error instanceof Error
+                                                    ? error.message
+                                                    : "Unknown error"
+                                                }`
+                                              );
+                                            }
+                                          }}
+                                          className={`p-2 rounded-lg transition-colors ${
+                                            tool.enabled
+                                              ? "bg-green-500/10 text-green-400 hover:bg-green-500/20"
+                                              : "bg-gray-700 text-gray-400 hover:bg-gray-600"
+                                          }`}
+                                          title={
+                                            tool.enabled ? "Disable" : "Enable"
+                                          }
+                                        >
+                                          {tool.enabled ? (
+                                            <CheckCircle className="w-4 h-4" />
+                                          ) : (
+                                            <X className="w-4 h-4" />
+                                          )}
+                                        </button>
+                                        <button
+                                          onClick={() => {
+                                            setEditingTool(tool.id);
+                                            setToolForm({
+                                              name: tool.name,
+                                              description: tool.description,
+                                              collection_id: tool.collection_id,
+                                              enabled: tool.enabled,
+                                            });
+                                            setShowToolForm(true);
+                                          }}
+                                          className="p-2 rounded-lg bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors"
+                                          title="Edit"
+                                        >
+                                          <Edit2 className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                          onClick={() =>
+                                            setDeletingTool(tool.id)
+                                          }
+                                          className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
+                                          title="Delete"
+                                        >
+                                          <Trash2 className="w-4 h-4" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     <div>
                       <h4 className="font-medium mb-3 sm:mb-4 text-sm sm:text-base text-gray-300 flex items-center gap-2">
                         <Server className="w-4 h-4 shrink-0 text-[#10a37f]" />
@@ -1348,6 +1600,256 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                 </button>
                 <button
                   onClick={() => handleDeleteServer(deletingServer)}
+                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-sm font-medium bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors touch-manipulation"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom RAG Tool Form Modal */}
+      {showToolForm && (
+        <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-[#343541] rounded-xl shadow-2xl max-w-2xl w-full border border-gray-700 max-h-[90vh] overflow-y-auto">
+            <div className="p-4 sm:p-5 md:p-6">
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[#10a37f]/20 flex items-center justify-center shrink-0">
+                    <FileJson className="w-4 h-4 sm:w-5 sm:h-5 text-[#10a37f]" />
+                  </div>
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-200">
+                    {editingTool
+                      ? "Edit Custom RAG Tool"
+                      : "Create Custom RAG Tool"}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowToolForm(false);
+                    setEditingTool(null);
+                    setToolForm({
+                      name: "",
+                      description: "",
+                      collection_id: null,
+                      enabled: true,
+                    });
+                  }}
+                  className="p-2 hover:bg-[#40414f] rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-400" />
+                </button>
+              </div>
+
+              <div className="space-y-4 sm:space-y-5">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <span>Tool Name</span>
+                    <span className="text-red-400 ml-1">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={toolForm.name}
+                    onChange={(e) =>
+                      setToolForm({ ...toolForm, name: e.target.value })
+                    }
+                    placeholder="e.g., retrieve_my_docs"
+                    className="w-full px-4 py-2.5 bg-[#40414f] border border-gray-600 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#10a37f] focus:border-transparent"
+                  />
+                  <p className="mt-1.5 text-xs text-gray-500">
+                    Unique name for the tool (lowercase, underscores allowed)
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <span>Description</span>
+                    <span className="text-red-400 ml-1">*</span>
+                  </label>
+                  <textarea
+                    value={toolForm.description}
+                    onChange={(e) =>
+                      setToolForm({ ...toolForm, description: e.target.value })
+                    }
+                    placeholder="Describe what this tool retrieves..."
+                    rows={3}
+                    className="w-full px-4 py-2.5 bg-[#40414f] border border-gray-600 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#10a37f] focus:border-transparent resize-none"
+                  />
+                  <p className="mt-1.5 text-xs text-gray-500">
+                    This description helps the AI understand when to use this
+                    tool
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Collection (Optional)
+                  </label>
+                  <select
+                    value={toolForm.collection_id || ""}
+                    onChange={(e) =>
+                      setToolForm({
+                        ...toolForm,
+                        collection_id: e.target.value
+                          ? parseInt(e.target.value)
+                          : null,
+                      })
+                    }
+                    className="w-full px-4 py-2.5 bg-[#40414f] border border-gray-600 rounded-lg text-gray-200 focus:outline-none focus:ring-2 focus:ring-[#10a37f] focus:border-transparent"
+                  >
+                    <option value="">All Collections</option>
+                    {collections.map((collection) => (
+                      <option key={collection.id} value={collection.id}>
+                        {collection.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1.5 text-xs text-gray-500">
+                    Select a specific collection or leave blank to search all
+                    documents
+                  </p>
+                </div>
+
+                <div className="p-3 bg-[#2d2d2f] rounded-lg border border-gray-700">
+                  <p className="text-xs font-medium text-gray-400 mb-2">
+                    📄 Supported Document Types:
+                  </p>
+                  <ul className="text-xs text-gray-500 space-y-1 list-disc list-inside">
+                    <li>PDF (.pdf) — PDF files</li>
+                    <li>TXT (.txt) — Plain text files</li>
+                    <li>DOCX (.docx) — Microsoft Word documents</li>
+                    <li>DOC (.doc) — Older Word documents</li>
+                    <li>MD (.md) — Markdown files</li>
+                  </ul>
+                  <p className="text-xs text-gray-500 mt-2">
+                    💡 Upload documents in RAG Settings tab first, then create
+                    tools to retrieve from them.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="tool-enabled"
+                    checked={toolForm.enabled}
+                    onChange={(e) =>
+                      setToolForm({ ...toolForm, enabled: e.target.checked })
+                    }
+                    className="w-4 h-4 text-[#10a37f] bg-[#40414f] border-gray-600 rounded focus:ring-[#10a37f] focus:ring-2"
+                  />
+                  <label
+                    htmlFor="tool-enabled"
+                    className="text-sm text-gray-300 cursor-pointer"
+                  >
+                    Enable this tool
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end mt-6 sm:mt-8">
+                <button
+                  onClick={() => {
+                    setShowToolForm(false);
+                    setEditingTool(null);
+                    setToolForm({
+                      name: "",
+                      description: "",
+                      collection_id: null,
+                      enabled: true,
+                    });
+                  }}
+                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-[#40414f] rounded-lg transition-colors touch-manipulation"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!toolForm.name.trim() || !toolForm.description.trim()) {
+                      toast.error("Name and description are required");
+                      return;
+                    }
+                    try {
+                      if (editingTool) {
+                        await updateCustomRAGTool(editingTool, toolForm);
+                        toast.success("Tool updated successfully");
+                      } else {
+                        await createCustomRAGTool(toolForm);
+                        toast.success("Tool created successfully");
+                      }
+                      setShowToolForm(false);
+                      setEditingTool(null);
+                      setToolForm({
+                        name: "",
+                        description: "",
+                        collection_id: null,
+                        enabled: true,
+                      });
+                      await loadCustomRAGTools();
+                      await loadToolsInfo();
+                    } catch (error) {
+                      toast.error(
+                        `Failed to ${editingTool ? "update" : "create"} tool: ${
+                          error instanceof Error
+                            ? error.message
+                            : "Unknown error"
+                        }`
+                      );
+                    }
+                  }}
+                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-sm font-medium bg-[#10a37f] hover:bg-[#0d8f6e] text-white rounded-lg transition-colors touch-manipulation"
+                >
+                  {editingTool ? "Update Tool" : "Create Tool"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Custom RAG Tool Confirmation Modal */}
+      {deletingTool && (
+        <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-[#343541] rounded-xl shadow-2xl max-w-md w-full border border-gray-700">
+            <div className="p-4 sm:p-5 md:p-6">
+              <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />
+                </div>
+                <h3 className="text-base sm:text-lg font-semibold text-gray-200">
+                  Delete Custom RAG Tool
+                </h3>
+              </div>
+              <p className="text-sm sm:text-base text-gray-300 mb-4 sm:mb-6">
+                Are you sure you want to delete this tool? This action cannot be
+                undone.
+              </p>
+              <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end">
+                <button
+                  onClick={() => setDeletingTool(null)}
+                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-[#40414f] rounded-lg transition-colors touch-manipulation"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      await deleteCustomRAGTool(deletingTool);
+                      toast.success("Tool deleted successfully");
+                      setDeletingTool(null);
+                      await loadCustomRAGTools();
+                      await loadToolsInfo();
+                    } catch (error) {
+                      toast.error(
+                        `Failed to delete tool: ${
+                          error instanceof Error
+                            ? error.message
+                            : "Unknown error"
+                        }`
+                      );
+                    }
+                  }}
                   className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-sm font-medium bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors touch-manipulation"
                 >
                   Delete
