@@ -10,6 +10,7 @@ import json
 from src.core import get_db, DB_AVAILABLE, User
 from src.core.auth import get_current_active_user
 from src.core.models import Document, DocumentCollection, DocumentChunk
+from ..models import CollectionRequest
 from src.services.document_processor import document_processor
 from src.services.advanced_rag import advanced_rag_system
 from src.services.human_in_loop import human_in_loop
