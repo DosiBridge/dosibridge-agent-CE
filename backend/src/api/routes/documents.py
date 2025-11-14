@@ -377,8 +377,7 @@ async def get_review_statistics(
 # Collections endpoints
 @router.post("/collections")
 async def create_collection(
-    name: str,
-    description: Optional[str] = None,
+    collection_request: CollectionRequest,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
@@ -389,7 +388,7 @@ async def create_collection(
     # Check if collection with same name exists
     existing = db.query(DocumentCollection).filter(
         DocumentCollection.user_id == current_user.id,
-        DocumentCollection.name == name
+        DocumentCollection.name == collection_request.name
     ).first()
     
     if existing:
@@ -397,8 +396,8 @@ async def create_collection(
     
     collection = DocumentCollection(
         user_id=current_user.id,
-        name=name,
-        description=description
+        name=collection_request.name,
+        description=collection_request.description
     )
     
     db.add(collection)

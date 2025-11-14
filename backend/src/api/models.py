@@ -42,3 +42,8 @@ class LLMConfigRequest(BaseModel):
     base_url: Optional[str] = None  # For Ollama
     api_base: Optional[str] = None  # Custom API base for OpenAI/Groq
 
+
+class CollectionRequest(BaseModel):
+    name: str
+    description: Optional[str] = None
+
