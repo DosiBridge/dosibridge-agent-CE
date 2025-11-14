@@ -52,6 +52,7 @@ export default function ChatInput() {
   const isAuthenticated = useStore((state) => state.isAuthenticated);
   const setMode = useStore((state) => state.setMode);
   const setRagSettingsOpen = useStore((state) => state.setRagSettingsOpen);
+  const setSettingsOpen = useStore((state) => state.setSettingsOpen);
   const addMessage = useStore((state) => state.addMessage);
   const updateLastMessage = useStore((state) => state.updateLastMessage);
   const updateLastMessageTools = useStore(
@@ -472,7 +473,10 @@ export default function ChatInput() {
           </div>
           {mode === "rag" && (
             <button
-              onClick={() => setRagSettingsOpen(true)}
+              onClick={() => {
+                setRagSettingsOpen(true);
+                setSettingsOpen(true);
+              }}
               disabled={inputDisabled}
               className="p-1.5 sm:p-2 hover:bg-[#40414f] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title="RAG Settings"
@@ -680,39 +684,7 @@ export default function ChatInput() {
             )}
           </div>
 
-          {/* Right: Keyboard shortcuts (hidden on mobile) */}
-          <div className="hidden md:flex items-center gap-3 text-gray-500">
-            <div className="flex items-center gap-1.5">
-              <kbd className="px-1.5 py-0.5 text-xs font-mono bg-[#40414f] border border-gray-600 rounded text-gray-300 shadow-sm">
-                Enter
-              </kbd>
-              <span>Send</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <kbd className="px-1.5 py-0.5 text-xs font-mono bg-[#40414f] border border-gray-600 rounded text-gray-300 shadow-sm">
-                Shift
-              </kbd>
-              <span>+</span>
-              <kbd className="px-1.5 py-0.5 text-xs font-mono bg-[#40414f] border border-gray-600 rounded text-gray-300 shadow-sm">
-                Enter
-              </kbd>
-              <span>New line</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <kbd className="px-1.5 py-0.5 text-xs font-mono bg-[#40414f] border border-gray-600 rounded text-gray-300 shadow-sm">
-                ↑↓
-              </kbd>
-              <span>History</span>
-            </div>
-            {showSuggestions && suggestions.length > 0 && (
-              <div className="flex items-center gap-1.5">
-                <kbd className="px-1.5 py-0.5 text-xs font-mono bg-[#40414f] border border-gray-600 rounded text-gray-300 shadow-sm">
-                  Esc
-                </kbd>
-                <span>Close</span>
-              </div>
-            )}
-          </div>
+         
 
           {/* Mobile: Compact shortcuts */}
           <div className="md:hidden flex items-center gap-2 text-gray-500">

@@ -8,17 +8,26 @@
 import {
   CustomRAGTool,
   CustomRAGToolRequest,
+  Document,
   DocumentCollection,
   LLMConfig,
   MCPServerRequest,
   ToolsInfo,
   addMCPServer,
+  approveDocument,
+  createCollection,
   createCustomRAGTool,
+  deleteCollection,
   deleteCustomRAGTool,
+  deleteDocument,
   deleteMCPServer,
+  getDocumentsNeedingReview,
+  getReviewStatistics,
   getToolsInfo,
   listCollections,
   listCustomRAGTools,
+  listDocuments,
+  rejectDocument,
   resetLLMConfig,
   setLLMConfig,
   testMCPServerConnection,
@@ -26,15 +35,19 @@ import {
   toggleMCPServer,
   updateCustomRAGTool,
   updateMCPServer,
+  uploadDocument,
 } from "@/lib/api";
 import { useStore } from "@/lib/store";
 import {
   AlertTriangle,
+  Brain,
   CheckCircle,
   Edit2,
   Eye,
   EyeOff,
+  File,
   FileJson,
+  Folder,
   Loader2,
   Lock,
   Plus,
@@ -42,6 +55,7 @@ import {
   Server,
   Settings,
   Trash2,
+  Upload,
   Wifi,
   WifiOff,
   Wrench,
@@ -53,17 +67,38 @@ import toast from "react-hot-toast";
 interface SettingsPanelProps {
   isOpen: boolean;
   onClose: () => void;
+  initialTab?: "mcp" | "llm" | "tools" | "rag";
+  selectedCollectionId?: number | null;
+  onCollectionSelect?: (collectionId: number | null) => void;
+  useReact?: boolean;
+  onUseReactChange?: (useReact: boolean) => void;
 }
 
-export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
+export default function SettingsPanel({
+  isOpen,
+  onClose,
+  initialTab = "mcp",
+  selectedCollectionId: propSelectedCollectionId,
+  onCollectionSelect: propOnCollectionSelect,
+  useReact: propUseReact,
+  onUseReactChange: propOnUseReactChange,
+}: SettingsPanelProps) {
   const isAuthenticated = useStore((state) => state.isAuthenticated);
   const mcpServers = useStore((state) => state.mcpServers);
   const llmConfig = useStore((state) => state.llmConfig);
   const loadMCPServers = useStore((state) => state.loadMCPServers);
   const loadLLMConfig = useStore((state) => state.loadLLMConfig);
+  const selectedCollectionId = useStore((state) => state.selectedCollectionId);
+  const setSelectedCollectionId = useStore(
+    (state) => state.setSelectedCollectionId
+  );
+  const useReact = useStore((state) => state.useReact);
+  const setUseReact = useStore((state) => state.setUseReact);
 
   const [toolsInfo, setToolsInfo] = useState<ToolsInfo | null>(null);
-  const [activeTab, setActiveTab] = useState<"mcp" | "llm" | "tools">("mcp");
+  const [activeTab, setActiveTab] = useState<"mcp" | "llm" | "tools" | "rag">(
+    initialTab
+  );
   const [editingServer, setEditingServer] = useState<string | null>(null);
   const [deletingServer, setDeletingServer] = useState<string | null>(null);
   const [customRAGTools, setCustomRAGTools] = useState<CustomRAGTool[]>([]);
@@ -77,6 +112,28 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     enabled: true,
   });
   const [showToolForm, setShowToolForm] = useState(false);
+
+  // RAG Settings state
+  const [ragActiveTab, setRagActiveTab] = useState<
+    "documents" | "collections" | "review"
+  >("documents");
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [ragCollections, setRagCollections] = useState<DocumentCollection[]>(
+    []
+  );
+  const [reviewDocuments, setReviewDocuments] = useState<Document[]>([]);
+  const [stats, setStats] = useState({
+    pending: 0,
+    needs_review: 0,
+    ready: 0,
+    error: 0,
+    total: 0,
+  });
+  const [isUploading, setIsUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [newCollectionName, setNewCollectionName] = useState("");
+  const [newCollectionDesc, setNewCollectionDesc] = useState("");
+
   const [serverForm, setServerForm] = useState<MCPServerRequest>({
     name: "",
     url: "",
@@ -128,10 +185,47 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     try {
       const result = await listCollections();
       setCollections(result.collections);
+      setRagCollections(result.collections);
     } catch (error) {
       console.error("Failed to load collections:", error);
     }
   }, [isAuthenticated]);
+
+  // RAG Settings load functions
+  const loadRAGDocuments = useCallback(async () => {
+    if (!isAuthenticated) return;
+    try {
+      const collectionId = propSelectedCollectionId ?? selectedCollectionId;
+      const result = await listDocuments(collectionId || undefined);
+      setDocuments(result.documents);
+    } catch (err) {
+      console.error("Failed to load documents:", err);
+    }
+  }, [isAuthenticated, propSelectedCollectionId, selectedCollectionId]);
+
+  const loadReviewDocuments = useCallback(async () => {
+    if (!isAuthenticated) return;
+    try {
+      const result = await getDocumentsNeedingReview();
+      setReviewDocuments(result.documents);
+    } catch (err) {
+      console.error("Failed to load review documents:", err);
+    }
+  }, [isAuthenticated]);
+
+  const loadStats = useCallback(async () => {
+    if (!isAuthenticated) return;
+    try {
+      const stats = await getReviewStatistics();
+      setStats(stats);
+    } catch (err) {
+      console.error("Failed to load stats:", err);
+    }
+  }, [isAuthenticated]);
+
+  // Compute currentCollectionId early
+  const currentCollectionId = propSelectedCollectionId ?? selectedCollectionId;
+  const currentUseReact = propUseReact ?? useReact;
 
   useEffect(() => {
     if (isOpen) {
@@ -155,6 +249,202 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     loadCustomRAGTools,
     loadCollections,
   ]);
+
+  // Load RAG data when RAG tab is active
+  useEffect(() => {
+    if (isOpen && activeTab === "rag" && isAuthenticated) {
+      (async () => {
+        try {
+          await loadRAGDocuments();
+          await loadReviewDocuments();
+          await loadStats();
+        } catch (error) {
+          console.error("Failed to load RAG data:", error);
+        }
+      })();
+    }
+  }, [
+    isOpen,
+    activeTab,
+    isAuthenticated,
+    loadRAGDocuments,
+    loadReviewDocuments,
+    loadStats,
+    currentCollectionId,
+  ]);
+
+  // Update activeTab when initialTab changes
+  useEffect(() => {
+    if (isOpen && initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [isOpen, initialTab]);
+
+  // RAG Settings handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const files = Array.from(e.dataTransfer.files);
+    await handleFiles(files);
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const files = Array.from(e.target.files);
+      await handleFiles(files);
+    }
+  };
+
+  const handleFiles = async (files: File[]) => {
+    setIsUploading(true);
+    try {
+      const collectionId = propSelectedCollectionId ?? selectedCollectionId;
+      for (const file of files) {
+        await uploadDocument(file, collectionId || undefined);
+      }
+      toast.success(`Uploaded ${files.length} file(s)`);
+      await loadRAGDocuments();
+      await loadStats();
+      await loadCollections();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to upload document"
+      );
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDeleteDocument = async (documentId: number) => {
+    if (!confirm("Are you sure you want to delete this document?")) return;
+    try {
+      await deleteDocument(documentId);
+      toast.success("Document deleted");
+      await loadRAGDocuments();
+      await loadStats();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to delete document"
+      );
+    }
+  };
+
+  const handleApprove = async (documentId: number) => {
+    try {
+      await approveDocument(documentId);
+      toast.success("Document approved");
+      await loadRAGDocuments();
+      await loadReviewDocuments();
+      await loadStats();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to approve document"
+      );
+    }
+  };
+
+  const handleReject = async (documentId: number) => {
+    const reason = prompt("Rejection reason (optional):");
+    try {
+      await rejectDocument(documentId, reason || undefined);
+      toast.success("Document rejected");
+      await loadRAGDocuments();
+      await loadReviewDocuments();
+      await loadStats();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to reject document"
+      );
+    }
+  };
+
+  const handleCreateCollection = async () => {
+    if (!newCollectionName.trim()) {
+      toast.error("Collection name is required");
+      return;
+    }
+    try {
+      await createCollection(newCollectionName, newCollectionDesc || undefined);
+      toast.success("Collection created");
+      setNewCollectionName("");
+      setNewCollectionDesc("");
+      await loadCollections();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to create collection"
+      );
+    }
+  };
+
+  const handleDeleteCollection = async (collectionId: number) => {
+    if (!confirm("Are you sure you want to delete this collection?")) return;
+    try {
+      await deleteCollection(collectionId);
+      toast.success("Collection deleted");
+      const currentCollectionId =
+        propSelectedCollectionId ?? selectedCollectionId;
+      if (currentCollectionId === collectionId) {
+        if (propOnCollectionSelect) {
+          propOnCollectionSelect(null);
+        } else {
+          setSelectedCollectionId(null);
+        }
+      }
+      await loadCollections();
+      await loadRAGDocuments();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to delete collection"
+      );
+    }
+  };
+
+  const getStatusIcon = (status: Document["status"]) => {
+    switch (status) {
+      case "ready":
+        return <CheckCircle className="w-4 h-4 text-green-500" />;
+      case "processing":
+        return <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />;
+      case "error":
+        return <AlertTriangle className="w-4 h-4 text-red-500" />;
+      case "needs_review":
+        return <AlertTriangle className="w-4 h-4 text-yellow-500" />;
+      default:
+        return <File className="w-4 h-4 text-gray-500" />;
+    }
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  };
+
+  const handleUseReactChange = (value: boolean) => {
+    if (propOnUseReactChange) {
+      propOnUseReactChange(value);
+    } else {
+      setUseReact(value);
+    }
+  };
+
+  const handleCollectionSelect = (collectionId: number | null) => {
+    if (propOnCollectionSelect) {
+      propOnCollectionSelect(collectionId);
+    } else {
+      setSelectedCollectionId(collectionId);
+    }
+  };
 
   // Close on Escape key
   useEffect(() => {
@@ -667,6 +957,31 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               />
               <span className="truncate">Tools</span>
             </button>
+            {isAuthenticated && (
+              <button
+                onClick={() => setActiveTab("rag")}
+                className={`flex-1 min-w-0 px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 font-medium text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-1.5 sm:gap-2 touch-manipulation relative ${
+                  activeTab === "rag"
+                    ? "text-[#10a37f] bg-[#343541]"
+                    : "text-gray-400 hover:text-gray-200 hover:bg-[#343541]/50"
+                }`}
+              >
+                {activeTab === "rag" && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#10a37f] rounded-t-full" />
+                )}
+                <File
+                  className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 transition-transform ${
+                    activeTab === "rag" ? "scale-110" : ""
+                  }`}
+                />
+                <span className="truncate">RAG</span>
+                {stats.needs_review > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 text-xs bg-yellow-500 text-white rounded-full">
+                    {stats.needs_review}
+                  </span>
+                )}
+              </button>
+            )}
           </div>
 
           {/* Content */}
@@ -1565,6 +1880,354 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                     <p className="text-xs sm:text-sm">
                       Loading tools information...
                     </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === "rag" && isAuthenticated && (
+              <div className="space-y-4 sm:space-y-5 md:space-y-6">
+                {/* ReAct Mode Toggle */}
+                <div className="p-4 border border-gray-700 rounded-xl bg-gradient-to-br from-[#40414f] to-[#343541]">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="text-sm font-medium text-gray-200 flex items-center gap-2">
+                        <Brain className="w-4 h-4 text-[#10a37f]" />
+                        ReAct Mode
+                      </label>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Enable reasoning and acting for better problem-solving
+                      </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={currentUseReact}
+                        onChange={(e) => handleUseReactChange(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[#10a37f] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#10a37f]"></div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* RAG Sub-tabs */}
+                <div className="flex border-b border-gray-700 bg-[#2d2d2f] rounded-t-lg overflow-x-auto">
+                  <button
+                    onClick={() => setRagActiveTab("documents")}
+                    className={`px-4 py-3 font-medium text-sm transition-colors flex items-center gap-2 ${
+                      ragActiveTab === "documents"
+                        ? "border-b-2 border-[#10a37f] text-[#10a37f] bg-[#343541]"
+                        : "text-gray-400 hover:text-gray-200"
+                    }`}
+                  >
+                    <File className="w-4 h-4" />
+                    Documents
+                  </button>
+                  <button
+                    onClick={() => setRagActiveTab("collections")}
+                    className={`px-4 py-3 font-medium text-sm transition-colors flex items-center gap-2 ${
+                      ragActiveTab === "collections"
+                        ? "border-b-2 border-[#10a37f] text-[#10a37f] bg-[#343541]"
+                        : "text-gray-400 hover:text-gray-200"
+                    }`}
+                  >
+                    <Folder className="w-4 h-4" />
+                    Collections
+                  </button>
+                  <button
+                    onClick={() => setRagActiveTab("review")}
+                    className={`px-4 py-3 font-medium text-sm transition-colors flex items-center gap-2 relative ${
+                      ragActiveTab === "review"
+                        ? "border-b-2 border-[#10a37f] text-[#10a37f] bg-[#343541]"
+                        : "text-gray-400 hover:text-gray-200"
+                    }`}
+                  >
+                    <Eye className="w-4 h-4" />
+                    Review
+                    {stats.needs_review > 0 && (
+                      <span className="ml-1 px-1.5 py-0.5 text-xs bg-yellow-500 text-white rounded-full">
+                        {stats.needs_review}
+                      </span>
+                    )}
+                  </button>
+                </div>
+
+                {/* Documents Tab */}
+                {ragActiveTab === "documents" && (
+                  <div className="space-y-4">
+                    {/* Upload Area */}
+                    <div
+                      className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                        isDragging
+                          ? "border-[#10a37f] bg-[#10a37f]/10"
+                          : "border-gray-600 bg-[#2d2d2f]/50"
+                      }`}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                    >
+                      <Upload className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                      <p className="text-gray-300 mb-2">
+                        Drag and drop files here, or click to select
+                      </p>
+                      <p className="text-sm text-gray-500 mb-4">
+                        Supported: PDF, TXT, DOCX, DOC, MD (Max 100MB)
+                      </p>
+                      <input
+                        type="file"
+                        multiple
+                        accept=".pdf,.txt,.docx,.doc,.md"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                        id="file-upload"
+                        disabled={isUploading}
+                      />
+                      <label
+                        htmlFor="file-upload"
+                        className={`inline-block px-4 py-2 rounded bg-[#10a37f] text-white cursor-pointer hover:bg-[#0d8f6e] transition-colors ${
+                          isUploading ? "opacity-50 cursor-not-allowed" : ""
+                        }`}
+                      >
+                        {isUploading ? "Uploading..." : "Select Files"}
+                      </label>
+                    </div>
+
+                    {/* Collection Filter */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2 text-gray-300">
+                        Filter by Collection
+                      </label>
+                      <select
+                        value={currentCollectionId || ""}
+                        onChange={(e) =>
+                          handleCollectionSelect(
+                            e.target.value ? parseInt(e.target.value) : null
+                          )
+                        }
+                        className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-[#40414f] text-gray-100"
+                      >
+                        <option value="">All Documents</option>
+                        {ragCollections.map((col) => (
+                          <option key={col.id} value={col.id}>
+                            {col.name} ({col.document_count})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Documents List */}
+                    <div className="space-y-2">
+                      {documents.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                          No documents found
+                        </div>
+                      ) : (
+                        documents.map((doc) => (
+                          <div
+                            key={doc.id}
+                            className="flex items-center justify-between p-4 bg-gradient-to-br from-[#40414f] to-[#343541] rounded-lg border border-gray-700"
+                          >
+                            <div className="flex items-center gap-3 flex-1">
+                              {getStatusIcon(doc.status)}
+                              <div className="flex-1">
+                                <p className="text-gray-200 font-medium">
+                                  {doc.original_filename}
+                                </p>
+                                <p className="text-sm text-gray-400">
+                                  {formatFileSize(doc.file_size)} •{" "}
+                                  {doc.chunk_count} chunks • {doc.status}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {doc.status === "needs_review" && (
+                                <>
+                                  <button
+                                    onClick={() => handleApprove(doc.id)}
+                                    className="px-3 py-1 text-sm bg-green-600 hover:bg-green-700 rounded text-white"
+                                  >
+                                    Approve
+                                  </button>
+                                  <button
+                                    onClick={() => handleReject(doc.id)}
+                                    className="px-3 py-1 text-sm bg-red-600 hover:bg-red-700 rounded text-white"
+                                  >
+                                    Reject
+                                  </button>
+                                </>
+                              )}
+                              <button
+                                onClick={() => handleDeleteDocument(doc.id)}
+                                className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Collections Tab */}
+                {ragActiveTab === "collections" && (
+                  <div className="space-y-4">
+                    {/* Create Collection */}
+                    <div className="bg-gradient-to-br from-[#40414f] to-[#343541] rounded-lg p-4 border border-gray-700">
+                      <h3 className="text-lg font-semibold mb-4 text-gray-200">
+                        Create Collection
+                      </h3>
+                      <div className="space-y-3">
+                        <input
+                          type="text"
+                          value={newCollectionName}
+                          onChange={(e) => setNewCollectionName(e.target.value)}
+                          placeholder="Collection name"
+                          className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-[#343541] text-gray-100"
+                        />
+                        <textarea
+                          value={newCollectionDesc}
+                          onChange={(e) => setNewCollectionDesc(e.target.value)}
+                          placeholder="Description (optional)"
+                          className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-[#343541] text-gray-100"
+                          rows={2}
+                        />
+                        <button
+                          onClick={handleCreateCollection}
+                          className="px-4 py-2 bg-[#10a37f] hover:bg-[#0d8f6e] text-white rounded-lg flex items-center gap-2"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Create Collection
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Collections List */}
+                    <div className="space-y-2">
+                      {ragCollections.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                          No collections found
+                        </div>
+                      ) : (
+                        ragCollections.map((col) => (
+                          <div
+                            key={col.id}
+                            className="flex items-center justify-between p-4 bg-gradient-to-br from-[#40414f] to-[#343541] rounded-lg border border-gray-700"
+                          >
+                            <div className="flex-1">
+                              <p className="text-gray-200 font-medium">
+                                {col.name}
+                              </p>
+                              {col.description && (
+                                <p className="text-sm text-gray-400 mt-1">
+                                  {col.description}
+                                </p>
+                              )}
+                              <p className="text-xs text-gray-500 mt-1">
+                                {col.document_count} documents
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleCollectionSelect(col.id)}
+                                className={`px-3 py-1 text-sm rounded ${
+                                  currentCollectionId === col.id
+                                    ? "bg-[#10a37f] text-white"
+                                    : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                                }`}
+                              >
+                                {currentCollectionId === col.id
+                                  ? "Selected"
+                                  : "Select"}
+                              </button>
+                              <button
+                                onClick={() => handleDeleteCollection(col.id)}
+                                className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Review Tab */}
+                {ragActiveTab === "review" && (
+                  <div className="space-y-4">
+                    {/* Statistics */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="bg-gradient-to-br from-[#40414f] to-[#343541] rounded-lg p-4 border border-gray-700">
+                        <p className="text-sm text-gray-400">Pending</p>
+                        <p className="text-2xl font-bold text-gray-200">
+                          {stats.pending}
+                        </p>
+                      </div>
+                      <div className="bg-gradient-to-br from-[#40414f] to-[#343541] rounded-lg p-4 border border-gray-700">
+                        <p className="text-sm text-gray-400">Needs Review</p>
+                        <p className="text-2xl font-bold text-yellow-400">
+                          {stats.needs_review}
+                        </p>
+                      </div>
+                      <div className="bg-gradient-to-br from-[#40414f] to-[#343541] rounded-lg p-4 border border-gray-700">
+                        <p className="text-sm text-gray-400">Ready</p>
+                        <p className="text-2xl font-bold text-green-400">
+                          {stats.ready}
+                        </p>
+                      </div>
+                      <div className="bg-gradient-to-br from-[#40414f] to-[#343541] rounded-lg p-4 border border-gray-700">
+                        <p className="text-sm text-gray-400">Total</p>
+                        <p className="text-2xl font-bold text-gray-200">
+                          {stats.total}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Review Documents */}
+                    <div className="space-y-2">
+                      {reviewDocuments.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                          No documents need review
+                        </div>
+                      ) : (
+                        reviewDocuments.map((doc) => (
+                          <div
+                            key={doc.id}
+                            className="p-4 bg-gradient-to-br from-[#40414f] to-[#343541] rounded-lg border border-gray-700"
+                          >
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex-1">
+                                <p className="text-gray-200 font-medium">
+                                  {doc.original_filename}
+                                </p>
+                                <p className="text-sm text-gray-400 mt-1">
+                                  {formatFileSize(doc.file_size)} •{" "}
+                                  {doc.chunk_count} chunks
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleApprove(doc.id)}
+                                  className="px-3 py-1 text-sm bg-green-600 hover:bg-green-700 rounded text-white"
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={() => handleReject(doc.id)}
+                                  className="px-3 py-1 text-sm bg-red-600 hover:bg-red-700 rounded text-white"
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

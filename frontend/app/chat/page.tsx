@@ -8,7 +8,6 @@ import ChatInput from "@/components/ChatInput";
 import ChatWindow from "@/components/ChatWindow";
 import HealthStatus from "@/components/HealthStatus";
 import OnlineStatus from "@/components/OnlineStatus";
-import RAGSettings from "@/components/RAGSettings";
 import SessionSidebar from "@/components/SessionSidebar";
 import SettingsPanel from "@/components/SettingsPanel";
 import CommandPalette from "@/components/ui/CommandPalette";
@@ -394,19 +393,16 @@ export default function ChatPage() {
 
       <SettingsPanel
         isOpen={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
+        onClose={() => {
+          setSettingsOpen(false);
+          setRagSettingsOpen(false);
+        }}
+        initialTab={ragSettingsOpen ? "rag" : undefined}
+        selectedCollectionId={selectedCollectionId}
+        onCollectionSelect={setSelectedCollectionId}
+        useReact={useReact}
+        onUseReactChange={setUseReact}
       />
-
-      {isAuthenticated && (
-        <RAGSettings
-          isOpen={ragSettingsOpen}
-          onClose={() => setRagSettingsOpen(false)}
-          selectedCollectionId={selectedCollectionId}
-          onCollectionSelect={setSelectedCollectionId}
-          useReact={useReact}
-          onUseReactChange={setUseReact}
-        />
-      )}
 
       <AuthModal
         isOpen={authModalOpen}

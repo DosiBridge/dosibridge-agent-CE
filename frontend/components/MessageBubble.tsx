@@ -4,7 +4,9 @@
 
 "use client";
 
-import { Message } from "@/lib/store";
+import { StreamChunk, createStreamReader } from "@/lib/api";
+import { getUserFriendlyError, logError } from "@/lib/errors";
+import { Message, useStore } from "@/lib/store";
 import {
   Bot,
   Check,
@@ -14,7 +16,7 @@ import {
   ThumbsUp,
   User,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
@@ -32,6 +34,21 @@ export default function MessageBubble({
   const isUser = message.role === "user";
   const [copied, setCopied] = useState(false);
   const [showActions, setShowActions] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const abortRef = useRef<(() => void) | null>(null);
+
+  const messages = useStore((state) => state.messages);
+  const currentSessionId = useStore((state) => state.currentSessionId);
+  const mode = useStore((state) => state.mode);
+  const selectedCollectionId = useStore((state) => state.selectedCollectionId);
+  const useReact = useStore((state) => state.useReact);
+  const setLoading = useStore((state) => state.setLoading);
+  const setStreaming = useStore((state) => state.setStreaming);
+  const addMessage = useStore((state) => state.addMessage);
+  const updateLastMessage = useStore((state) => state.updateLastMessage);
+  const updateLastMessageTools = useStore(
+    (state) => state.updateLastMessageTools
+  );
 
   const handleCopy = async () => {
     try {
@@ -45,14 +62,181 @@ export default function MessageBubble({
   };
 
   const handleRegenerate = () => {
-    // TODO: Implement regenerate functionality
-    toast.success("Regenerate feature coming soon");
+    if (isUser) {
+      toast.error("Cannot regenerate user messages");
+      return;
+    }
+
+    // Find the index of this message
+    const messageIndex = messages.findIndex((m) => m.id === message.id);
+    if (messageIndex === -1) {
+      toast.error("Message not found");
+      return;
+    }
+
+    // Find the previous user message
+    let userMessageIndex = -1;
+    for (let i = messageIndex - 1; i >= 0; i--) {
+      if (messages[i].role === "user") {
+        userMessageIndex = i;
+        break;
+      }
+    }
+
+    if (userMessageIndex === -1) {
+      toast.error("No user message found to regenerate");
+      return;
+    }
+
+    const userMessage = messages[userMessageIndex];
+
+    // Cancel any ongoing request
+    if (abortRef.current) {
+      abortRef.current();
+      abortRef.current = null;
+    }
+
+    // Remove this AI response and any messages after it
+    const newMessages = messages.slice(0, messageIndex);
+    useStore.setState({ messages: newMessages });
+
+    // Set loading states
+    setIsRegenerating(true);
+    setLoading(true);
+    setStreaming(true);
+
+    // Add placeholder assistant message
+    addMessage({
+      role: "assistant",
+      content: "",
+    });
+
+    const toolsUsed: string[] = [];
+    let hasReceivedContent = false;
+
+    try {
+      abortRef.current = createStreamReader(
+        {
+          message: userMessage.content,
+          session_id: currentSessionId,
+          mode,
+          collection_id: mode === "rag" ? selectedCollectionId : null,
+          use_react: mode === "rag" ? useReact : false,
+        },
+        (chunk: StreamChunk) => {
+          if (chunk.error) {
+            toast.error(chunk.error);
+            // Remove empty assistant message on error
+            const currentMessages = useStore.getState().messages;
+            if (
+              currentMessages.length > 0 &&
+              currentMessages[currentMessages.length - 1].role ===
+                "assistant" &&
+              !currentMessages[currentMessages.length - 1].content
+            ) {
+              useStore.setState({ messages: currentMessages.slice(0, -1) });
+            }
+            setStreaming(false);
+            setLoading(false);
+            setIsRegenerating(false);
+            return;
+          }
+
+          if (chunk.tool) {
+            toolsUsed.push(chunk.tool);
+          }
+
+          // Process content chunks
+          if (chunk.chunk !== undefined && chunk.chunk !== null) {
+            hasReceivedContent = true;
+            updateLastMessage(chunk.chunk);
+          }
+
+          if (chunk.done) {
+            setStreaming(false);
+            setLoading(false);
+            setIsRegenerating(false);
+
+            // Remove empty assistant message if no content was received
+            if (!hasReceivedContent) {
+              const currentMessages = useStore.getState().messages;
+              if (
+                currentMessages.length > 0 &&
+                currentMessages[currentMessages.length - 1].role ===
+                  "assistant" &&
+                !currentMessages[currentMessages.length - 1].content
+              ) {
+                useStore.setState({ messages: currentMessages.slice(0, -1) });
+              }
+            }
+
+            // Update last message with tools used
+            if (chunk.tools_used && chunk.tools_used.length > 0) {
+              updateLastMessageTools(chunk.tools_used);
+            } else if (toolsUsed.length > 0) {
+              updateLastMessageTools([...toolsUsed]);
+            }
+          }
+        },
+        (error: Error) => {
+          logError(error, { session_id: currentSessionId, mode });
+          const errorMessage = getUserFriendlyError(error);
+          toast.error(errorMessage);
+          // Remove empty assistant message on error
+          const currentMessages = useStore.getState().messages;
+          if (
+            currentMessages.length > 0 &&
+            currentMessages[currentMessages.length - 1].role === "assistant" &&
+            !currentMessages[currentMessages.length - 1].content
+          ) {
+            useStore.setState({ messages: currentMessages.slice(0, -1) });
+          }
+          setStreaming(false);
+          setLoading(false);
+          setIsRegenerating(false);
+        },
+        () => {
+          setStreaming(false);
+          setLoading(false);
+          setIsRegenerating(false);
+        }
+      );
+    } catch (error) {
+      logError(error instanceof Error ? error : new Error(String(error)), {
+        session_id: currentSessionId,
+        mode,
+      });
+      const errorMessage = getUserFriendlyError(error);
+      toast.error(errorMessage);
+      // Remove empty assistant message on error
+      const currentMessages = useStore.getState().messages;
+      if (
+        currentMessages.length > 0 &&
+        currentMessages[currentMessages.length - 1].role === "assistant" &&
+        !currentMessages[currentMessages.length - 1].content
+      ) {
+        useStore.setState({ messages: currentMessages.slice(0, -1) });
+      }
+      setStreaming(false);
+      setLoading(false);
+      setIsRegenerating(false);
+    }
   };
 
   const handleFeedback = (type: "thumbs-up" | "thumbs-down") => {
     // TODO: Send feedback to backend
     toast.success(`Feedback: ${type === "thumbs-up" ? "👍" : "👎"}`);
   };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (abortRef.current) {
+        abortRef.current();
+        abortRef.current = null;
+      }
+    };
+  }, []);
 
   return (
     <div
@@ -150,12 +334,19 @@ export default function MessageBubble({
                   e.stopPropagation();
                   handleRegenerate();
                 }}
-                className="p-1.5 sm:p-1.5 md:p-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white transition-all shadow-md touch-manipulation"
+                disabled={isRegenerating}
+                className={`p-1.5 sm:p-1.5 md:p-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white transition-all shadow-md touch-manipulation ${
+                  isRegenerating ? "opacity-50 cursor-not-allowed" : ""
+                }`}
                 aria-label="Regenerate response"
                 type="button"
                 title="Regenerate"
               >
-                <RefreshCw className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4" />
+                <RefreshCw
+                  className={`w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 ${
+                    isRegenerating ? "animate-spin" : ""
+                  }`}
+                />
               </button>
               <div className="flex gap-0.5">
                 <button
