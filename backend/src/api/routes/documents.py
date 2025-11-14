@@ -288,15 +288,15 @@ async def approve_document(
             DocumentChunk.document_id == document_id
         ).order_by(DocumentChunk.chunk_index).all()
         
-            if chunks:
-                rag_chunks = []
-                for chunk in chunks:
-                    chunk_metadata = {}
-                    if chunk.chunk_metadata:
-                        try:
-                            chunk_metadata = json.loads(chunk.chunk_metadata)
-                        except:
-                            pass
+        if chunks:
+            rag_chunks = []
+            for chunk in chunks:
+                chunk_metadata = {}
+                if chunk.chunk_metadata:
+                    try:
+                        chunk_metadata = json.loads(chunk.chunk_metadata)
+                    except:
+                        pass
                 
                 rag_chunks.append({
                     "content": chunk.content,

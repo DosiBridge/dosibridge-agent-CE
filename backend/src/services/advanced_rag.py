@@ -324,11 +324,11 @@ class AdvancedRAGSystem:
                                         metadata = {}
                                 else:
                                     metadata = {}
-                                        
-                                        metadata["chunk_id"] = chunk.id
-                                        metadata["document_id"] = chunk.document_id
-                                        
-                                        results.append({
+                                
+                                metadata["chunk_id"] = chunk.id
+                                metadata["document_id"] = chunk.document_id
+                                
+                                results.append({
                                             "content": chunk.content,
                                             "metadata": metadata,
                                             "score": bm25_score,
