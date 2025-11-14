@@ -8,7 +8,7 @@ let runtimeConfig: { API_BASE_URL?: string } | null = null;
 let configLoadPromise: Promise<string> | null = null;
 
 // Get API base URL - loads runtime config on first call, then caches it
-async function getApiBaseUrl(): Promise<string> {
+export async function getApiBaseUrl(): Promise<string> {
   // Return cached value if already loaded
   if (runtimeConfig?.API_BASE_URL) {
     return runtimeConfig.API_BASE_URL;

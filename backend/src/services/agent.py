@@ -106,18 +106,20 @@ async def run_rag_query(question: str, session_id: str = "default"):
 async def run_agent_mode(
     query: str = None,
     additional_servers: list = None,
-    session_id: str = "default"
+    session_id: str = "default",
+    user_id: Optional[int] = None
 ):
     """
     Run agent mode with MCP tools
     
     Args:
         query: Query to execute
-        additional_servers: Additional MCP servers to connect to
+        additional_servers: Additional MCP servers to connect to (must be user-specific)
         session_id: Session ID for conversation history
+        user_id: User ID (REQUIRED for MCP access - no MCPs without authentication)
     """
-    # Load MCP servers configuration
-    mcp_servers = Config.load_mcp_servers(additional_servers)
+    # Load MCP servers configuration - user-specific only
+    mcp_servers = Config.load_mcp_servers(additional_servers=additional_servers, user_id=user_id)
     
     print(f"📡 Connecting to {len(mcp_servers)} MCP server(s)...\n")
     

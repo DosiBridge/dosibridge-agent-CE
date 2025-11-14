@@ -14,3 +14,16 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+
+*.pdf
+*.txt
+*.docx
+*.doc
+*.xls
+*.xlsx
+*.ppt
+*.pptx
+
+*.faiss
+*.faiss.index
+*.pkl

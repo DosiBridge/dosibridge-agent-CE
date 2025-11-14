@@ -51,7 +51,7 @@ interface AppState {
   isLoading: boolean;
   isStreaming: boolean;
   mode: "agent" | "rag";
-  
+
   // RAG settings
   useReact: boolean;
   selectedCollectionId: number | null;
@@ -97,6 +97,7 @@ interface AppState {
   loadMCPServers: () => Promise<void>;
   loadLLMConfig: () => Promise<void>;
   loadHealth: () => Promise<void>;
+  setHealth: (health: HealthStatus) => void;
   setSettingsOpen: (open: boolean) => void;
 }
 
@@ -333,6 +334,7 @@ export const useStore = create<AppState>((set, get) => ({
         try {
           const backendData = await listSessions();
           // Merge: prefer browser storage for titles, backend for message counts and summary
+          // IMPORTANT: Only include sessions that exist in browser storage to respect deletions
           const mergedSessions: Session[] = storedSessions.map((stored) => {
             const backend = backendData.sessions.find(
               (s) => s.session_id === stored.id
@@ -346,12 +348,9 @@ export const useStore = create<AppState>((set, get) => ({
             };
           });
 
-          // Add backend sessions not in browser storage
-          backendData.sessions.forEach((backend) => {
-            if (!storedSessions.find((s) => s.id === backend.session_id)) {
-              mergedSessions.push(backend);
-            }
-          });
+          // DO NOT add backend sessions that aren't in browser storage
+          // This prevents deleted sessions from being re-added on page reload
+          // If a session was deleted from browser storage, it should stay deleted
 
           set({ sessions: mergedSessions, sessionsLoading: false });
         } catch (error) {
@@ -399,7 +398,21 @@ export const useStore = create<AppState>((set, get) => ({
         }));
         set({ messages, isLoading: false });
       } else {
-        // If no browser storage, try backend (if authenticated)
+        // If no browser storage, check if session exists in stored sessions list
+        // If it doesn't exist in the list, it was likely deleted - don't restore from backend
+        const storedSessions = getStoredSessions();
+        const sessionExists = storedSessions.some((s) => s.id === sessionId);
+
+        if (!sessionExists) {
+          // Session was deleted from browser storage - don't restore from backend
+          console.log(
+            `Session ${sessionId} not found in browser storage - not restoring from backend`
+          );
+          set({ messages: [], isLoading: false });
+          return;
+        }
+
+        // Session exists in list but has no messages - try backend (if authenticated)
         const isAuthenticated = get().isAuthenticated;
         if (isAuthenticated) {
           try {
@@ -465,6 +478,10 @@ export const useStore = create<AppState>((set, get) => ({
     } catch (error) {
       console.error("Failed to load health:", error);
     }
+  },
+
+  setHealth: (health: HealthStatus) => {
+    set({ health });
   },
 
   setSettingsOpen: (open: boolean) => {

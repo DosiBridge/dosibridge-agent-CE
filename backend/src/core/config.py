@@ -54,56 +54,70 @@ class Config:
     @classmethod
     def load_mcp_servers(cls, additional_servers: list = None, db: Optional[Session] = None, user_id: Optional[int] = None) -> list[dict]:
         """
-        Load MCP servers from database.
+        Load MCP servers from database - USER-SPECIFIC AND PRIVATE ONLY.
+        
         Args:
-            additional_servers: Optional list of additional servers to add
+            additional_servers: Optional list of additional servers to add (must also be user-specific)
             db: Optional database session (if None, creates a new one)
-            user_id: Optional user ID to filter servers (required for user-specific servers)
+            user_id: User ID to filter servers (REQUIRED - no MCP access without authentication)
+        
+        Returns:
+            List of MCP server configurations for the specified user only
+            
+        Note:
+            - Without user_id, returns empty list (no MCP access for unauthenticated users)
+            - No environment variable fallback (all MCPs must be user-specific and private)
+            - All MCP servers are private to the user who created them
+            - Users can only access their own MCP servers, not others
         """
         servers = []
         
-        # Load from database
+        # REQUIRE user_id - no MCP access without authentication
+        if user_id is None:
+            print("⚠️  MCP servers require authentication - user_id is required. No MCP access for unauthenticated users.")
+            return []
+        
+        # Load from database - ONLY for the specified user (user-specific/private)
         if DB_AVAILABLE:
             try:
                 if db:
-                    # Use provided session
-                    query = db.query(MCPServer).filter(MCPServer.enabled == True)
-                    if user_id is not None:
-                        query = query.filter(MCPServer.user_id == user_id)
+                    # Use provided session - filter by user_id and enabled
+                    query = db.query(MCPServer).filter(
+                        MCPServer.enabled == True,
+                        MCPServer.user_id == user_id
+                    )
                     db_servers = query.all()
                     servers = [s.to_dict(include_api_key=True) for s in db_servers]
                 else:
-                    # Create new session
+                    # Create new session - filter by user_id and enabled
                     with get_db_context() as session:
-                        query = session.query(MCPServer).filter(MCPServer.enabled == True)
-                        if user_id is not None:
-                            query = query.filter(MCPServer.user_id == user_id)
+                        query = session.query(MCPServer).filter(
+                            MCPServer.enabled == True,
+                            MCPServer.user_id == user_id
+                        )
                         db_servers = query.all()
                         servers = [s.to_dict(include_api_key=True) for s in db_servers]
                 
                 if servers:
-                    print(f"📝 Loaded {len(servers)} server(s) from database" + (f" for user {user_id}" if user_id else ""))
+                    print(f"📝 Loaded {len(servers)} MCP server(s) for user {user_id} (private/user-specific only)")
             except Exception as e:
                 print(f"⚠️  Failed to load MCP servers from database: {e}")
                 servers = []
+        else:
+            print("⚠️  Database not available - cannot load user-specific MCP servers")
+            return []
         
-        # Check environment variable as fallback
-        if not servers and cls.MCP_SERVERS_ENV:
-            try:
-                env_servers = json.loads(cls.MCP_SERVERS_ENV)
-                servers.extend(env_servers)
-                print(f"📝 Loaded {len(env_servers)} server(s) from MCP_SERVERS env variable")
-            except json.JSONDecodeError as e:
-                print(f"⚠️  Failed to parse MCP_SERVERS env variable: {e}")
+        # NO environment variable fallback - all MCPs must be user-specific and private
+        # Removed: MCP_SERVERS_ENV fallback for security and privacy (no global MCPs)
         
-        # No servers configured
-        if not servers:
-            print("📝 No MCP servers configured - agent will use local tools only")
-        
-        # Add any additional servers passed as argument
+        # Add any additional servers passed as argument (should also be user-specific)
         if additional_servers:
             servers.extend(additional_servers)
-            print(f"📝 Added {len(additional_servers)} additional server(s)")
+            print(f"📝 Added {len(additional_servers)} additional server(s) for user {user_id}")
+        
+        # No servers configured for this user
+        if not servers:
+            print(f"📝 No MCP servers configured for user {user_id} - agent will use local tools only")
         
         return servers
     

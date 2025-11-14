@@ -8,10 +8,11 @@ import AuthModal from "@/components/AuthModal";
 import ChatInput from "@/components/ChatInput";
 import ChatWindow from "@/components/ChatWindow";
 import HealthStatus from "@/components/HealthStatus";
+import RAGSettings from "@/components/RAGSettings";
 import SessionSidebar from "@/components/SessionSidebar";
 import SettingsPanel from "@/components/SettingsPanel";
-import RAGSettings from "@/components/RAGSettings";
 import { useStore } from "@/lib/store";
+import { healthWebSocket } from "@/lib/websocket";
 import { LogOut, Menu, Settings, User } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Toaster, toast } from "react-hot-toast";
@@ -32,6 +33,24 @@ export default function Home() {
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
+
+  // Initialize WebSocket connection for health monitoring
+  // Reconnect when auth state changes to get user-specific MCP server count
+  useEffect(() => {
+    // Disconnect existing connection (allow reconnect)
+    healthWebSocket.disconnect(true);
+
+    // Small delay to ensure disconnect completes
+    const timer = setTimeout(() => {
+      healthWebSocket.connect();
+    }, 100);
+
+    // Cleanup on unmount
+    return () => {
+      clearTimeout(timer);
+      healthWebSocket.disconnect(false); // Final disconnect, don't allow reconnect
+    };
+  }, [isAuthenticated]);
 
   useEffect(() => {
     const handleOpenAuth = (e: CustomEvent) => {
@@ -69,7 +88,9 @@ export default function Home() {
   const useReact = useStore((state) => state.useReact);
   const setUseReact = useStore((state) => state.setUseReact);
   const selectedCollectionId = useStore((state) => state.selectedCollectionId);
-  const setSelectedCollectionId = useStore((state) => state.setSelectedCollectionId);
+  const setSelectedCollectionId = useStore(
+    (state) => state.setSelectedCollectionId
+  );
 
   // Keyboard shortcuts
   useEffect(() => {

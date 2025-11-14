@@ -136,6 +136,18 @@ dmypy.json
 
 # IDE - Cursor
 .cursor/
+.pdf
+.txt
+.docx
+.doc
+.xls
+.xlsx
+.ppt
+.pptx
+
+.faiss
+.faiss.index
+.pkl
 
 # OS - macOS
 .DS_Store

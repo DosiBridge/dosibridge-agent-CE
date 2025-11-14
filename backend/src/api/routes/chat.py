@@ -242,7 +242,7 @@ async def chat_stream(
                 # Agent mode with streaming
                 yield f"data: {json.dumps({'chunk': '', 'done': False, 'status': 'initializing_agent'})}\n\n"
                 
-                mcp_servers = Config.load_mcp_servers(user_id=user_id)
+                mcp_servers = Config.load_mcp_servers(user_id=user_id, db=db)
                 yield f"data: {json.dumps({'chunk': '', 'done': False, 'status': 'connecting_mcp_servers', 'server_count': len(mcp_servers)})}\n\n"
                 
                 try:

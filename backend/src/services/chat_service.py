@@ -151,8 +151,8 @@ class ChatService:
     
     @staticmethod
     async def _process_agent(message: str, session_id: str, user_id: Optional[int], db: Optional["Session"] = None) -> dict:
-        """Process agent mode with tools"""
-        mcp_servers = Config.load_mcp_servers(user_id=user_id)
+        """Process agent mode with tools - user-specific MCP servers only"""
+        mcp_servers = Config.load_mcp_servers(user_id=user_id, db=db)
         tools_used = []
         
         async with MCPClientManager(mcp_servers) as mcp_tools:
