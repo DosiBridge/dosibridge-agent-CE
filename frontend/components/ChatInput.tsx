@@ -164,6 +164,14 @@ export default function ChatInput() {
   const handleSend = async () => {
     if (sendDisabled) return;
 
+    // Check authentication only for RAG mode
+    if (mode === "rag" && !isAuthenticated) {
+      toast.error(
+        "Please log in to use RAG mode. RAG mode requires authentication."
+      );
+      return;
+    }
+
     const message = input.trim();
     if (!message) return;
 

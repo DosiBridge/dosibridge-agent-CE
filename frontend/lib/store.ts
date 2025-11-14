@@ -145,14 +145,19 @@ export const useStore = create<AppState>((set, get) => ({
         get().loadMCPServers();
       }, 0);
     } catch (error) {
+      // Not authenticated - this is fine for agent mode
       set({ user: null, isAuthenticated: false, authLoading: false });
-      // Ensure mode is agent if not authenticated (RAG mode requires auth)
+      // RAG mode requires authentication - switch to agent mode if in RAG (agent works without login)
       const currentMode = get().mode;
       if (currentMode === "rag") {
-        set({ mode: "agent" });
+        set({ mode: "agent" }); // Switch to agent mode (agent works without login)
       }
-      // Clear MCP servers when not authenticated
+      // Clear MCP servers when not authenticated (agent mode works without MCP)
       set({ mcpServers: [] });
+      // Load browser sessions for agent mode (works without login)
+      setTimeout(() => {
+        get().loadSessions();
+      }, 0);
     }
   },
 
@@ -195,17 +200,18 @@ export const useStore = create<AppState>((set, get) => ({
       console.error("Logout error:", error);
     } finally {
       // Don't clear browser storage on logout - keep sessions for when user logs back in
-      // But clear MCP servers and switch to agent mode (RAG mode requires authentication)
+      // But clear MCP servers and reset mode (Agent mode works without login)
       const currentMode = get().mode;
+      const currentMessages = get().messages; // Keep messages for agent mode
 
       // Clear all MCP-related data
       set({
         user: null,
         isAuthenticated: false,
-        messages: [],
+        messages: currentMode === "rag" ? [] : currentMessages, // Keep messages for agent mode, clear for RAG
         sessions: [],
         mcpServers: [], // Clear MCP servers list on logout
-        mode: currentMode === "rag" ? "agent" : currentMode, // Switch to agent mode if in RAG mode (RAG requires auth)
+        mode: currentMode === "rag" ? "agent" : currentMode, // Switch to agent mode if in RAG (agent works without login)
         isStreaming: false, // Stop any ongoing streaming
         isLoading: false, // Stop any ongoing loading
       });

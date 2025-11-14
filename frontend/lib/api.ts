@@ -330,12 +330,27 @@ export function createStreamReader(
     })
       .then(async (response) => {
         if (!response.ok) {
-          const error = await response
-            .json()
-            .catch(() => ({ detail: response.statusText }));
-          throw new Error(
-            error.detail || error.message || `HTTP ${response.status}`
-          );
+          // For agent mode, 401 might be acceptable if no auth token
+          // But we should still try to parse the error
+          let errorDetail = `HTTP ${response.status}`;
+          try {
+            const error = await response.json();
+            errorDetail = error.detail || error.message || errorDetail;
+          } catch {
+            // If we can't parse JSON, use status text
+            errorDetail = response.statusText || errorDetail;
+          }
+
+          // For 401 errors in agent mode, check if it's actually an auth requirement
+          if (response.status === 401 && request.mode === "agent") {
+            // Agent mode should work without auth, so this might be a different error
+            // Still throw the error but with a more helpful message
+            throw new Error(
+              `Authentication error: ${errorDetail}. Agent mode should work without login.`
+            );
+          }
+
+          throw new Error(errorDetail);
         }
 
         const reader = response.body?.getReader();

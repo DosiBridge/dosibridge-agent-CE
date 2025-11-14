@@ -135,14 +135,21 @@ export default function ChatPage() {
   }, [loadSessions, loadSession, currentSessionId]);
 
   useEffect(() => {
-    if (isAuthenticated && !authLoading) {
+    if (!authLoading) {
+      // Always load sessions (works for both authenticated and unauthenticated users)
+      // Agent mode works without login, so load browser sessions
       loadSessions();
-      const loadMCPServers = useStore.getState().loadMCPServers;
-      loadMCPServers();
-    } else if (!isAuthenticated && !authLoading) {
-      const currentMode = useStore.getState().mode;
-      if (currentMode === "rag") {
-        useStore.getState().setMode("agent");
+
+      if (isAuthenticated) {
+        // Load MCP servers only when authenticated
+        const loadMCPServers = useStore.getState().loadMCPServers;
+        loadMCPServers();
+      } else {
+        // Not authenticated - ensure we're in agent mode (agent works without login)
+        const currentMode = useStore.getState().mode;
+        if (currentMode === "rag") {
+          useStore.getState().setMode("agent");
+        }
       }
     }
   }, [isAuthenticated, authLoading, loadSessions]);

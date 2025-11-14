@@ -179,7 +179,7 @@ export default function Home() {
               </div>
               <h3 className="text-xl font-semibold mb-2">Secure & Private</h3>
               <p className="text-gray-400">
-                Your data is encrypted and private. Each user's documents and
+                Your data is encrypted and private. Each user&apos;s documents and
                 sessions are completely isolated.
               </p>
             </div>
