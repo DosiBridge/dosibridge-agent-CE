@@ -84,9 +84,14 @@ export default function MessageBubble({
                 {message.content}
               </p>
             ) : (
-              <div className="prose prose-sm dark:prose-invert max-w-none prose-pre:bg-[#1e1e1e] prose-pre:border prose-pre:border-gray-700 prose-pre:overflow-x-auto">
+              <div className="prose prose-sm dark:prose-invert max-w-none prose-pre:bg-[#1e1e1e] prose-pre:border prose-pre:border-gray-700 prose-pre:overflow-x-auto prose-p:whitespace-pre-wrap prose-p:break-words">
                 <ReactMarkdown
                   components={{
+                    p: ({ children }) => (
+                      <p className="whitespace-pre-wrap break-words leading-relaxed mb-2 last:mb-0">
+                        {children}
+                      </p>
+                    ),
                     code({ className, children, ...props }: any) {
                       const match = /language-(\w+)/.exec(className || "");
                       const language = match ? match[1] : "";

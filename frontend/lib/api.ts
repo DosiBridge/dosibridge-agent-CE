@@ -32,7 +32,7 @@ export async function getApiBaseUrl(): Promise<string> {
           return runtimeConfig.API_BASE_URL;
         }
       }
-    } catch (error) {
+    } catch {
       // Silently fall back to default
     }
 
@@ -66,6 +66,7 @@ export interface StreamChunk {
   tool?: string;
   tools_used?: string[];
   error?: string;
+  status?: string; // Status messages from backend (e.g., 'connected', 'initializing_agent')
 }
 
 export interface Session {
@@ -201,8 +202,8 @@ async function handleResponse<T>(response: Response): Promise<T> {
     };
 
     const message = errorMessages[response.status] || errorDetail;
-    const error = new Error(message);
-    (error as any).statusCode = response.status;
+    const error = new Error(message) as Error & { statusCode: number };
+    error.statusCode = response.status;
     throw error;
   }
   return response.json();
@@ -274,10 +275,39 @@ export async function logout(): Promise<void> {
 
 export async function getCurrentUser(): Promise<User> {
   const apiBaseUrl = await getApiBaseUrl();
-  const response = await fetch(`${apiBaseUrl}/api/auth/me`, {
-    headers: getAuthHeaders(),
-  });
-  return handleResponse<User>(response);
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/auth/me`, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      // For 401, this is expected when not authenticated - throw a specific error
+      // Don't call handleResponse as it will remove the token unnecessarily
+      if (response.status === 401) {
+        const error = new Error("Not authenticated") as Error & {
+          statusCode: number;
+          isUnauthenticated: boolean;
+        };
+        error.statusCode = 401;
+        error.isUnauthenticated = true;
+        throw error;
+      }
+      // For other errors, use handleResponse
+      return handleResponse<User>(response);
+    }
+    return response.json();
+  } catch (error) {
+    // If fetch fails (network error, etc.), treat as not authenticated
+    if (error instanceof Error && error.name !== "AbortError") {
+      const authError = new Error("Not authenticated") as Error & {
+        statusCode: number;
+        isUnauthenticated: boolean;
+      };
+      authError.statusCode = 401;
+      authError.isUnauthenticated = true;
+      throw authError;
+    }
+    throw error;
+  }
 }
 
 // Chat API
@@ -304,143 +334,207 @@ export function createStreamReader(
   let isAborted = false;
 
   (async () => {
-    const apiBaseUrl = await getApiBaseUrl();
-    // Prepare request body with optional RAG parameters
-    const requestBody: ChatRequest = {
-      message: request.message,
-      session_id: request.session_id,
-      mode: request.mode,
-    };
-    if (request.mode === "rag") {
-      if (
-        request.collection_id !== undefined &&
-        request.collection_id !== null
-      ) {
-        requestBody.collection_id = request.collection_id;
+    try {
+      const apiBaseUrl = await getApiBaseUrl();
+      // Prepare request body with optional RAG parameters
+      const requestBody: ChatRequest = {
+        message: request.message,
+        session_id: request.session_id,
+        mode: request.mode,
+      };
+      if (request.mode === "rag") {
+        if (
+          request.collection_id !== undefined &&
+          request.collection_id !== null
+        ) {
+          requestBody.collection_id = request.collection_id;
+        }
+        if (request.use_react !== undefined) {
+          requestBody.use_react = request.use_react;
+        }
       }
-      if (request.use_react !== undefined) {
-        requestBody.use_react = request.use_react;
+
+      const headers = getAuthHeaders();
+      const url = `${apiBaseUrl}/api/chat/stream`;
+
+      let response: Response;
+      try {
+        const fetchPromise = fetch(url, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(requestBody),
+          signal: abortController.signal,
+        });
+
+        // Add a timeout to detect if fetch hangs
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => {
+            reject(new Error("Fetch timeout after 30 seconds"));
+          }, 30000);
+        });
+
+        response = await Promise.race([fetchPromise, timeoutPromise]);
+      } catch (fetchError) {
+        const errorMessage =
+          fetchError instanceof Error ? fetchError.message : String(fetchError);
+        throw new Error(
+          `Failed to connect to server: ${errorMessage}. Please check if the backend is running at ${url}.`
+        );
+      }
+
+      if (!response.ok) {
+        // For agent mode, 401 should not happen - backend allows unauthenticated access
+        // But if it does, try to parse the error message
+        let errorDetail = `HTTP ${response.status}: ${response.statusText}`;
+        try {
+          // Try to read the error response body
+          const errorText = await response.text();
+          if (errorText) {
+            try {
+              const error = JSON.parse(errorText);
+              errorDetail = error.detail || error.message || errorDetail;
+            } catch {
+              // If not JSON, use the text as error detail
+              errorDetail = errorText || errorDetail;
+            }
+          }
+        } catch (parseError) {
+          // If we can't read the response, use status text
+          console.error("Failed to parse error response:", parseError);
+        }
+
+        // For 401 errors in agent mode, this shouldn't happen but handle gracefully
+        if (response.status === 401 && request.mode === "agent") {
+          // Agent mode should work without auth - this might be a backend configuration issue
+          // Still throw the error but with a helpful message
+          throw new Error(
+            `Backend authentication error: ${errorDetail}. Agent mode should work without login. Please check backend configuration.`
+          );
+        }
+
+        throw new Error(errorDetail);
+      }
+
+      // Check if response body exists
+      if (!response.body) {
+        throw new Error(
+          `No response body received from server. Status: ${response.status} ${response.statusText}`
+        );
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      let buffer = "";
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+
+          if (done) {
+            break;
+          }
+
+          if (isAborted) {
+            break;
+          }
+
+          if (value) {
+            const decoded = decoder.decode(value, { stream: true });
+            buffer += decoded;
+          }
+
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            if (isAborted) break;
+
+            const trimmedLine = line.trim();
+            if (!trimmedLine) continue;
+
+            if (trimmedLine.startsWith("data: ")) {
+              try {
+                const jsonStr = trimmedLine.slice(6);
+                // Skip completely empty JSON strings
+                if (jsonStr.trim() === "") continue;
+
+                const data = JSON.parse(jsonStr) as StreamChunk;
+
+                // Always call onChunk to handle status messages and chunks
+                onChunk(data);
+
+                if (data.done || data.error) {
+                  onComplete();
+                  return;
+                }
+              } catch {
+                // Continue processing other lines - don't break the stream
+                // Silently skip malformed lines
+              }
+            }
+          }
+        }
+
+        // Process remaining buffer
+        if (buffer.trim() && !isAborted) {
+          const trimmedBuffer = buffer.trim();
+          if (trimmedBuffer.startsWith("data: ")) {
+            try {
+              const jsonStr = trimmedBuffer.slice(6);
+              if (jsonStr.trim()) {
+                const data = JSON.parse(jsonStr) as StreamChunk;
+                onChunk(data);
+                // If this was the final message, don't call onComplete again
+                if (data.done || data.error) {
+                  return;
+                }
+              }
+            } catch {
+              // Silently skip malformed buffer data
+            }
+          }
+        }
+
+        // Only call onComplete if we haven't already (stream ended normally)
+        // This handles the case where the stream ends without a "done" message
+        if (!isAborted) {
+          onComplete();
+        }
+      } catch (error) {
+        if (
+          !isAborted &&
+          error instanceof Error &&
+          error.name !== "AbortError"
+        ) {
+          onError(error);
+        } else if (error instanceof Error && error.name === "AbortError") {
+          onComplete();
+        }
+      } finally {
+        try {
+          reader.releaseLock();
+        } catch {
+          // Reader already released
+        }
+      }
+    } catch (error) {
+      // Handle network errors or fetch failures
+      if (error instanceof Error && error.name === "AbortError") {
+        onComplete();
+        return;
+      }
+      if (!isAborted) {
+        const errorMessage =
+          error instanceof Error
+            ? error
+            : new Error(
+                `Network error: ${String(
+                  error
+                )}. Please check your connection and ensure the backend is running.`
+              );
+        onError(errorMessage);
       }
     }
-    return fetch(`${apiBaseUrl}/api/chat/stream`, {
-      method: "POST",
-      headers: getAuthHeaders(),
-      body: JSON.stringify(requestBody),
-      signal: abortController.signal,
-    })
-      .then(async (response) => {
-        if (!response.ok) {
-          // For agent mode, 401 might be acceptable if no auth token
-          // But we should still try to parse the error
-          let errorDetail = `HTTP ${response.status}`;
-          try {
-            const error = await response.json();
-            errorDetail = error.detail || error.message || errorDetail;
-          } catch {
-            // If we can't parse JSON, use status text
-            errorDetail = response.statusText || errorDetail;
-          }
-
-          // For 401 errors in agent mode, check if it's actually an auth requirement
-          if (response.status === 401 && request.mode === "agent") {
-            // Agent mode should work without auth, so this might be a different error
-            // Still throw the error but with a more helpful message
-            throw new Error(
-              `Authentication error: ${errorDetail}. Agent mode should work without login.`
-            );
-          }
-
-          throw new Error(errorDetail);
-        }
-
-        const reader = response.body?.getReader();
-        const decoder = new TextDecoder();
-
-        if (!reader) {
-          throw new Error("No response body");
-        }
-
-        let buffer = "";
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done || isAborted) break;
-
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split("\n");
-            buffer = lines.pop() || "";
-
-            for (const line of lines) {
-              if (isAborted) break;
-
-              const trimmedLine = line.trim();
-              if (!trimmedLine) continue;
-
-              if (trimmedLine.startsWith("data: ")) {
-                try {
-                  const jsonStr = trimmedLine.slice(6);
-                  if (!jsonStr) continue;
-
-                  const data = JSON.parse(jsonStr) as StreamChunk;
-                  onChunk(data);
-
-                  if (data.done || data.error) {
-                    onComplete();
-                    return;
-                  }
-                } catch (e) {
-                  console.error(
-                    "Failed to parse SSE data:",
-                    e,
-                    "Line:",
-                    trimmedLine
-                  );
-                  // Continue processing other lines
-                }
-              }
-            }
-          }
-
-          // Process remaining buffer
-          if (buffer.trim() && !isAborted) {
-            const trimmedBuffer = buffer.trim();
-            if (trimmedBuffer.startsWith("data: ")) {
-              try {
-                const jsonStr = trimmedBuffer.slice(6);
-                if (jsonStr) {
-                  const data = JSON.parse(jsonStr) as StreamChunk;
-                  onChunk(data);
-                }
-              } catch (e) {
-                console.error("Failed to parse remaining buffer:", e);
-              }
-            }
-          }
-
-          if (!isAborted) {
-            onComplete();
-          }
-        } catch (error) {
-          if (
-            !isAborted &&
-            error instanceof Error &&
-            error.name !== "AbortError"
-          ) {
-            onError(error);
-          }
-        } finally {
-          try {
-            reader.releaseLock();
-          } catch (e) {
-            // Reader already released
-          }
-        }
-      })
-      .catch((error) => {
-        if (!isAborted && error.name !== "AbortError") {
-          onError(error instanceof Error ? error : new Error(String(error)));
-        }
-      });
   })(); // Invoke the async IIFE
 
   return () => {
@@ -636,7 +730,7 @@ export interface Document {
   file_type: string;
   file_size: number;
   status: "pending" | "processing" | "ready" | "error" | "needs_review";
-  metadata?: any;
+  metadata?: Record<string, unknown>;
   chunk_count: number;
   embedding_status: string;
   collection_id?: number;

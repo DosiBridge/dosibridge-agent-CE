@@ -32,6 +32,7 @@ export default function ChatInput() {
   const abortRef = useRef<(() => void) | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
+  const prevAuthRef = useRef<boolean | null>(null);
 
   // Auto-resize textarea
   useAutoResize(textareaRef, input, 1, 8);
@@ -59,9 +60,17 @@ export default function ChatInput() {
   const setStreaming = useStore((state) => state.setStreaming);
   const setLoading = useStore((state) => state.setLoading);
 
-  // Cancel ongoing requests when user logs out
+  // Cancel ongoing requests only when user explicitly logs out
+  // Don't cancel on initial page load when not authenticated (agent mode works without login)
   useEffect(() => {
-    if (!isAuthenticated && (isStreaming || isLoading)) {
+    // Track previous auth state - skip on first render
+    if (prevAuthRef.current === null) {
+      prevAuthRef.current = isAuthenticated;
+      return; // Skip on first render
+    }
+
+    // Only cancel if user was authenticated and now logged out
+    if (prevAuthRef.current && !isAuthenticated && (isStreaming || isLoading)) {
       // User logged out - cancel any ongoing requests
       if (abortRef.current) {
         abortRef.current();
@@ -70,6 +79,9 @@ export default function ChatInput() {
       setStreaming(false);
       setLoading(false);
     }
+
+    // Update previous auth state
+    prevAuthRef.current = isAuthenticated;
   }, [isAuthenticated, isStreaming, isLoading, setStreaming, setLoading]);
 
   // textarea should be disabled only while loading/streaming
@@ -239,7 +251,8 @@ export default function ChatInput() {
             toolsUsed.push(chunk.tool);
           }
 
-          if (chunk.chunk) {
+          // Process content chunks - accept all chunks including spaces
+          if (chunk.chunk !== undefined && chunk.chunk !== null) {
             hasReceivedContent = true;
             updateLastMessage(chunk.chunk);
           }
