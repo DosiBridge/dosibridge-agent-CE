@@ -53,5 +53,7 @@ echo "🌐 API docs available at: http://localhost:8000/docs"
 echo ""
 
 # Run the server
-python -m uvicorn src.api:app --host 0.0.0.0 --port 8000 --reload
+# --reload enables auto-reload on file changes (development mode)
+# --log-level warning reduces verbosity of reload messages
+python -m uvicorn src.api:app --host 0.0.0.0 --port 8000 --reload --log-level warning
 
