@@ -12,13 +12,21 @@ import { createStreamReader, StreamChunk } from "@/lib/api";
 import { getUserFriendlyError, logError } from "@/lib/errors";
 import { useStore } from "@/lib/store";
 import {
+  BookOpen,
+  ChevronRight,
+  Cloud,
+  FileText,
+  Image as ImageIcon,
+  Lightbulb,
   Loader2,
-  Mic,
+  MoreVertical,
   Paperclip,
+  Plus,
   Send,
   Settings,
   Sparkles,
   Square,
+  Telescope,
   X,
 } from "lucide-react";
 import type { KeyboardEvent } from "react";
@@ -29,9 +37,13 @@ export default function ChatInput() {
   const [input, setInput] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
   const abortRef = useRef<(() => void) | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
+  const attachMenuRef = useRef<HTMLDivElement>(null);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
   const prevAuthRef = useRef<boolean | null>(null);
 
   // Auto-resize textarea
@@ -164,6 +176,25 @@ export default function ChatInput() {
         document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [showSuggestions]);
+
+  // Close attach menu on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        attachMenuRef.current &&
+        !attachMenuRef.current.contains(e.target as Node)
+      ) {
+        setShowAttachMenu(false);
+        setShowMoreMenu(false);
+      }
+    };
+
+    if (showAttachMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [showAttachMenu]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -492,8 +523,159 @@ export default function ChatInput() {
             e.preventDefault();
             handleSend();
           }}
-          className="flex gap-2 sm:gap-2.5 md:gap-3 relative"
+          className="flex gap-2 sm:gap-2.5 md:gap-3 relative items-end"
         >
+          {/* Attach menu button (ChatGPT-style) */}
+          <div className="relative shrink-0" ref={attachMenuRef}>
+            <button
+              type="button"
+              onClick={() => {
+                setShowAttachMenu(!showAttachMenu);
+                setShowMoreMenu(false);
+              }}
+              disabled={inputDisabled}
+              className="h-11 w-11 sm:h-12 sm:w-12 md:h-14 md:w-14 rounded-2xl bg-[#40414f] hover:bg-[#4a4b5a] border border-gray-600 hover:border-gray-500 flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation shadow-sm hover:shadow-md"
+              aria-label="Attach files and more"
+              title="Attach files and more"
+            >
+              <Plus className="w-5 h-5 sm:w-6 sm:h-6 text-gray-300" />
+            </button>
+
+            {/* Attach menu dropdown */}
+            {showAttachMenu && (
+              <div className="absolute bottom-full left-0 mb-2 w-64 bg-[#343541] border border-gray-700 rounded-lg shadow-2xl overflow-hidden z-50 animate-scale-in">
+                <div className="py-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      toast("File attachment coming soon!", { icon: "📎" });
+                      setShowAttachMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-[#40414f] transition-colors flex items-center gap-3 group"
+                  >
+                    <Paperclip className="w-5 h-5 text-gray-400 group-hover:text-[#10a37f] transition-colors" />
+                    <span>Add photos & files</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      toast("OneDrive integration coming soon!", {
+                        icon: "☁️",
+                      });
+                      setShowAttachMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-[#40414f] transition-colors flex items-center gap-3 group"
+                  >
+                    <Cloud className="w-5 h-5 text-blue-400 group-hover:text-blue-300 transition-colors" />
+                    <span>Add from OneDrive</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      toast("Image creation coming soon!", { icon: "🖼️" });
+                      setShowAttachMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-[#40414f] transition-colors flex items-center gap-3 group"
+                  >
+                    <ImageIcon className="w-5 h-5 text-purple-400 group-hover:text-purple-300 transition-colors" />
+                    <span>Create image</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      toast("Thinking mode coming soon!", { icon: "💡" });
+                      setShowAttachMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-[#40414f] transition-colors flex items-center gap-3 group"
+                  >
+                    <Lightbulb className="w-5 h-5 text-yellow-400 group-hover:text-yellow-300 transition-colors" />
+                    <span>Thinking</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      toast("Deep research mode coming soon!", { icon: "🔬" });
+                      setShowAttachMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-[#40414f] transition-colors flex items-center gap-3 group"
+                  >
+                    <Telescope className="w-5 h-5 text-blue-400 group-hover:text-blue-300 transition-colors" />
+                    <span>Deep research</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      toast("Study mode coming soon!", { icon: "📚" });
+                      setShowAttachMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-[#40414f] transition-colors flex items-center gap-3 group"
+                  >
+                    <BookOpen className="w-5 h-5 text-green-400 group-hover:text-green-300 transition-colors" />
+                    <span>Study and learn</span>
+                  </button>
+
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onMouseEnter={() => setShowMoreMenu(true)}
+                      onMouseLeave={() => setShowMoreMenu(false)}
+                      className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-[#40414f] transition-colors flex items-center justify-between group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <MoreVertical className="w-5 h-5 text-gray-400 group-hover:text-[#10a37f] transition-colors" />
+                        <span>More</span>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-gray-500" />
+                    </button>
+
+                    {/* More submenu */}
+                    {showMoreMenu && (
+                      <div
+                        ref={moreMenuRef}
+                        onMouseEnter={() => setShowMoreMenu(true)}
+                        onMouseLeave={() => setShowMoreMenu(false)}
+                        className="absolute left-full top-0 ml-1 w-56 bg-[#343541] border border-gray-700 rounded-lg shadow-2xl overflow-hidden z-50"
+                      >
+                        <div className="py-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              toast("Web search coming soon!", { icon: "🌐" });
+                              setShowAttachMenu(false);
+                              setShowMoreMenu(false);
+                            }}
+                            className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-[#40414f] transition-colors flex items-center gap-3 group"
+                          >
+                            <FileText className="w-5 h-5 text-gray-400 group-hover:text-[#10a37f] transition-colors" />
+                            <span>Web search</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              toast("Canvas coming soon!", { icon: "✏️" });
+                              setShowAttachMenu(false);
+                              setShowMoreMenu(false);
+                            }}
+                            className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-[#40414f] transition-colors flex items-center gap-3 group"
+                          >
+                            <FileText className="w-5 h-5 text-gray-400 group-hover:text-[#10a37f] transition-colors" />
+                            <span>Canvas</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="flex-1 relative">
             {/* Suggestions dropdown */}
             {showSuggestions && suggestions.length > 0 && (
@@ -515,7 +697,7 @@ export default function ChatInput() {
               </div>
             )}
 
-            <div className="relative">
+            <div className="relative bg-[#40414f] border border-gray-600 rounded-2xl shadow-sm hover:border-gray-500 focus-within:border-[#10a37f] focus-within:ring-2 focus-within:ring-[#10a37f]/20 transition-all">
               <textarea
                 ref={textareaRef}
                 value={input}
@@ -531,12 +713,12 @@ export default function ChatInput() {
                 }}
                 placeholder={
                   mode === "agent"
-                    ? "Ask me anything with tools..."
+                    ? "Ask anything"
                     : "Ask me about your documents..."
                 }
                 disabled={inputDisabled}
                 rows={1}
-                className="w-full px-3 py-2.5 sm:px-3.5 sm:py-3 md:px-4 md:py-3.5 pr-20 sm:pr-24 md:pr-28 border border-gray-600 rounded-2xl resize-none focus:outline-none focus:ring-2 focus:ring-[#10a37f] focus:border-[#10a37f] bg-[#40414f] text-gray-100 placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm sm:text-base shadow-sm hover:border-gray-500 focus:shadow-md"
+                className="w-full px-4 py-3 sm:px-4 sm:py-3.5 md:px-5 md:py-4 pr-12 resize-none focus:outline-none bg-transparent text-gray-100 placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm sm:text-base"
                 style={{
                   minHeight: "44px",
                   maxHeight: "200px",
@@ -545,49 +727,18 @@ export default function ChatInput() {
                 aria-label="Message input"
               />
 
-              {/* Action buttons inside textarea */}
-              <div className="absolute right-2 sm:right-2.5 md:right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                {/* File attachment button (future feature) */}
+              {/* Clear button inside textarea */}
+              {input && !inputDisabled && (
                 <button
                   type="button"
-                  onClick={() => {
-                    toast("File attachment coming soon!", { icon: "📎" });
-                  }}
-                  disabled={inputDisabled}
-                  className="p-1.5 sm:p-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-[#2d2d2f] transition-all disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
-                  aria-label="Attach file"
-                  title="Attach file (coming soon)"
+                  onClick={handleClear}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-[#2d2d2f] transition-all touch-manipulation animate-fade-in"
+                  aria-label="Clear message"
+                  title="Clear (Esc)"
                 >
-                  <Paperclip className="w-4 h-4 sm:w-4 sm:h-4" />
+                  <X className="w-4 h-4" />
                 </button>
-
-                {/* Voice input button (future feature) */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    toast("Voice input coming soon!", { icon: "🎤" });
-                  }}
-                  disabled={inputDisabled}
-                  className="p-1.5 sm:p-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-[#2d2d2f] transition-all disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
-                  aria-label="Voice input"
-                  title="Voice input (coming soon)"
-                >
-                  <Mic className="w-4 h-4 sm:w-4 sm:h-4" />
-                </button>
-
-                {/* Clear button */}
-                {input && !inputDisabled && (
-                  <button
-                    type="button"
-                    onClick={handleClear}
-                    className="p-1.5 sm:p-1.5 md:p-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-[#2d2d2f] transition-all touch-manipulation animate-fade-in"
-                    aria-label="Clear message"
-                    title="Clear (Esc)"
-                  >
-                    <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  </button>
-                )}
-              </div>
+              )}
             </div>
 
             {/* Character counter */}
@@ -623,7 +774,6 @@ export default function ChatInput() {
               title="Stop generation"
             >
               <Square className="w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5 fill-white" />
-              <span className="absolute inset-0 rounded-2xl bg-red-500 opacity-0 group-hover:opacity-20 animate-pulse" />
             </button>
           ) : (
             <button
@@ -642,10 +792,7 @@ export default function ChatInput() {
               {isLoading ? (
                 <Loader2 className="w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5 animate-spin" />
               ) : (
-                <>
-                  <Send className="w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-                  <span className="absolute inset-0 rounded-2xl bg-[#10a37f] opacity-0 group-hover:opacity-20 animate-pulse" />
-                </>
+                <Send className="w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
               )}
             </button>
           )}
@@ -683,8 +830,6 @@ export default function ChatInput() {
               </div>
             )}
           </div>
-
-         
 
           {/* Mobile: Compact shortcuts */}
           <div className="md:hidden flex items-center gap-2 text-gray-500">
