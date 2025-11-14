@@ -51,14 +51,14 @@ async def chat(
     try:
         user_id = current_user.id if current_user else None
         
-        # Agent mode requires authentication (MCP access requires login)
-        if chat_request.mode == "agent" and not current_user:
+        # RAG mode requires authentication (document upload and query requires login)
+        if chat_request.mode == "rag" and not current_user:
             app_logger.warning(
-                "Unauthorized agent mode access attempt",
+                "Unauthorized RAG mode access attempt",
                 {"session_id": chat_request.session_id, "mode": chat_request.mode}
             )
             raise UnauthorizedError(
-                "Authentication required for agent mode. MCP servers are only available to authenticated users."
+                "Authentication required for RAG mode. Please log in to upload documents and query them."
             )
         
         app_logger.info(
@@ -142,9 +142,9 @@ async def chat_stream(
         stream_completed = False
         user_id = current_user.id if current_user else None
         
-        # Agent mode requires authentication (MCP access requires login)
-        if chat_request.mode == "agent" and not current_user:
-            yield f"data: {json.dumps({'chunk': '', 'done': True, 'error': 'Authentication required for agent mode. MCP servers are only available to authenticated users. Please log in to use agent mode.'})}\n\n"
+        # RAG mode requires authentication (document upload and query requires login)
+        if chat_request.mode == "rag" and not current_user:
+            yield f"data: {json.dumps({'chunk': '', 'done': True, 'error': 'Authentication required for RAG mode. Please log in to upload documents and query them.'})}\n\n"
             return
         
         try:
@@ -261,7 +261,15 @@ async def chat_stream(
                     else:
                         error_details = f"LLM streaming error: {error_details}"
                     
-                    print(f"❌ RAG streaming error:\n{tb_str}")
+                    app_logger.error(
+                        "RAG streaming error",
+                        {
+                            "session_id": chat_request.session_id,
+                            "user_id": user_id,
+                            "error": str(e),
+                            "traceback": tb_str,
+                        }
+                    )
                     try:
                         yield f"data: {json.dumps({'error': error_details, 'done': True})}\n\n"
                         stream_completed = True
@@ -419,7 +427,15 @@ async def chat_stream(
                                 else:
                                     error_details = f"LLM streaming error: {error_details}"
                                 
-                                print(f"❌ Ollama streaming error:\n{tb_str}")
+                                app_logger.error(
+                                    "Ollama streaming error",
+                                    {
+                                        "session_id": chat_request.session_id,
+                                        "user_id": user_id,
+                                        "error": str(e),
+                                        "traceback": tb_str,
+                                    }
+                                )
                                 try:
                                     yield f"data: {json.dumps({'error': error_details, 'done': True})}\n\n"
                                     stream_completed = True
@@ -624,7 +640,15 @@ async def chat_stream(
                             
                             error_msg = f"Error during agent execution: {error_details}"
                             # Log full traceback for debugging
-                            print(f"❌ Agent execution error:\n{traceback.format_exc()}")
+                            app_logger.error(
+                                "Agent execution error",
+                                {
+                                    "session_id": chat_request.session_id,
+                                    "user_id": user_id,
+                                    "error": error_details,
+                                    "traceback": traceback.format_exc(),
+                                }
+                            )
                             try:
                                 yield f"data: {json.dumps({'error': error_msg, 'done': True})}\n\n"
                                 stream_completed = True
@@ -652,21 +676,40 @@ async def chat_stream(
                     import traceback
                     error_msg = f"Failed to connect to MCP servers: {str(mcp_error)}"
                     tb_str = traceback.format_exc()
-                    print(f"❌ MCP connection error:\n{tb_str}")
+                    app_logger.error(
+                        "MCP connection error",
+                        {
+                            "session_id": chat_request.session_id,
+                            "user_id": user_id,
+                            "error": str(mcp_error),
+                            "traceback": tb_str,
+                        }
+                    )
                     yield f"data: {json.dumps({'error': error_msg, 'traceback': tb_str[:300], 'done': True})}\n\n"
                     stream_completed = True
                     return
                     
         except asyncio.CancelledError:
             # Client disconnected - gracefully exit
-            print("⚠️  Client disconnected during streaming")
+            app_logger.warning(
+                "Client disconnected during streaming",
+                {"session_id": chat_request.session_id, "user_id": user_id}
+            )
             stream_completed = True
             return
         except Exception as e:
             import traceback
             error_msg = f"Unexpected error: {str(e)}"
             tb_str = traceback.format_exc()
-            print(f"❌ Streaming error:\n{tb_str}")
+            app_logger.error(
+                "Streaming error",
+                {
+                    "session_id": chat_request.session_id,
+                    "user_id": user_id,
+                    "error": str(e),
+                    "traceback": tb_str,
+                }
+            )
             try:
                 # Send detailed error through stream
                 error_data = {
@@ -678,7 +721,14 @@ async def chat_stream(
                 stream_completed = True
             except Exception as yield_error:
                 # If we can't yield (client disconnected), log and exit
-                print(f"❌ Could not send error to client: {yield_error}")
+                app_logger.error(
+                    "Could not send error to client",
+                    {
+                        "session_id": chat_request.session_id,
+                        "user_id": user_id,
+                        "error": str(yield_error),
+                    }
+                )
                 stream_completed = True
         finally:
             # Ensure stream always completes

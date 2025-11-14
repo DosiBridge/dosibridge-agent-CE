@@ -1,319 +1,337 @@
 /**
- * Main chat page
+ * Landing page - Home page for DosiBridge Agent
  */
-
 "use client";
 
-import AuthModal from "@/components/AuthModal";
-import ChatInput from "@/components/ChatInput";
-import ChatWindow from "@/components/ChatWindow";
-import HealthStatus from "@/components/HealthStatus";
-import RAGSettings from "@/components/RAGSettings";
-import SessionSidebar from "@/components/SessionSidebar";
-import SettingsPanel from "@/components/SettingsPanel";
-import { useStore } from "@/lib/store";
-import { healthWebSocket } from "@/lib/websocket";
-import { LogOut, Menu, Settings, User } from "lucide-react";
-import { useEffect, useState } from "react";
-import { Toaster, toast } from "react-hot-toast";
+import { ArrowRight, Bot, FileText, Lock, Sparkles, Zap } from "lucide-react";
+import Link from "next/link";
+import { useEffect } from "react";
 
 export default function Home() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [authModalMode, setAuthModalMode] = useState<"login" | "register">(
-    "login"
-  );
-
-  const isAuthenticated = useStore((state) => state.isAuthenticated);
-  const authLoading = useStore((state) => state.authLoading);
-  const user = useStore((state) => state.user);
-  const checkAuth = useStore((state) => state.checkAuth);
-  const handleLogout = useStore((state) => state.handleLogout);
-
   useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
-
-  // Initialize WebSocket connection for health monitoring
-  // Reconnect when auth state changes to get user-specific MCP server count
-  useEffect(() => {
-    // Disconnect existing connection (allow reconnect)
-    healthWebSocket.disconnect(true);
-
-    // If authenticated, reconnect with new token
-    // If not authenticated, don't reconnect (no MCP access without login)
-    if (isAuthenticated) {
-      // Small delay to ensure disconnect completes
-      const timer = setTimeout(() => {
-        healthWebSocket.connect();
-      }, 100);
-
-      // Cleanup on unmount or when auth changes
-      return () => {
-        clearTimeout(timer);
-        healthWebSocket.disconnect(false); // Final disconnect, don't allow reconnect
-      };
-    } else {
-      // Not authenticated - ensure WebSocket is disconnected (no MCP access)
-      // Don't reconnect - MCP servers require authentication
-      return () => {
-        healthWebSocket.disconnect(false); // Ensure disconnected on logout
-      };
-    }
-  }, [isAuthenticated]);
-
-  useEffect(() => {
-    const handleOpenAuth = (e: CustomEvent) => {
-      if (e.detail?.mode === "register") {
-        setAuthModalMode("register");
-      } else {
-        setAuthModalMode("login");
-      }
-      setAuthModalOpen(true);
+    // Smooth scroll behavior
+    document.documentElement.style.scrollBehavior = "smooth";
+    return () => {
+      document.documentElement.style.scrollBehavior = "auto";
     };
-
-    window.addEventListener("open-auth" as any, handleOpenAuth);
-    return () => window.removeEventListener("open-auth" as any, handleOpenAuth);
   }, []);
-
-  // Close sidebar on mobile when clicking outside
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= 1024) {
-        setSidebarOpen(false); // Sidebar is always visible on desktop
-      }
-    };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  const loadSessions = useStore((state) => state.loadSessions);
-  const loadSession = useStore((state) => state.loadSession);
-  const currentSessionId = useStore((state) => state.currentSessionId);
-  const messages = useStore((state) => state.messages);
-  const settingsOpen = useStore((state) => state.settingsOpen);
-  const setSettingsOpen = useStore((state) => state.setSettingsOpen);
-  const ragSettingsOpen = useStore((state) => state.ragSettingsOpen);
-  const setRagSettingsOpen = useStore((state) => state.setRagSettingsOpen);
-  const useReact = useStore((state) => state.useReact);
-  const setUseReact = useStore((state) => state.setUseReact);
-  const selectedCollectionId = useStore((state) => state.selectedCollectionId);
-  const setSelectedCollectionId = useStore(
-    (state) => state.setSelectedCollectionId
-  );
-
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
-      // Ctrl/Cmd + K: Toggle sidebar (or command palette in future)
-      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
-        e.preventDefault();
-        setSidebarOpen((prev) => !prev);
-      }
-      // Ctrl/Cmd + N: New session
-      if ((e.ctrlKey || e.metaKey) && e.key === "n") {
-        e.preventDefault();
-        useStore.getState().createNewSession();
-        toast.success("New session created");
-      }
-      // Escape: Close modals/sidebar
-      if (e.key === "Escape") {
-        if (settingsOpen) {
-          setSettingsOpen(false);
-        }
-        if (authModalOpen) {
-          setAuthModalOpen(false);
-        }
-        if (sidebarOpen && window.innerWidth < 1024) {
-          setSidebarOpen(false);
-        }
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyPress);
-    return () => window.removeEventListener("keydown", handleKeyPress);
-  }, [settingsOpen, authModalOpen, sidebarOpen, setSettingsOpen]);
-
-  useEffect(() => {
-    // Load sessions and current session on mount
-    loadSessions();
-    loadSession(currentSessionId);
-  }, [loadSessions, loadSession, currentSessionId]);
-
-  // Reload user data when authentication state changes
-  useEffect(() => {
-    if (isAuthenticated && !authLoading) {
-      // User just logged in - reload all user-specific data
-      // This is a backup to ensure data is loaded even if login/register handlers miss it
-      loadSessions();
-      const loadMCPServers = useStore.getState().loadMCPServers;
-      loadMCPServers();
-    } else if (!isAuthenticated && !authLoading) {
-      // User logged out - ensure mode is RAG (agent mode requires auth)
-      const currentMode = useStore.getState().mode;
-      if (currentMode === "agent") {
-        useStore.getState().setMode("rag");
-      }
-    }
-  }, [isAuthenticated, authLoading, loadSessions]);
-
-  // Save messages to browser storage when they change (debounced)
-  useEffect(() => {
-    if (messages.length > 0) {
-      const timeoutId = setTimeout(() => {
-        useStore.getState().saveCurrentSessionMessages();
-      }, 2000); // Save 2 seconds after last change
-      return () => clearTimeout(timeoutId);
-    }
-  }, [messages, currentSessionId]);
 
   return (
-    <div className="flex h-screen bg-[#343541] dark:bg-[#2d2d2f] overflow-hidden">
-      <Toaster
-        position="top-center"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: "var(--background)",
-            color: "var(--foreground)",
-            borderRadius: "12px",
-            boxShadow: "0 10px 25px rgba(0, 0, 0, 0.1)",
-            maxWidth: "90vw",
-            fontSize: "14px",
-          },
-        }}
-      />
+    <div className="min-h-screen bg-gradient-to-br from-[#0a0a0a] via-[#1a1a1a] to-[#0a0a0a] text-white">
+      {/* Navigation */}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0a0a0a]/80 backdrop-blur-md border-b border-gray-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo */}
+            <Link href="/" className="flex items-center gap-2 group">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#10a37f] to-[#0d8f6e] flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow">
+                <Bot className="w-6 h-6 text-white" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-lg font-bold bg-gradient-to-r from-[#10a37f] to-[#0d8f6e] bg-clip-text text-transparent">
+                  DosiBridge Agent
+                </span>
+                <span className="text-xs text-gray-400">by dosibridge.com</span>
+              </div>
+            </Link>
 
-      {/* Session Sidebar */}
-      <SessionSidebar
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
+            {/* Navigation Links */}
+            <div className="hidden md:flex items-center gap-8">
+              <a
+                href="#features"
+                className="text-gray-300 hover:text-white transition-colors"
+              >
+                Features
+              </a>
+              <a
+                href="#how-it-works"
+                className="text-gray-300 hover:text-white transition-colors"
+              >
+                How It Works
+              </a>
+              <a
+                href="#about"
+                className="text-gray-300 hover:text-white transition-colors"
+              >
+                About
+              </a>
+            </div>
 
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col min-w-0 w-full">
-        {/* Header */}
-        <header className="border-b border-gray-700 bg-[#343541] dark:bg-[#2d2d2f] px-2 sm:px-4 md:px-6 py-2 sm:py-3 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-            {/* Mobile menu button */}
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 sm:p-2.5 hover:bg-[#40414f] rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#10a37f] active:bg-[#40414f] touch-manipulation"
-              aria-label="Open sidebar"
+            {/* Auth Buttons */}
+            <div className="flex items-center gap-3">
+              <Link
+                href="/login"
+                className="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors"
+              >
+                Log in
+              </Link>
+              <Link
+                href="/register"
+                className="px-4 py-2 text-sm font-medium bg-[#10a37f] hover:bg-[#0d8f6e] text-white rounded-lg transition-all hover:scale-105 active:scale-95"
+              >
+                Create Account
+              </Link>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero Section */}
+      <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto text-center">
+          <div className="mb-8 inline-flex items-center gap-2 px-4 py-2 bg-[#10a37f]/10 border border-[#10a37f]/30 rounded-full text-[#10a37f] text-sm font-medium">
+            <Sparkles className="w-4 h-4" />
+            <span>AI-Powered Agentic Assistant</span>
+          </div>
+
+          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold mb-6 bg-gradient-to-r from-white via-gray-100 to-gray-300 bg-clip-text text-transparent leading-tight">
+            Your Intelligent
+            <br />
+            <span className="bg-gradient-to-r from-[#10a37f] to-[#0d8f6e] bg-clip-text text-transparent">
+              AI Assistant
+            </span>
+          </h1>
+
+          <p className="text-xl sm:text-2xl text-gray-400 mb-12 max-w-3xl mx-auto leading-relaxed">
+            Powered by advanced AI agents and RAG technology. Upload documents,
+            ask questions, and get intelligent responses with tool integration.
+          </p>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link
+              href="/chat"
+              className="group px-8 py-4 bg-[#10a37f] hover:bg-[#0d8f6e] text-white rounded-lg font-semibold text-lg transition-all hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl flex items-center gap-2"
             >
-              <Menu className="w-5 h-5 sm:w-6 sm:h-6 text-gray-300" />
-            </button>
+              Get Started
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </Link>
+            <a
+              href="https://dosibridge.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-8 py-4 border border-gray-700 hover:border-gray-600 text-gray-300 hover:text-white rounded-lg font-semibold text-lg transition-all"
+            >
+              Learn More
+            </a>
+          </div>
+        </div>
+      </section>
 
-            <h1 className="text-base sm:text-lg md:text-xl font-semibold text-gray-200 truncate">
-              DOSI-AI-agent
-            </h1>
+      {/* Features Section */}
+      <section
+        id="features"
+        className="py-20 px-4 sm:px-6 lg:px-8 bg-[#0f0f0f]"
+      >
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl sm:text-5xl font-bold mb-4">
+              Powerful Features
+            </h2>
+            <p className="text-xl text-gray-400 max-w-2xl mx-auto">
+              Everything you need for intelligent conversations and document
+              analysis
+            </p>
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 shrink-0">
-            {isAuthenticated ? (
-              <>
-                <div className="hidden sm:flex items-center gap-2 text-sm text-gray-400">
-                  <User className="w-4 h-4" />
-                  <span className="truncate max-w-[150px]">
-                    {user?.name || user?.email}
-                  </span>
-                </div>
-                <div className="hidden sm:block">
-                  <HealthStatus />
-                </div>
-                <button
-                  onClick={() => {
-                    if (!isAuthenticated) {
-                      setAuthModalMode("login");
-                      setAuthModalOpen(true);
-                    } else {
-                      setSettingsOpen(true);
-                    }
-                  }}
-                  className="p-2 sm:p-2.5 hover:bg-[#40414f] rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#10a37f] active:scale-95 touch-manipulation"
-                  aria-label="Open settings"
-                  title={
-                    isAuthenticated
-                      ? "Settings (MCP & Model Configuration)"
-                      : "Log in to access settings"
-                  }
-                >
-                  <Settings
-                    className="w-5 h-5 sm:w-6 sm:h-6 text-gray-300"
-                    aria-hidden="true"
-                  />
-                </button>
-                <button
-                  onClick={async () => {
-                    await handleLogout();
-                    toast.success("Logged out successfully");
-                  }}
-                  className="p-2 sm:p-2.5 hover:bg-[#40414f] rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#10a37f]"
-                  aria-label="Logout"
-                  title="Logout"
-                >
-                  <LogOut className="w-5 h-5 sm:w-6 sm:h-6 text-gray-300" />
-                </button>
-              </>
-            ) : (
-              <>
-                <div className="hidden sm:block">
-                  <HealthStatus />
-                </div>
-                <button
-                  onClick={() => {
-                    setAuthModalMode("login");
-                    setAuthModalOpen(true);
-                  }}
-                  className="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors"
-                >
-                  Log in
-                </button>
-                <button
-                  onClick={() => {
-                    setAuthModalMode("register");
-                    setAuthModalOpen(true);
-                  }}
-                  className="px-4 py-2 text-sm font-medium bg-white text-gray-900 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  Create account
-                </button>
-              </>
-            )}
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {/* Feature 1 */}
+            <div className="p-6 bg-[#1a1a1a] border border-gray-800 rounded-xl hover:border-[#10a37f]/50 transition-all group">
+              <div className="w-12 h-12 rounded-lg bg-[#10a37f]/10 flex items-center justify-center mb-4 group-hover:bg-[#10a37f]/20 transition-colors">
+                <Bot className="w-6 h-6 text-[#10a37f]" />
+              </div>
+              <h3 className="text-xl font-semibold mb-2">AI Agent Mode</h3>
+              <p className="text-gray-400">
+                Interact with intelligent AI agents that can use tools, access
+                external APIs, and perform complex tasks.
+              </p>
+            </div>
+
+            {/* Feature 2 */}
+            <div className="p-6 bg-[#1a1a1a] border border-gray-800 rounded-xl hover:border-[#10a37f]/50 transition-all group">
+              <div className="w-12 h-12 rounded-lg bg-[#10a37f]/10 flex items-center justify-center mb-4 group-hover:bg-[#10a37f]/20 transition-colors">
+                <FileText className="w-6 h-6 text-[#10a37f]" />
+              </div>
+              <h3 className="text-xl font-semibold mb-2">
+                RAG Document Analysis
+              </h3>
+              <p className="text-gray-400">
+                Upload your documents and ask questions. Get accurate answers
+                based on your document content using RAG technology.
+              </p>
+            </div>
+
+            {/* Feature 3 */}
+            <div className="p-6 bg-[#1a1a1a] border border-gray-800 rounded-xl hover:border-[#10a37f]/50 transition-all group">
+              <div className="w-12 h-12 rounded-lg bg-[#10a37f]/10 flex items-center justify-center mb-4 group-hover:bg-[#10a37f]/20 transition-colors">
+                <Zap className="w-6 h-6 text-[#10a37f]" />
+              </div>
+              <h3 className="text-xl font-semibold mb-2">Fast & Responsive</h3>
+              <p className="text-gray-400">
+                Real-time streaming responses, WebSocket health monitoring, and
+                optimized performance for the best experience.
+              </p>
+            </div>
+
+            {/* Feature 4 */}
+            <div className="p-6 bg-[#1a1a1a] border border-gray-800 rounded-xl hover:border-[#10a37f]/50 transition-all group">
+              <div className="w-12 h-12 rounded-lg bg-[#10a37f]/10 flex items-center justify-center mb-4 group-hover:bg-[#10a37f]/20 transition-colors">
+                <Lock className="w-6 h-6 text-[#10a37f]" />
+              </div>
+              <h3 className="text-xl font-semibold mb-2">Secure & Private</h3>
+              <p className="text-gray-400">
+                Your data is encrypted and private. Each user's documents and
+                sessions are completely isolated.
+              </p>
+            </div>
+
+            {/* Feature 5 */}
+            <div className="p-6 bg-[#1a1a1a] border border-gray-800 rounded-xl hover:border-[#10a37f]/50 transition-all group">
+              <div className="w-12 h-12 rounded-lg bg-[#10a37f]/10 flex items-center justify-center mb-4 group-hover:bg-[#10a37f]/20 transition-colors">
+                <Sparkles className="w-6 h-6 text-[#10a37f]" />
+              </div>
+              <h3 className="text-xl font-semibold mb-2">Smart Suggestions</h3>
+              <p className="text-gray-400">
+                Get intelligent query suggestions, input history navigation, and
+                context-aware assistance.
+              </p>
+            </div>
+
+            {/* Feature 6 */}
+            <div className="p-6 bg-[#1a1a1a] border border-gray-800 rounded-xl hover:border-[#10a37f]/50 transition-all group">
+              <div className="w-12 h-12 rounded-lg bg-[#10a37f]/10 flex items-center justify-center mb-4 group-hover:bg-[#10a37f]/20 transition-colors">
+                <Bot className="w-6 h-6 text-[#10a37f]" />
+              </div>
+              <h3 className="text-xl font-semibold mb-2">MCP Integration</h3>
+              <p className="text-gray-400">
+                Connect to Model Context Protocol servers for extended
+                functionality and custom tool integration.
+              </p>
+            </div>
           </div>
-        </header>
+        </div>
+      </section>
 
-        {/* Chat Window */}
-        <ChatWindow />
+      {/* How It Works */}
+      <section id="how-it-works" className="py-20 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl sm:text-5xl font-bold mb-4">
+              How It Works
+            </h2>
+            <p className="text-xl text-gray-400 max-w-2xl mx-auto">
+              Simple steps to get started with DosiBridge Agent
+            </p>
+          </div>
 
-        {/* Chat Input */}
-        <ChatInput />
-      </div>
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="text-center">
+              <div className="w-16 h-16 rounded-full bg-[#10a37f] flex items-center justify-center text-2xl font-bold mx-auto mb-4">
+                1
+              </div>
+              <h3 className="text-xl font-semibold mb-2">Create Account</h3>
+              <p className="text-gray-400">
+                Sign up for free to access RAG mode and document upload
+                features.
+              </p>
+            </div>
 
-      {/* Settings Panel */}
-      <SettingsPanel
-        isOpen={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-      />
+            <div className="text-center">
+              <div className="w-16 h-16 rounded-full bg-[#10a37f] flex items-center justify-center text-2xl font-bold mx-auto mb-4">
+                2
+              </div>
+              <h3 className="text-xl font-semibold mb-2">Upload Documents</h3>
+              <p className="text-gray-400">
+                Upload your PDFs, text files, or documents to create your
+                knowledge base.
+              </p>
+            </div>
 
-      {/* RAG Settings Panel */}
-      {isAuthenticated && (
-        <RAGSettings
-          isOpen={ragSettingsOpen}
-          onClose={() => setRagSettingsOpen(false)}
-          selectedCollectionId={selectedCollectionId}
-          onCollectionSelect={setSelectedCollectionId}
-          useReact={useReact}
-          onUseReactChange={setUseReact}
-        />
-      )}
+            <div className="text-center">
+              <div className="w-16 h-16 rounded-full bg-[#10a37f] flex items-center justify-center text-2xl font-bold mx-auto mb-4">
+                3
+              </div>
+              <h3 className="text-xl font-semibold mb-2">Ask Questions</h3>
+              <p className="text-gray-400">
+                Switch to RAG mode and ask questions about your documents. Get
+                instant, accurate answers.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
 
-      {/* Auth Modal */}
-      <AuthModal
-        isOpen={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
-        initialMode={authModalMode}
-      />
+      {/* CTA Section */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-[#10a37f]/10 to-[#0d8f6e]/10">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-4xl sm:text-5xl font-bold mb-6">
+            Ready to Get Started?
+          </h2>
+          <p className="text-xl text-gray-400 mb-8">
+            Join DosiBridge Agent today and experience the future of AI-powered
+            assistance.
+          </p>
+          <Link
+            href="/chat"
+            className="inline-flex items-center gap-2 px-8 py-4 bg-[#10a37f] hover:bg-[#0d8f6e] text-white rounded-lg font-semibold text-lg transition-all hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl"
+          >
+            Get Started Free
+            <ArrowRight className="w-5 h-5" />
+          </Link>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer
+        id="about"
+        className="py-12 px-4 sm:px-6 lg:px-8 border-t border-gray-800"
+      >
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#10a37f] to-[#0d8f6e] flex items-center justify-center">
+                <Bot className="w-5 h-5 text-white" />
+              </div>
+              <span className="text-gray-400">
+                DosiBridge Agent by{" "}
+                <a
+                  href="https://dosibridge.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[#10a37f] hover:text-[#0d8f6e] transition-colors"
+                >
+                  dosibridge.com
+                </a>
+              </span>
+            </div>
+            <div className="flex items-center gap-6 text-sm text-gray-400">
+              <a
+                href="#features"
+                className="hover:text-white transition-colors"
+              >
+                Features
+              </a>
+              <a
+                href="#how-it-works"
+                className="hover:text-white transition-colors"
+              >
+                How It Works
+              </a>
+              <Link
+                href="/login"
+                className="hover:text-white transition-colors"
+              >
+                Log in
+              </Link>
+              <Link
+                href="/register"
+                className="hover:text-white transition-colors"
+              >
+                Sign Up
+              </Link>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

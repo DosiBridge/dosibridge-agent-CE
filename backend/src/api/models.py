@@ -8,7 +8,7 @@ from typing import Optional, Literal
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=10000, description="Chat message")
     session_id: str = Field(default="default", min_length=1, max_length=255, description="Session identifier")
-    mode: Literal["agent", "rag"] = Field(default="agent", description="Chat mode: 'agent' or 'rag'")
+    mode: Literal["agent", "rag"] = Field(default="agent", description="Chat mode: 'agent' (default, no auth required) or 'rag' (requires authentication)")
     collection_id: Optional[int] = Field(None, description="Optional collection ID for RAG mode")
     use_react: bool = Field(default=False, description="Whether to use ReAct agent for RAG mode")
     

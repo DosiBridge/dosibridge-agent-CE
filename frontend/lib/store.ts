@@ -113,7 +113,7 @@ export const useStore = create<AppState>((set, get) => ({
   messages: [],
   isLoading: false,
   isStreaming: false,
-  mode: "rag", // Default to RAG mode (agent mode requires authentication)
+  mode: "agent", // Default to agent mode
   useReact: false,
   selectedCollectionId: null,
   ragSettingsOpen: false,
@@ -146,10 +146,10 @@ export const useStore = create<AppState>((set, get) => ({
       }, 0);
     } catch (error) {
       set({ user: null, isAuthenticated: false, authLoading: false });
-      // Ensure mode is RAG if not authenticated (agent mode requires auth)
+      // Ensure mode is agent if not authenticated (RAG mode requires auth)
       const currentMode = get().mode;
-      if (currentMode === "agent") {
-        set({ mode: "rag" });
+      if (currentMode === "rag") {
+        set({ mode: "agent" });
       }
       // Clear MCP servers when not authenticated
       set({ mcpServers: [] });
@@ -195,7 +195,7 @@ export const useStore = create<AppState>((set, get) => ({
       console.error("Logout error:", error);
     } finally {
       // Don't clear browser storage on logout - keep sessions for when user logs back in
-      // But clear MCP servers and switch to RAG mode (agent mode requires authentication)
+      // But clear MCP servers and switch to agent mode (RAG mode requires authentication)
       const currentMode = get().mode;
 
       // Clear all MCP-related data
@@ -205,7 +205,7 @@ export const useStore = create<AppState>((set, get) => ({
         messages: [],
         sessions: [],
         mcpServers: [], // Clear MCP servers list on logout
-        mode: currentMode === "agent" ? "rag" : currentMode, // Switch to RAG if in agent mode
+        mode: currentMode === "rag" ? "agent" : currentMode, // Switch to agent mode if in RAG mode (RAG requires auth)
         isStreaming: false, // Stop any ongoing streaming
         isLoading: false, // Stop any ongoing loading
       });
@@ -351,9 +351,9 @@ export const useStore = create<AppState>((set, get) => ({
 
   setMode: (mode: "agent" | "rag") => {
     const state = get();
-    // Agent mode requires authentication
-    if (mode === "agent" && !state.isAuthenticated) {
-      console.warn("Cannot switch to agent mode: authentication required");
+    // RAG mode requires authentication (Agent mode works without login)
+    if (mode === "rag" && !state.isAuthenticated) {
+      console.warn("Cannot switch to RAG mode: authentication required");
       return; // Don't change mode if not authenticated
     }
     set({ mode });

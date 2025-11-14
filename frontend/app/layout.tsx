@@ -14,8 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "DOSI-AI-agent",
-  description: "AI Agent with MCP tools and RAG capabilities",
+  title: "DosiBridge Agent - AI-Powered Assistant",
+  description:
+    "Intelligent AI agent with MCP tools and RAG capabilities. Upload documents, ask questions, and get intelligent responses.",
 };
 
 export const viewport: Viewport = {

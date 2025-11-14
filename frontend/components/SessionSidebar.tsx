@@ -199,27 +199,46 @@ export default function SessionSidebar({
         {/* Sessions List */}
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
           {sessionsLoading ? (
-            // Skeleton loaders
+            // Enhanced skeleton loaders
             <div className="space-y-2">
-              {[1, 2, 3].map((i) => (
+              {[1, 2, 3, 4].map((i) => (
                 <div
                   key={i}
-                  className="animate-pulse p-3 rounded-lg bg-[#343541]"
+                  className="animate-pulse p-3 rounded-lg bg-[#343541] border border-gray-700"
+                  style={{
+                    animationDelay: `${i * 100}ms`,
+                  }}
                 >
-                  <div className="h-4 bg-gray-700 rounded w-3/4 mb-2" />
-                  <div className="h-3 bg-gray-800 rounded w-1/2" />
+                  <div className="flex items-center gap-3">
+                    <div className="w-4 h-4 bg-gray-700 rounded shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 bg-gray-700 rounded w-3/4" />
+                      <div className="h-3 bg-gray-800 rounded w-1/2" />
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
           ) : sessions.length === 0 ? (
-            <div className="text-center py-8 sm:py-12 px-3 sm:px-4">
-              <MessageSquare className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-2 sm:mb-3 text-gray-600" />
-              <p className="text-xs sm:text-sm text-gray-500">
+            <div className="text-center py-12 sm:py-16 px-3 sm:px-4 animate-fade-in">
+              <div className="relative mb-4 flex justify-center">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-[#343541] flex items-center justify-center border-2 border-dashed border-gray-600">
+                  <MessageSquare className="w-8 h-8 sm:w-10 sm:h-10 text-gray-600" />
+                </div>
+              </div>
+              <h3 className="text-sm sm:text-base font-semibold text-gray-300 mb-1">
                 No conversations yet
+              </h3>
+              <p className="text-xs sm:text-sm text-gray-500 mb-4">
+                Start a new chat to begin your conversation
               </p>
-              <p className="text-xs text-gray-600 mt-1">
-                Start a new chat to begin
-              </p>
+              <button
+                onClick={createNewSession}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-[#10a37f] hover:bg-[#0d8f6e] text-white rounded-lg text-sm font-medium transition-all hover:scale-105 active:scale-95"
+              >
+                <Plus className="w-4 h-4" />
+                Create First Chat
+              </button>
             </div>
           ) : (
             (() => {
@@ -280,8 +299,8 @@ export default function SessionSidebar({
                     aria-label={`Switch to session ${sessionTitle}`}
                     className={`group flex items-center justify-between p-2.5 sm:p-3 rounded-lg cursor-pointer transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#10a37f] touch-manipulation ${
                       session.session_id === currentSessionId
-                        ? "bg-[#343541] text-white shadow-md"
-                        : "hover:bg-[#2d2d2f] text-gray-300 active:bg-[#2d2d2f]"
+                        ? "bg-[#343541] text-white shadow-md border-l-4 border-[#10a37f]"
+                        : "hover:bg-[#2d2d2f] text-gray-300 active:bg-[#2d2d2f] border-l-4 border-transparent hover:border-gray-600"
                     }`}
                   >
                     <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
