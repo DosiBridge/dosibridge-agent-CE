@@ -300,30 +300,30 @@ class AdvancedRAGSystem:
                                 Document.status == "ready"
                             ).order_by(DocumentChunk.document_id, DocumentChunk.chunk_index).all()
                             
-                            for idx in top_indices:
-                                if idx < len(chunks):
-                                    chunk = chunks[idx]
-                                    bm25_score = normalized_scores[idx]
-                                    
-                                    # Check if already in results
-                                    found = False
-                                    for result in results:
-                                        if result.get("metadata", {}).get("chunk_id") == chunk.id:
-                                            # Combine scores (weighted average)
-                                            result["score"] = 0.6 * result["score"] + 0.4 * bm25_score
-                                            result["source"] = "hybrid"
-                                            found = True
-                                            break
-                                    
-                                    if not found:
-                                        metadata = chunk.metadata
-                                        if metadata:
-                                            try:
-                                                metadata = json.loads(metadata)
-                                            except:
-                                                metadata = {}
-                                        else:
-                                            metadata = {}
+                    for idx in top_indices:
+                        if idx < len(chunks):
+                            chunk = chunks[idx]
+                            bm25_score = normalized_scores[idx]
+                            
+                            # Check if already in results
+                            found = False
+                            for result in results:
+                                if result.get("metadata", {}).get("chunk_id") == chunk.id:
+                                    # Combine scores (weighted average)
+                                    result["score"] = 0.6 * result["score"] + 0.4 * bm25_score
+                                    result["source"] = "hybrid"
+                                    found = True
+                                    break
+                            
+                            if not found:
+                                metadata = chunk.chunk_metadata
+                                if metadata:
+                                    try:
+                                        metadata = json.loads(metadata)
+                                    except:
+                                        metadata = {}
+                                else:
+                                    metadata = {}
                                         
                                         metadata["chunk_id"] = chunk.id
                                         metadata["document_id"] = chunk.document_id
@@ -396,7 +396,7 @@ class AdvancedRAGSystem:
                 # Rebuild vectorstore
                 documents = []
                 for chunk in chunks:
-                    metadata = chunk.metadata
+                    metadata = chunk.chunk_metadata
                     if metadata:
                         try:
                             metadata = json.loads(metadata)

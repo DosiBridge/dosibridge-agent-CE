@@ -267,7 +267,7 @@ if Base is not None:
         file_type = Column(String(50), nullable=False)  # pdf, txt, docx, etc.
         file_size = Column(Integer, nullable=False)  # Size in bytes
         status = Column(String(50), nullable=False, default="pending")  # pending, processing, ready, error, needs_review
-        metadata = Column(Text, nullable=True)  # JSON string for additional metadata
+        document_metadata = Column(Text, nullable=True)  # JSON string for additional metadata (renamed from metadata to avoid SQLAlchemy conflict)
         chunk_count = Column(Integer, default=0, nullable=False)
         embedding_status = Column(String(50), nullable=False, default="pending")  # pending, processing, completed, failed
         created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -282,9 +282,9 @@ if Base is not None:
             """Convert model to dictionary"""
             import json
             metadata_dict = None
-            if self.metadata:
+            if self.document_metadata:
                 try:
-                    metadata_dict = json.loads(self.metadata)
+                    metadata_dict = json.loads(self.document_metadata)
                 except json.JSONDecodeError:
                     metadata_dict = None
             
@@ -311,7 +311,7 @@ if Base is not None:
         document_id = Column(Integer, ForeignKey("documents.id", ondelete="CASCADE"), nullable=False, index=True)
         chunk_index = Column(Integer, nullable=False)  # Order of chunk in document
         content = Column(Text, nullable=False)
-        metadata = Column(Text, nullable=True)  # JSON string for chunk metadata (page number, etc.)
+        chunk_metadata = Column(Text, nullable=True)  # JSON string for chunk metadata (page number, etc.) (renamed from metadata to avoid SQLAlchemy conflict)
         embedding = Column(Text, nullable=True)  # Base64 encoded embedding vector
         created_at = Column(DateTime(timezone=True), server_default=func.now())
         
@@ -322,9 +322,9 @@ if Base is not None:
             """Convert model to dictionary"""
             import json
             metadata_dict = None
-            if self.metadata:
+            if self.chunk_metadata:
                 try:
-                    metadata_dict = json.loads(self.metadata)
+                    metadata_dict = json.loads(self.chunk_metadata)
                 except json.JSONDecodeError:
                     metadata_dict = None
             

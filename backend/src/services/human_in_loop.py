@@ -68,14 +68,14 @@ class HumanInTheLoop:
         
         document.status = "error"
         if reason:
-            metadata = document.metadata or "{}"
+            metadata = document.document_metadata or "{}"
             import json
             try:
                 metadata_dict = json.loads(metadata)
             except:
                 metadata_dict = {}
             metadata_dict["rejection_reason"] = reason
-            document.metadata = json.dumps(metadata_dict)
+            document.document_metadata = json.dumps(metadata_dict)
         
         db.commit()
         

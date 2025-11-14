@@ -125,7 +125,7 @@ async def process_document_task(document_id: int, user_id: int, file_path: str, 
             
             # Update document
             document.chunk_count = len(chunks)
-            document.metadata = json.dumps(metadata)
+            document.document_metadata = json.dumps(metadata)
             document.status = "needs_review" if needs_review else "ready"
             document.embedding_status = "pending"
             
@@ -137,9 +137,9 @@ async def process_document_task(document_id: int, user_id: int, file_path: str, 
                 rag_chunks = []
                 for chunk_obj in chunk_objects:
                     chunk_metadata = {}
-                    if chunk_obj.metadata:
+                    if chunk_obj.chunk_metadata:
                         try:
-                            chunk_metadata = json.loads(chunk_obj.metadata)
+                            chunk_metadata = json.loads(chunk_obj.chunk_metadata)
                         except:
                             pass
                     
@@ -178,7 +178,7 @@ async def process_document_task(document_id: int, user_id: int, file_path: str, 
             if document:
                 document.status = "error"
                 error_metadata = {"error": str(e)}
-                document.metadata = json.dumps(error_metadata)
+                document.document_metadata = json.dumps(error_metadata)
                 db.commit()
 
 
@@ -288,15 +288,15 @@ async def approve_document(
             DocumentChunk.document_id == document_id
         ).order_by(DocumentChunk.chunk_index).all()
         
-        if chunks:
-            rag_chunks = []
-            for chunk in chunks:
-                chunk_metadata = {}
-                if chunk.metadata:
-                    try:
-                        chunk_metadata = json.loads(chunk.metadata)
-                    except:
-                        pass
+            if chunks:
+                rag_chunks = []
+                for chunk in chunks:
+                    chunk_metadata = {}
+                    if chunk.chunk_metadata:
+                        try:
+                            chunk_metadata = json.loads(chunk.chunk_metadata)
+                        except:
+                            pass
                 
                 rag_chunks.append({
                     "content": chunk.content,

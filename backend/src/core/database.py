@@ -326,7 +326,7 @@ def init_db():
                                 file_type VARCHAR(50) NOT NULL,
                                 file_size INTEGER NOT NULL,
                                 status VARCHAR(50) NOT NULL DEFAULT 'pending',
-                                metadata TEXT,
+                                document_metadata TEXT,
                                 chunk_count INTEGER DEFAULT 0 NOT NULL,
                                 embedding_status VARCHAR(50) NOT NULL DEFAULT 'pending',
                                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -353,7 +353,7 @@ def init_db():
                                 document_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
                                 chunk_index INTEGER NOT NULL,
                                 content TEXT NOT NULL,
-                                metadata TEXT,
+                                chunk_metadata TEXT,
                                 embedding TEXT,
                                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
                             )
