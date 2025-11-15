@@ -82,3 +82,27 @@ class CollectionRequest(BaseModel):
     name: str
     description: Optional[str] = None
 
+
+class AddTextRequest(BaseModel):
+    """Request model for adding text directly to RAG system"""
+    title: str = Field(..., min_length=1, max_length=500, description="Document title")
+    content: str = Field(..., min_length=1, description="Text content to add")
+    collection_id: Optional[int] = Field(None, description="Optional collection ID")
+    chunk_size: Optional[int] = Field(1000, ge=100, le=5000, description="Chunk size in characters")
+    chunk_overlap: Optional[int] = Field(200, ge=0, le=1000, description="Chunk overlap in characters")
+    metadata: Optional[dict] = Field(None, description="Additional metadata")
+    
+    @validator('content')
+    def validate_content(cls, v):
+        """Validate content is not empty"""
+        if not v or not v.strip():
+            raise ValueError("Content cannot be empty")
+        return v.strip()
+    
+    @validator('title')
+    def validate_title(cls, v):
+        """Validate title is not empty"""
+        if not v or not v.strip():
+            raise ValueError("Title cannot be empty")
+        return v.strip()
+

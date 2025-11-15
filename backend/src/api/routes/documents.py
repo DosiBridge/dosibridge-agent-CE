@@ -10,7 +10,7 @@ import json
 from src.core import get_db, DB_AVAILABLE, User
 from src.core.auth import get_current_active_user
 from src.core.models import Document, DocumentCollection, DocumentChunk
-from ..models import CollectionRequest
+from ..models import CollectionRequest, AddTextRequest
 from src.services.document_processor import document_processor
 from src.services.advanced_rag import advanced_rag_system
 from src.services.human_in_loop import human_in_loop
@@ -452,4 +452,129 @@ async def delete_collection(
     db.commit()
     
     return {"message": "Collection deleted successfully"}
+
+
+@router.post("/documents/add-text")
+async def add_text_to_rag(
+    request: AddTextRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Add text directly to RAG system without file upload
+    
+    This endpoint allows you to dynamically add text content to the RAG system.
+    The text will be automatically chunked, embedded, and added to the vectorstore.
+    
+    Args:
+        request: AddTextRequest with title, content, and optional parameters
+        current_user: Current authenticated user
+        db: Database session
+    
+    Returns:
+        Document information and processing status
+    """
+    if not DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        # Chunk the text
+        chunks = document_processor.chunk_text(
+            text=request.content,
+            chunk_size=request.chunk_size,
+            chunk_overlap=request.chunk_overlap
+        )
+        
+        if not chunks:
+            raise HTTPException(status_code=400, detail="Failed to chunk text content")
+        
+        # Create a virtual document record (optional, for tracking)
+        # You can skip this if you don't want to track text-only documents
+        document = Document(
+            user_id=current_user.id,
+            collection_id=request.collection_id,
+            filename=f"text_{request.title.replace(' ', '_')}.txt",
+            original_filename=f"{request.title}.txt",
+            file_path=None,  # No physical file
+            file_type="text",
+            file_size=len(request.content),
+            status="ready",  # Direct text addition is immediately ready
+            chunk_count=len(chunks),
+            document_metadata=json.dumps({
+                "title": request.title,
+                "source": "direct_text",
+                **(request.metadata or {})
+            }),
+            embedding_status="pending"
+        )
+        
+        db.add(document)
+        db.commit()
+        db.refresh(document)
+        
+        # Save chunks to database
+        chunk_objects = []
+        for chunk_data in chunks:
+            chunk_metadata = json.dumps(chunk_data.get("metadata", {}))
+            chunk = DocumentChunk(
+                document_id=document.id,
+                chunk_index=chunk_data["chunk_index"],
+                content=chunk_data["content"],
+                metadata=chunk_metadata
+            )
+            chunk_objects.append(chunk)
+            db.add(chunk)
+        
+        db.commit()
+        
+        # Prepare chunks for vectorstore
+        rag_chunks = []
+        for chunk_obj in chunk_objects:
+            chunk_metadata = {}
+            if chunk_obj.chunk_metadata:
+                try:
+                    chunk_metadata = json.loads(chunk_obj.chunk_metadata)
+                except:
+                    pass
+            
+            rag_chunks.append({
+                "content": chunk_obj.content,
+                "metadata": {
+                    **chunk_metadata,
+                    "chunk_id": chunk_obj.id,
+                    "document_id": document.id,
+                    "title": request.title,
+                    "source": "direct_text",
+                    **(request.metadata or {})
+                }
+            })
+        
+        # Add to vectorstore
+        success = advanced_rag_system.add_documents(
+            user_id=current_user.id,
+            chunks=rag_chunks,
+            collection_id=request.collection_id
+        )
+        
+        if success:
+            document.embedding_status = "completed"
+        else:
+            document.embedding_status = "failed"
+        
+        db.commit()
+        
+        return {
+            "message": "Text added to RAG system successfully",
+            "document": document.to_dict(),
+            "chunks_added": len(chunks),
+            "embedding_status": "completed" if success else "failed"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error adding text to RAG: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to add text to RAG system: {str(e)}")
 

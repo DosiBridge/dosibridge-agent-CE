@@ -1004,3 +1004,32 @@ export async function deleteCollection(collectionId: number): Promise<void> {
   );
   await handleResponse(response);
 }
+
+// Add text directly to RAG system
+export interface AddTextRequest {
+  title: string;
+  content: string;
+  collection_id?: number | null;
+  chunk_size?: number;
+  chunk_overlap?: number;
+  metadata?: Record<string, unknown>;
+}
+
+export interface AddTextResponse {
+  message: string;
+  document: Document;
+  chunks_added: number;
+  embedding_status: string;
+}
+
+export async function addTextToRAG(
+  request: AddTextRequest
+): Promise<AddTextResponse> {
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/documents/add-text`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(request),
+  });
+  return handleResponse<AddTextResponse>(response);
+}

@@ -1,38 +1,39 @@
 /**
  * RAG Settings Panel - Document management and RAG configuration
  */
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback } from 'react';
 import {
-  Upload,
-  File,
-  X,
-  CheckCircle,
-  AlertCircle,
-  Loader2,
-  Folder,
-  Plus,
-  Trash2,
-  Eye,
-  Brain,
-  Settings as SettingsIcon,
-} from 'lucide-react';
-import {
-  uploadDocument,
-  listDocuments,
-  deleteDocument,
-  approveDocument,
-  rejectDocument,
-  getDocumentsNeedingReview,
-  getReviewStatistics,
-  createCollection,
-  listCollections,
-  deleteCollection,
   Document,
   DocumentCollection,
-} from '@/lib/api';
-import toast from 'react-hot-toast';
+  addTextToRAG,
+  approveDocument,
+  createCollection,
+  deleteCollection,
+  deleteDocument,
+  getDocumentsNeedingReview,
+  getReviewStatistics,
+  listCollections,
+  listDocuments,
+  rejectDocument,
+  uploadDocument,
+} from "@/lib/api";
+import {
+  AlertCircle,
+  Brain,
+  CheckCircle,
+  Eye,
+  File,
+  Folder,
+  Loader2,
+  Plus,
+  Settings as SettingsIcon,
+  Trash2,
+  Upload,
+  X,
+} from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import toast from "react-hot-toast";
 
 interface RAGSettingsProps {
   isOpen: boolean;
@@ -51,7 +52,9 @@ export default function RAGSettings({
   useReact,
   onUseReactChange,
 }: RAGSettingsProps) {
-  const [activeTab, setActiveTab] = useState<'documents' | 'collections' | 'review'>('documents');
+  const [activeTab, setActiveTab] = useState<
+    "documents" | "collections" | "review"
+  >("documents");
   const [documents, setDocuments] = useState<Document[]>([]);
   const [collections, setCollections] = useState<DocumentCollection[]>([]);
   const [reviewDocuments, setReviewDocuments] = useState<Document[]>([]);
@@ -64,15 +67,19 @@ export default function RAGSettings({
   });
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [newCollectionName, setNewCollectionName] = useState('');
-  const [newCollectionDesc, setNewCollectionDesc] = useState('');
+  const [newCollectionName, setNewCollectionName] = useState("");
+  const [newCollectionDesc, setNewCollectionDesc] = useState("");
+  const [showAddText, setShowAddText] = useState(false);
+  const [textTitle, setTextTitle] = useState("");
+  const [textContent, setTextContent] = useState("");
+  const [isAddingText, setIsAddingText] = useState(false);
 
   const loadDocuments = useCallback(async () => {
     try {
       const result = await listDocuments(selectedCollectionId || undefined);
       setDocuments(result.documents);
     } catch (err) {
-      console.error('Failed to load documents:', err);
+      console.error("Failed to load documents:", err);
     }
   }, [selectedCollectionId]);
 
@@ -81,7 +88,7 @@ export default function RAGSettings({
       const result = await listCollections();
       setCollections(result.collections);
     } catch (err) {
-      console.error('Failed to load collections:', err);
+      console.error("Failed to load collections:", err);
     }
   }, []);
 
@@ -90,7 +97,7 @@ export default function RAGSettings({
       const result = await getDocumentsNeedingReview();
       setReviewDocuments(result.documents);
     } catch (err) {
-      console.error('Failed to load review documents:', err);
+      console.error("Failed to load review documents:", err);
     }
   }, []);
 
@@ -99,7 +106,7 @@ export default function RAGSettings({
       const stats = await getReviewStatistics();
       setStats(stats);
     } catch (err) {
-      console.error('Failed to load stats:', err);
+      console.error("Failed to load stats:", err);
     }
   }, []);
 
@@ -146,89 +153,126 @@ export default function RAGSettings({
       await loadDocuments();
       await loadStats();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to upload document');
+      toast.error(
+        err instanceof Error ? err.message : "Failed to upload document"
+      );
     } finally {
       setIsUploading(false);
     }
   };
 
   const handleDelete = async (documentId: number) => {
-    if (!confirm('Are you sure you want to delete this document?')) return;
+    if (!confirm("Are you sure you want to delete this document?")) return;
     try {
       await deleteDocument(documentId);
-      toast.success('Document deleted');
+      toast.success("Document deleted");
       await loadDocuments();
       await loadStats();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to delete document');
+      toast.error(
+        err instanceof Error ? err.message : "Failed to delete document"
+      );
     }
   };
 
   const handleApprove = async (documentId: number) => {
     try {
       await approveDocument(documentId);
-      toast.success('Document approved');
+      toast.success("Document approved");
       await loadDocuments();
       await loadReviewDocuments();
       await loadStats();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to approve document');
+      toast.error(
+        err instanceof Error ? err.message : "Failed to approve document"
+      );
     }
   };
 
   const handleReject = async (documentId: number) => {
-    const reason = prompt('Rejection reason (optional):');
+    const reason = prompt("Rejection reason (optional):");
     try {
       await rejectDocument(documentId, reason || undefined);
-      toast.success('Document rejected');
+      toast.success("Document rejected");
       await loadDocuments();
       await loadReviewDocuments();
       await loadStats();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to reject document');
+      toast.error(
+        err instanceof Error ? err.message : "Failed to reject document"
+      );
     }
   };
 
   const handleCreateCollection = async () => {
     if (!newCollectionName.trim()) {
-      toast.error('Collection name is required');
+      toast.error("Collection name is required");
       return;
     }
     try {
       await createCollection(newCollectionName, newCollectionDesc || undefined);
-      toast.success('Collection created');
-      setNewCollectionName('');
-      setNewCollectionDesc('');
+      toast.success("Collection created");
+      setNewCollectionName("");
+      setNewCollectionDesc("");
       await loadCollections();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to create collection');
+      toast.error(
+        err instanceof Error ? err.message : "Failed to create collection"
+      );
     }
   };
 
   const handleDeleteCollection = async (collectionId: number) => {
-    if (!confirm('Are you sure you want to delete this collection?')) return;
+    if (!confirm("Are you sure you want to delete this collection?")) return;
     try {
       await deleteCollection(collectionId);
-      toast.success('Collection deleted');
+      toast.success("Collection deleted");
       if (selectedCollectionId === collectionId && onCollectionSelect) {
         onCollectionSelect(null);
       }
       await loadCollections();
       await loadDocuments();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to delete collection');
+      toast.error(
+        err instanceof Error ? err.message : "Failed to delete collection"
+      );
     }
   };
 
-  const getStatusIcon = (status: Document['status']) => {
+  const handleAddText = async () => {
+    if (!textTitle.trim() || !textContent.trim()) {
+      toast.error("Title and content are required");
+      return;
+    }
+    setIsAddingText(true);
+    try {
+      const result = await addTextToRAG({
+        title: textTitle,
+        content: textContent,
+        collection_id: selectedCollectionId || undefined,
+      });
+      toast.success(`Added text: ${result.chunks_added} chunks created`);
+      setTextTitle("");
+      setTextContent("");
+      setShowAddText(false);
+      await loadDocuments();
+      await loadStats();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to add text");
+    } finally {
+      setIsAddingText(false);
+    }
+  };
+
+  const getStatusIcon = (status: Document["status"]) => {
     switch (status) {
-      case 'ready':
+      case "ready":
         return <CheckCircle className="w-4 h-4 text-green-500" />;
-      case 'processing':
+      case "processing":
         return <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />;
-      case 'error':
+      case "error":
         return <AlertCircle className="w-4 h-4 text-red-500" />;
-      case 'needs_review':
+      case "needs_review":
         return <AlertCircle className="w-4 h-4 text-yellow-500" />;
       default:
         return <File className="w-4 h-4 text-gray-500" />;
@@ -236,9 +280,9 @@ export default function RAGSettings({
   };
 
   const formatFileSize = (bytes: number) => {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
   };
 
   if (!isOpen) return null;
@@ -267,33 +311,33 @@ export default function RAGSettings({
         {/* Tabs */}
         <div className="flex border-b border-gray-700 bg-[#2d2d2f] shrink-0 overflow-x-auto">
           <button
-            onClick={() => setActiveTab('documents')}
+            onClick={() => setActiveTab("documents")}
             className={`px-4 py-3 font-medium text-sm transition-colors flex items-center gap-2 ${
-              activeTab === 'documents'
-                ? 'border-b-2 border-[#10a37f] text-[#10a37f] bg-[#343541]'
-                : 'text-gray-400 hover:text-gray-200'
+              activeTab === "documents"
+                ? "border-b-2 border-[#10a37f] text-[#10a37f] bg-[#343541]"
+                : "text-gray-400 hover:text-gray-200"
             }`}
           >
             <File className="w-4 h-4" />
             Documents
           </button>
           <button
-            onClick={() => setActiveTab('collections')}
+            onClick={() => setActiveTab("collections")}
             className={`px-4 py-3 font-medium text-sm transition-colors flex items-center gap-2 ${
-              activeTab === 'collections'
-                ? 'border-b-2 border-[#10a37f] text-[#10a37f] bg-[#343541]'
-                : 'text-gray-400 hover:text-gray-200'
+              activeTab === "collections"
+                ? "border-b-2 border-[#10a37f] text-[#10a37f] bg-[#343541]"
+                : "text-gray-400 hover:text-gray-200"
             }`}
           >
             <Folder className="w-4 h-4" />
             Collections
           </button>
           <button
-            onClick={() => setActiveTab('review')}
+            onClick={() => setActiveTab("review")}
             className={`px-4 py-3 font-medium text-sm transition-colors flex items-center gap-2 relative ${
-              activeTab === 'review'
-                ? 'border-b-2 border-[#10a37f] text-[#10a37f] bg-[#343541]'
-                : 'text-gray-400 hover:text-gray-200'
+              activeTab === "review"
+                ? "border-b-2 border-[#10a37f] text-[#10a37f] bg-[#343541]"
+                : "text-gray-400 hover:text-gray-200"
             }`}
           >
             <Eye className="w-4 h-4" />
@@ -332,14 +376,14 @@ export default function RAGSettings({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-5 md:p-6">
-          {activeTab === 'documents' && (
+          {activeTab === "documents" && (
             <div className="space-y-4">
               {/* Upload Area */}
               <div
                 className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
                   isDragging
-                    ? 'border-blue-500 bg-blue-500/10'
-                    : 'border-gray-600 bg-gray-800/50'
+                    ? "border-blue-500 bg-blue-500/10"
+                    : "border-gray-600 bg-gray-800/50"
                 }`}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
@@ -364,11 +408,68 @@ export default function RAGSettings({
                 <label
                   htmlFor="file-upload"
                   className={`inline-block px-4 py-2 rounded bg-blue-600 text-white cursor-pointer hover:bg-blue-700 transition-colors ${
-                    isUploading ? 'opacity-50 cursor-not-allowed' : ''
+                    isUploading ? "opacity-50 cursor-not-allowed" : ""
                   }`}
                 >
-                  {isUploading ? 'Uploading...' : 'Select Files'}
+                  {isUploading ? "Uploading..." : "Select Files"}
                 </label>
+              </div>
+
+              {/* Add Text Directly */}
+              <div className="border border-gray-600 rounded-lg p-4 bg-gray-800/50">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-medium text-gray-300">
+                    Or Add Text Directly
+                  </h3>
+                  <button
+                    onClick={() => setShowAddText(!showAddText)}
+                    className="px-3 py-1 text-sm bg-green-600 hover:bg-green-700 rounded text-white flex items-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    {showAddText ? "Hide" : "Add Text"}
+                  </button>
+                </div>
+                {showAddText && (
+                  <div className="space-y-3 mt-3">
+                    <div>
+                      <label className="block text-sm font-medium mb-1 text-gray-300">
+                        Title
+                      </label>
+                      <input
+                        type="text"
+                        value={textTitle}
+                        onChange={(e) => setTextTitle(e.target.value)}
+                        placeholder="Enter document title"
+                        className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-[#40414f] text-gray-100 placeholder-gray-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1 text-gray-300">
+                        Content
+                      </label>
+                      <textarea
+                        value={textContent}
+                        onChange={(e) => setTextContent(e.target.value)}
+                        placeholder="Enter your text content here..."
+                        rows={6}
+                        className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-[#40414f] text-gray-100 placeholder-gray-500 resize-y"
+                      />
+                    </div>
+                    <button
+                      onClick={handleAddText}
+                      disabled={
+                        isAddingText || !textTitle.trim() || !textContent.trim()
+                      }
+                      className={`w-full px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700 transition-colors ${
+                        isAddingText || !textTitle.trim() || !textContent.trim()
+                          ? "opacity-50 cursor-not-allowed"
+                          : ""
+                      }`}
+                    >
+                      {isAddingText ? "Adding..." : "Add to RAG"}
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Collection Filter */}
@@ -377,7 +478,7 @@ export default function RAGSettings({
                   Filter by Collection
                 </label>
                 <select
-                  value={selectedCollectionId || ''}
+                  value={selectedCollectionId || ""}
                   onChange={(e) =>
                     onCollectionSelect?.(
                       e.target.value ? parseInt(e.target.value) : null
@@ -413,13 +514,13 @@ export default function RAGSettings({
                             {doc.original_filename}
                           </p>
                           <p className="text-sm text-gray-400">
-                            {formatFileSize(doc.file_size)} • {doc.chunk_count}{' '}
+                            {formatFileSize(doc.file_size)} • {doc.chunk_count}{" "}
                             chunks • {doc.status}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {doc.status === 'needs_review' && (
+                        {doc.status === "needs_review" && (
                           <>
                             <button
                               onClick={() => handleApprove(doc.id)}
@@ -449,7 +550,7 @@ export default function RAGSettings({
             </div>
           )}
 
-          {activeTab === 'collections' && (
+          {activeTab === "collections" && (
             <div className="space-y-4">
               {/* Create Collection */}
               <div className="bg-[#40414f] rounded-lg p-4 border border-gray-700">
@@ -509,11 +610,13 @@ export default function RAGSettings({
                           onClick={() => onCollectionSelect?.(col.id)}
                           className={`px-3 py-1 text-sm rounded ${
                             selectedCollectionId === col.id
-                              ? 'bg-[#10a37f] text-white'
-                              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                              ? "bg-[#10a37f] text-white"
+                              : "bg-gray-700 text-gray-300 hover:bg-gray-600"
                           }`}
                         >
-                          {selectedCollectionId === col.id ? 'Selected' : 'Select'}
+                          {selectedCollectionId === col.id
+                            ? "Selected"
+                            : "Select"}
                         </button>
                         <button
                           onClick={() => handleDeleteCollection(col.id)}
@@ -529,13 +632,15 @@ export default function RAGSettings({
             </div>
           )}
 
-          {activeTab === 'review' && (
+          {activeTab === "review" && (
             <div className="space-y-4">
               {/* Statistics */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-[#40414f] rounded-lg p-4 border border-gray-700">
                   <p className="text-sm text-gray-400">Pending</p>
-                  <p className="text-2xl font-bold text-gray-200">{stats.pending}</p>
+                  <p className="text-2xl font-bold text-gray-200">
+                    {stats.pending}
+                  </p>
                 </div>
                 <div className="bg-[#40414f] rounded-lg p-4 border border-gray-700">
                   <p className="text-sm text-gray-400">Needs Review</p>
@@ -545,11 +650,15 @@ export default function RAGSettings({
                 </div>
                 <div className="bg-[#40414f] rounded-lg p-4 border border-gray-700">
                   <p className="text-sm text-gray-400">Ready</p>
-                  <p className="text-2xl font-bold text-green-400">{stats.ready}</p>
+                  <p className="text-2xl font-bold text-green-400">
+                    {stats.ready}
+                  </p>
                 </div>
                 <div className="bg-[#40414f] rounded-lg p-4 border border-gray-700">
                   <p className="text-sm text-gray-400">Total</p>
-                  <p className="text-2xl font-bold text-gray-200">{stats.total}</p>
+                  <p className="text-2xl font-bold text-gray-200">
+                    {stats.total}
+                  </p>
                 </div>
               </div>
 
@@ -571,7 +680,8 @@ export default function RAGSettings({
                             {doc.original_filename}
                           </p>
                           <p className="text-sm text-gray-400 mt-1">
-                            {formatFileSize(doc.file_size)} • {doc.chunk_count} chunks
+                            {formatFileSize(doc.file_size)} • {doc.chunk_count}{" "}
+                            chunks
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
@@ -600,4 +710,3 @@ export default function RAGSettings({
     </div>
   );
 }
-
