@@ -5,6 +5,13 @@ import os
 from contextlib import contextmanager
 from typing import Optional
 
+# Load environment variables first before any config is read
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv not available, use environment variables directly
+
 # Try to import database dependencies
 try:
     from sqlalchemy import create_engine, text
