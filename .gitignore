@@ -27,3 +27,5 @@ build/
 *.faiss
 *.faiss.index
 *.pkl
+backend/src/vectorstores/user_1/index.faiss
+backend/src/vectorstores/user_1/index.pkl

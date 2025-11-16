@@ -79,7 +79,8 @@ async def chat(
             user=current_user,
             db=db,
             collection_id=chat_request.collection_id,
-            use_react=chat_request.use_react
+            use_react=chat_request.use_react,
+            agent_prompt=chat_request.agent_prompt
         )
         
         # Schedule async summary update in background (non-blocking)
@@ -331,11 +332,15 @@ async def chat_stream(
                         return
                     
                     # Create agent with default tools only
-                    system_prompt = (
-                        "You are a helpful AI assistant. "
-                        "You can help answer questions and provide information. "
-                        "Use the available tools when appropriate."
-                    )
+                    # Use custom prompt if provided, otherwise use default
+                    if chat_request.agent_prompt:
+                        system_prompt = chat_request.agent_prompt
+                    else:
+                        system_prompt = (
+                            "You are a helpful AI assistant. "
+                            "You can help answer questions and provide information. "
+                            "Use the available tools when appropriate."
+                        )
                     
                     # Ensure tools are properly formatted for LangChain
                     formatted_tools = []
@@ -575,15 +580,21 @@ async def chat_stream(
                                 history = history_manager.get_session_messages(chat_request.session_id, user_id)
                             context = rag_system.retrieve_context(chat_request.message)
                             
-                            prompt = ChatPromptTemplate.from_messages([
-                                ("system", (
+                            # Use custom prompt if provided, otherwise use default
+                            if chat_request.agent_prompt:
+                                system_message = chat_request.agent_prompt
+                            else:
+                                system_message = (
                                     "You are a helpful AI assistant.\n\n"
                                     "Available tools:\n{tools_context}\n\n"
                                     "Context from knowledge base:\n{context}\n\n"
                                     "When answering questions, reference the context when relevant. "
                                     "For calculations or specific operations, you can mention available tools, "
                                     "but note that tool calling is limited with this model."
-                                )),
+                                )
+                            
+                            prompt = ChatPromptTemplate.from_messages([
+                                ("system", system_message),
                                 MessagesPlaceholder("chat_history"),
                                 ("human", "{input}"),
                             ])
@@ -706,16 +717,20 @@ async def chat_stream(
                             
                             # Create detailed system prompt
                             tools_list = '\n'.join(tool_descriptions) if tool_descriptions else ', '.join(tool_names)
-                            system_prompt = (
-                                "You are a helpful AI assistant with access to these tools ONLY:\n"
-                                f"{tools_list}\n\n"
-                                "IMPORTANT RULES:\n"
-                                "- ONLY use tools from the list above\n"
-                                "- Do NOT call any tool that is not in this list\n"
-                                "- If you need a tool that is not available, inform the user\n"
-                                "- Do not make up or hallucinate tool names\n"
-                                "- Available tool names are: " + ', '.join(tool_names)
-                            )
+                            # Use custom prompt if provided, otherwise use default
+                            if chat_request.agent_prompt:
+                                system_prompt = chat_request.agent_prompt
+                            else:
+                                system_prompt = (
+                                    "You are a helpful AI assistant with access to these tools ONLY:\n"
+                                    f"{tools_list}\n\n"
+                                    "IMPORTANT RULES:\n"
+                                    "- ONLY use tools from the list above\n"
+                                    "- Do NOT call any tool that is not in this list\n"
+                                    "- If you need a tool that is not available, inform the user\n"
+                                    "- Do not make up or hallucinate tool names\n"
+                                    "- Available tool names are: " + ', '.join(tool_names)
+                                )
                             
                             # Ensure tools are properly formatted for LangChain
                             formatted_tools = []

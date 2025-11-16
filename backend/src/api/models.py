@@ -11,6 +11,7 @@ class ChatRequest(BaseModel):
     mode: Literal["agent", "rag"] = Field(default="agent", description="Chat mode: 'agent' (default, no auth required) or 'rag' (requires authentication)")
     collection_id: Optional[int] = Field(None, description="Optional collection ID for RAG mode")
     use_react: bool = Field(default=False, description="Whether to use ReAct agent for RAG mode")
+    agent_prompt: Optional[str] = Field(None, max_length=5000, description="Optional custom system prompt for the agent. If not provided, a default prompt will be used.")
     
     @validator('message')
     def validate_message(cls, v):

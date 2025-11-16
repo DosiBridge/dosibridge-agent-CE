@@ -149,6 +149,8 @@ dmypy.json
 *.faiss.index
 *.pkl
 *index.faiss
+.files
+.pkl
 
 # OS - macOS
 .DS_Store

@@ -126,7 +126,8 @@ class ReActAgent:
         user_id: int,
         session_id: str = "default",
         collection_id: Optional[int] = None,
-        chat_history: Optional[List] = None
+        chat_history: Optional[List] = None,
+        agent_prompt: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Run ReAct agent on a query
@@ -137,6 +138,7 @@ class ReActAgent:
             session_id: Session ID
             collection_id: Optional collection ID to filter documents
             chat_history: Optional chat history
+            agent_prompt: Optional custom system prompt for the agent
         
         Returns:
             Dictionary with answer, reasoning, and tool calls
@@ -144,14 +146,20 @@ class ReActAgent:
         # Create tools
         tools = self.create_react_tools(user_id, collection_id)
         
+        # Use custom prompt if provided, otherwise use default
+        if agent_prompt:
+            system_prompt = agent_prompt
+        else:
+            system_prompt = (
+                "You are a helpful AI assistant using ReAct (Reasoning and Acting). "
+                "Think step by step, use tools when needed, and provide clear answers."
+            )
+        
         # Create agent
         agent = create_agent(
             model=self.llm,
             tools=tools,
-            system_prompt=(
-                "You are a helpful AI assistant using ReAct (Reasoning and Acting). "
-                "Think step by step, use tools when needed, and provide clear answers."
-            )
+            system_prompt=system_prompt
         )
         
         # Prepare messages
