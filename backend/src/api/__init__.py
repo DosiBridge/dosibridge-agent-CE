@@ -94,6 +94,8 @@ else:
     print(f"✅ CORS configured with origins: {cors_origins}")
 
 # Add CORS middleware
+# Note: FastAPI CORS middleware allows requests without Origin header (server-to-server)
+# by default, which is needed for internal MCP connection tests
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,

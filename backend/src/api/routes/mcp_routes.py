@@ -33,9 +33,11 @@ def setup_mcp_routes(app: FastAPI):
             
             # Add CORS middleware to the mounted app
             # This is necessary because mounted apps don't inherit parent middleware
+            # Allow requests without origin (server-to-server requests) and from allowed origins
             http_app.add_middleware(
                 CORSMiddleware,
                 allow_origins=cors_origins,
+                allow_origin_regex=None,  # Don't use regex
                 allow_credentials=True,
                 allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
                 allow_headers=["*"],

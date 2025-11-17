@@ -32,10 +32,16 @@ def get_encryption_key() -> bytes:
     encryption_key_env = os.getenv("MCP_APIKEY_ENCRYPTION_KEY")
     if encryption_key_env:
         try:
-            # Try to decode as base64 (Fernet key format)
-            return encryption_key_env.encode()
+            # Fernet keys are base64-encoded strings (44 characters)
+            # Try to decode from base64 to get the actual key bytes
+            if len(encryption_key_env) == 44:
+                # Valid Fernet key format - decode from base64
+                return base64.urlsafe_b64decode(encryption_key_env)
+            else:
+                # Not a valid Fernet key format, use as password and derive key
+                return _derive_key_from_password(encryption_key_env)
         except Exception:
-            # If not base64, use it as password and derive key
+            # If decoding fails, use it as password and derive key
             return _derive_key_from_password(encryption_key_env)
     
     # Fallback: derive from JWT_SECRET_KEY
