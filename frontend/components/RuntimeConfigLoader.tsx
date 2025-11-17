@@ -6,23 +6,20 @@
 "use client";
 
 import { getApiBaseUrl } from "@/lib/api/client";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 export default function RuntimeConfigLoader() {
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [apiUrl, setApiUrl] = useState<string | null>(null);
-
   useEffect(() => {
+    // Only run on client side to avoid hydration mismatches
+    if (typeof window === "undefined") return;
+
     // Preload the API base URL as soon as the component mounts
     getApiBaseUrl()
       .then((url) => {
-        setApiUrl(url);
-        setIsLoaded(true);
         console.log("✓ Runtime config preloaded. API URL:", url);
       })
       .catch((error) => {
         console.error("✗ Failed to preload runtime config:", error);
-        setIsLoaded(true); // Still allow app to continue
       });
   }, []);
 

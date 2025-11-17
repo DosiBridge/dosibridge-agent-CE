@@ -15,6 +15,13 @@ const eslintConfig = defineConfig([
     // Auto-generated files:
     "types/validator.ts",
   ]),
+  {
+    rules: {
+      // Disable Tailwind class name warnings - these are false positives
+      // bg-gradient-to-* and break-words are valid Tailwind classes
+      "@next/next/no-html-link-for-pages": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

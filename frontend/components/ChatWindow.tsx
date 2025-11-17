@@ -176,7 +176,7 @@ export default function ChatWindow() {
               aria-live="polite"
               aria-label="AI is typing"
             >
-              <div className="flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 rounded-full bg-gray-800/60 dark:bg-gray-700/60 backdrop-blur-sm flex items-center justify-center shadow-md">
+              <div className="shrink-0 w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 rounded-full bg-gray-800/60 dark:bg-gray-700/60 backdrop-blur-sm flex items-center justify-center shadow-md">
                 <Loader2
                   className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 text-white animate-spin"
                   aria-hidden="true"
