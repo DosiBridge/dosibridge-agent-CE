@@ -28,20 +28,38 @@ export async function getApiBaseUrl(): Promise<string> {
       // Try to fetch runtime config from API route (more reliable than static file)
       const response = await fetch("/api/runtime-config", {
         cache: "no-store", // Always fetch fresh config
+        headers: {
+          "Cache-Control": "no-cache",
+        },
       });
+
       if (response.ok) {
         runtimeConfig = await response.json();
         if (runtimeConfig?.API_BASE_URL) {
+          console.log("✓ Runtime config loaded:", runtimeConfig.API_BASE_URL);
           return runtimeConfig.API_BASE_URL;
+        } else {
+          console.warn("⚠️ Runtime config loaded but API_BASE_URL is missing");
         }
+      } else {
+        console.warn(
+          `⚠️ Failed to load runtime config: ${response.status} ${response.statusText}`
+        );
       }
-    } catch {
-      // Silently fall back to default
+    } catch (error) {
+      console.error("⚠️ Error loading runtime config:", error);
+      // Don't silently fail - log the error
     }
 
     // Fall back to build-time env var or default
+    // In production, prefer the environment variable over localhost
     const fallbackUrl =
-      process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8085";
+      process.env.NEXT_PUBLIC_API_BASE_URL ||
+      (typeof window !== "undefined" && window.location.hostname !== "localhost"
+        ? `https://${window.location.hostname.replace("agent.", "agentapi.")}`
+        : "http://localhost:8085");
+
+    console.log("Using API base URL:", fallbackUrl);
     return fallbackUrl;
   })();
 

@@ -29,3 +29,4 @@ build/
 *.pkl
 backend/src/vectorstores/user_1/index.faiss
 backend/src/vectorstores/user_1/index.pkl
+compose-vps.yml
