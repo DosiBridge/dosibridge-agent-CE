@@ -1,4 +1,4 @@
-# Multiple Collections Dynamic RAG System - কিভাবে কাজ করে
+# Multiple Collections Dynamic RAG System - How It Works
 
 ## 📊 System Architecture
 
@@ -459,4 +459,4 @@ for bm25_result in bm25_results:
 4. **Response**: Only uses documents from selected collection
 5. **Efficiency**: Single vectorstore, fast filtering, scalable
 
-**সব কিছু ঠিকঠাকভাবে কাজ করছে!** 🎉
+**Everything is working correctly!** 🎉

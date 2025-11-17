@@ -251,8 +251,10 @@ export default function MessageBubble({
       )}
 
       <div
-        className={`flex flex-col max-w-[85%] xs:max-w-[90%] sm:max-w-[85%] md:max-w-[75%] lg:max-w-[70%] ${
-          isUser ? "items-end" : "items-start"
+        className={`flex flex-col ${
+          isUser
+            ? "max-w-[85%] xs:max-w-[90%] sm:max-w-[85%] md:max-w-[75%] lg:max-w-[70%] items-end"
+            : "w-full max-w-full items-start"
         }`}
       >
         <div className="relative w-full">
@@ -268,7 +270,7 @@ export default function MessageBubble({
                 {message.content}
               </p>
             ) : (
-              <div className="prose prose-sm dark:prose-invert max-w-none prose-pre:bg-[#1e1e1e] prose-pre:border prose-pre:border-gray-700 prose-pre:overflow-x-auto prose-p:whitespace-pre-wrap prose-p:break-words">
+              <div className="prose prose-sm dark:prose-invert max-w-full prose-pre:bg-[#1e1e1e] prose-pre:border prose-pre:border-gray-700 prose-pre:overflow-x-auto prose-p:whitespace-pre-wrap prose-p:break-words prose-code:break-words">
                 <ReactMarkdown
                   components={{
                     p: ({ children }) => (

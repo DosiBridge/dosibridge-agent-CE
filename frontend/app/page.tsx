@@ -3,11 +3,21 @@
  */
 "use client";
 
+import { useStore } from "@/lib/store";
 import { ArrowRight, Bot, FileText, Lock, Sparkles, Zap } from "lucide-react";
 import Link from "next/link";
 import { useEffect } from "react";
 
 export default function Home() {
+  const isAuthenticated = useStore((state) => state.isAuthenticated);
+  const authLoading = useStore((state) => state.authLoading);
+  const checkAuth = useStore((state) => state.checkAuth);
+
+  useEffect(() => {
+    // Check authentication status
+    checkAuth();
+  }, [checkAuth]);
+
   useEffect(() => {
     // Smooth scroll behavior
     document.documentElement.style.scrollBehavior = "smooth";
@@ -57,21 +67,34 @@ export default function Home() {
               </a>
             </div>
 
-            {/* Auth Buttons */}
-            <div className="flex items-center gap-3">
-              <Link
-                href="/login"
-                className="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors"
-              >
-                Log in
-              </Link>
-              <Link
-                href="/register"
-                className="px-4 py-2 text-sm font-medium bg-[#10a37f] hover:bg-[#0d8f6e] text-white rounded-lg transition-all hover:scale-105 active:scale-95"
-              >
-                Create Account
-              </Link>
-            </div>
+            {/* Auth Buttons - Only show when not authenticated */}
+            {!authLoading && !isAuthenticated && (
+              <div className="flex items-center gap-3">
+                <Link
+                  href="/login"
+                  className="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors"
+                >
+                  Log in
+                </Link>
+                <Link
+                  href="/register"
+                  className="px-4 py-2 text-sm font-medium bg-[#10a37f] hover:bg-[#0d8f6e] text-white rounded-lg transition-all hover:scale-105 active:scale-95"
+                >
+                  Create Account
+                </Link>
+              </div>
+            )}
+            {/* Show chat link when authenticated */}
+            {!authLoading && isAuthenticated && (
+              <div className="flex items-center gap-3">
+                <Link
+                  href="/chat"
+                  className="px-4 py-2 text-sm font-medium bg-[#10a37f] hover:bg-[#0d8f6e] text-white rounded-lg transition-all hover:scale-105 active:scale-95"
+                >
+                  Go to Chat
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </nav>
@@ -179,8 +202,8 @@ export default function Home() {
               </div>
               <h3 className="text-xl font-semibold mb-2">Secure & Private</h3>
               <p className="text-gray-400">
-                Your data is encrypted and private. Each user&apos;s documents and
-                sessions are completely isolated.
+                Your data is encrypted and private. Each user&apos;s documents
+                and sessions are completely isolated.
               </p>
             </div>
 
@@ -316,18 +339,30 @@ export default function Home() {
               >
                 How It Works
               </a>
-              <Link
-                href="/login"
-                className="hover:text-white transition-colors"
-              >
-                Log in
-              </Link>
-              <Link
-                href="/register"
-                className="hover:text-white transition-colors"
-              >
-                Sign Up
-              </Link>
+              {!authLoading && !isAuthenticated && (
+                <>
+                  <Link
+                    href="/login"
+                    className="hover:text-white transition-colors"
+                  >
+                    Log in
+                  </Link>
+                  <Link
+                    href="/register"
+                    className="hover:text-white transition-colors"
+                  >
+                    Sign Up
+                  </Link>
+                </>
+              )}
+              {!authLoading && isAuthenticated && (
+                <Link
+                  href="/chat"
+                  className="hover:text-white transition-colors"
+                >
+                  Chat
+                </Link>
+              )}
             </div>
           </div>
         </div>

@@ -14,6 +14,7 @@ import CommandPalette from "@/components/ui/CommandPalette";
 import { useStore } from "@/lib/store";
 import { healthWebSocket } from "@/lib/websocket";
 import {
+  ArrowLeft,
   ChevronDown,
   FileText,
   LogOut,
@@ -22,6 +23,7 @@ import {
   Settings,
   Sparkles,
 } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Toaster } from "react-hot-toast";
 
@@ -227,6 +229,16 @@ export default function ChatPage() {
       <div className="flex-1 flex flex-col min-w-0 w-full">
         <header className="border-b border-gray-700 bg-[#343541] dark:bg-[#2d2d2f] px-2 sm:px-4 md:px-6 py-2 sm:py-3 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+            {/* Back to Home Button */}
+            <Link
+              href="/"
+              className="p-2 sm:p-2.5 hover:bg-[#40414f] rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#10a37f] active:bg-[#40414f] touch-manipulation"
+              aria-label="Back to home"
+              title="Back to home"
+            >
+              <ArrowLeft className="w-5 h-5 sm:w-6 sm:h-6 text-gray-300" />
+            </Link>
+
             <button
               onClick={() => setSidebarOpen((prev) => !prev)}
               className="p-2 sm:p-2.5 hover:bg-[#40414f] rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#10a37f] active:bg-[#40414f] touch-manipulation"
