@@ -36,7 +36,7 @@ export default function ChatWindow() {
 
   return (
     <div
-      className="flex-1 overflow-y-auto px-2 sm:px-3 md:px-4 lg:px-6 py-3 sm:py-4 md:py-6 lg:py-8 bg-[#343541] dark:bg-[#2d2d2f]"
+      className="flex-1 overflow-y-auto px-2 sm:px-3 md:px-4 lg:px-6 py-3 sm:py-4 md:py-6 lg:py-8"
       role="log"
       aria-label="Chat messages"
     >

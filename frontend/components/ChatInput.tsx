@@ -11,24 +11,7 @@ import { useInputHistory } from "@/hooks/useInputHistory";
 import { createStreamReader, StreamChunk } from "@/lib/api";
 import { getUserFriendlyError, logError } from "@/lib/errors";
 import { useStore } from "@/lib/store";
-import {
-  BookOpen,
-  ChevronRight,
-  Cloud,
-  FileText,
-  Image as ImageIcon,
-  Lightbulb,
-  Loader2,
-  MoreVertical,
-  Paperclip,
-  Plus,
-  Send,
-  Settings,
-  Sparkles,
-  Square,
-  Telescope,
-  X,
-} from "lucide-react";
+import { Loader2, Send, Settings, Sparkles, Square, X } from "lucide-react";
 import type { KeyboardEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
@@ -37,13 +20,9 @@ export default function ChatInput() {
   const [input, setInput] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [showAttachMenu, setShowAttachMenu] = useState(false);
-  const [showMoreMenu, setShowMoreMenu] = useState(false);
   const abortRef = useRef<(() => void) | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
-  const attachMenuRef = useRef<HTMLDivElement>(null);
-  const moreMenuRef = useRef<HTMLDivElement>(null);
   const prevAuthRef = useRef<boolean | null>(null);
 
   // Auto-resize textarea
@@ -128,6 +107,38 @@ export default function ChatInput() {
           "Write",
           "Analyze",
           "Compare",
+
+          // New Suggestions
+          "Define",
+          "Generate",
+          "Fix",
+          "Debug",
+          "Summarize",
+          "Translate",
+          "Improve",
+          "Optimize",
+          "List",
+          "Guide me through",
+          "Teach me",
+          "Why does",
+          "When should",
+          "Where can I",
+          "Suggest",
+          "Recommend",
+          "Build",
+          "Design",
+          "Plan",
+          "Solve",
+          "Check",
+          "Convert",
+          "Explain step by step",
+          "Give examples of",
+          "Break down",
+          "Walk me through",
+          "Clarify",
+          "Correct",
+          "Find",
+          "Identify",
         ];
 
         const inputLower = debouncedInput.toLowerCase();
@@ -176,25 +187,6 @@ export default function ChatInput() {
         document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [showSuggestions]);
-
-  // Close attach menu on click outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        attachMenuRef.current &&
-        !attachMenuRef.current.contains(e.target as Node)
-      ) {
-        setShowAttachMenu(false);
-        setShowMoreMenu(false);
-      }
-    };
-
-    if (showAttachMenu) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () =>
-        document.removeEventListener("mousedown", handleClickOutside);
-    }
-  }, [showAttachMenu]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -458,237 +450,99 @@ export default function ChatInput() {
   };
 
   return (
-    <div className="border-t border-gray-700 bg-[#343541] dark:bg-[#2d2d2f] shrink-0 safe-area-inset-bottom">
-      <div className="max-w-4xl mx-auto px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4">
-        {/* Mode selector */}
-        <div className="flex justify-center items-center gap-2 mb-2 sm:mb-2.5 md:mb-3">
-          <div className="inline-flex items-center rounded-lg border border-gray-600 bg-[#40414f] p-0.5 sm:p-1 shadow-sm">
-            <button
-              onClick={() => {
-                setMode("agent");
-              }}
-              disabled={inputDisabled}
-              className={`px-2.5 py-1.5 sm:px-3 sm:py-1.5 md:px-4 text-xs sm:text-sm font-medium rounded-md transition-all duration-200 touch-manipulation relative ${
-                mode === "agent"
-                  ? "bg-[#10a37f] text-white shadow-sm hover:bg-[#0d8f6e]"
-                  : "text-gray-400 hover:text-gray-200 hover:bg-[#2d2d2f]"
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
-            >
-              Agent
-              {mode === "agent" && (
-                <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-              )}
-            </button>
-            <button
-              onClick={() => {
-                if (!isAuthenticated) {
-                  toast.error(
-                    "Please log in to use RAG mode. RAG mode requires authentication to upload and query documents."
-                  );
-                  return;
-                }
-                setMode("rag");
-              }}
-              disabled={!isAuthenticated || inputDisabled}
-              className={`px-2.5 py-1.5 sm:px-3 sm:py-1.5 md:px-4 text-xs sm:text-sm font-medium rounded-md transition-all duration-200 touch-manipulation relative ${
-                mode === "rag"
-                  ? "bg-[#10a37f] text-white shadow-sm hover:bg-[#0d8f6e]"
-                  : "text-gray-400 hover:text-gray-200 hover:bg-[#2d2d2f]"
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
-            >
-              RAG
+    <div className="border-t border-gray-700/50 bg-[#343541] dark:bg-[#2d2d2f] shrink-0">
+      <div className="px-2 sm:px-3 md:px-4 lg:px-6 py-3 sm:py-4 md:py-6 lg:py-8">
+        <div className="max-w-4xl mx-auto w-full flex flex-col items-center">
+          {/* Mode selector - Compact and inline */}
+          <div className="w-full flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="inline-flex items-center rounded-lg bg-[#40414f]/50 border border-gray-700/50 p-0.5">
+                <button
+                  onClick={() => {
+                    setMode("agent");
+                  }}
+                  disabled={inputDisabled}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-200 ${
+                    mode === "agent"
+                      ? "bg-[#10a37f] text-white shadow-sm"
+                      : "text-gray-400 hover:text-gray-200 hover:bg-[#2d2d2f]/50"
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  Agent
+                </button>
+                <button
+                  onClick={() => {
+                    if (!isAuthenticated) {
+                      toast.error(
+                        "Please log in to use RAG mode. RAG mode requires authentication to upload and query documents."
+                      );
+                      return;
+                    }
+                    setMode("rag");
+                  }}
+                  disabled={!isAuthenticated || inputDisabled}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-200 ${
+                    mode === "rag"
+                      ? "bg-[#10a37f] text-white shadow-sm"
+                      : "text-gray-400 hover:text-gray-200 hover:bg-[#2d2d2f]/50"
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  RAG
+                </button>
+              </div>
               {mode === "rag" && (
-                <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                <button
+                  onClick={() => {
+                    setRagSettingsOpen(true);
+                    setSettingsOpen(true);
+                  }}
+                  disabled={inputDisabled}
+                  className="p-1.5 hover:bg-[#40414f] rounded-lg transition-colors disabled:opacity-50"
+                  title="RAG Settings"
+                >
+                  <Settings className="w-4 h-4 text-gray-400 hover:text-[#10a37f]" />
+                </button>
               )}
-            </button>
-          </div>
-          {mode === "rag" && (
-            <button
-              onClick={() => {
-                setRagSettingsOpen(true);
-                setSettingsOpen(true);
-              }}
-              disabled={inputDisabled}
-              className="p-1.5 sm:p-2 hover:bg-[#40414f] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              title="RAG Settings"
-            >
-              <Settings className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 hover:text-[#10a37f]" />
-            </button>
-          )}
-        </div>
+            </div>
 
-        {/* Chat input */}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleSend();
-          }}
-          className="flex gap-2 sm:gap-2.5 md:gap-3 relative items-end"
-        >
-          {/* Attach menu button (ChatGPT-style) */}
-          <div className="relative shrink-0" ref={attachMenuRef}>
-            <button
-              type="button"
-              onClick={() => {
-                setShowAttachMenu(!showAttachMenu);
-                setShowMoreMenu(false);
-              }}
-              disabled={inputDisabled}
-              className="h-11 w-11 sm:h-12 sm:w-12 md:h-14 md:w-14 rounded-2xl bg-[#40414f] hover:bg-[#4a4b5a] border border-gray-600 hover:border-gray-500 flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation shadow-sm hover:shadow-md"
-              aria-label="Attach files and more"
-              title="Attach files and more"
-            >
-              <Plus className="w-5 h-5 sm:w-6 sm:h-6 text-gray-300" />
-            </button>
-
-            {/* Attach menu dropdown */}
-            {showAttachMenu && (
-              <div className="absolute bottom-full left-0 mb-2 w-64 bg-[#343541] border border-gray-700 rounded-lg shadow-2xl overflow-hidden z-50 animate-scale-in">
-                <div className="py-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      toast("File attachment coming soon!", { icon: "📎" });
-                      setShowAttachMenu(false);
-                    }}
-                    className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-[#40414f] transition-colors flex items-center gap-3 group"
-                  >
-                    <Paperclip className="w-5 h-5 text-gray-400 group-hover:text-[#10a37f] transition-colors" />
-                    <span>Add photos & files</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      toast("OneDrive integration coming soon!", {
-                        icon: "☁️",
-                      });
-                      setShowAttachMenu(false);
-                    }}
-                    className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-[#40414f] transition-colors flex items-center gap-3 group"
-                  >
-                    <Cloud className="w-5 h-5 text-blue-400 group-hover:text-blue-300 transition-colors" />
-                    <span>Add from OneDrive</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      toast("Image creation coming soon!", { icon: "🖼️" });
-                      setShowAttachMenu(false);
-                    }}
-                    className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-[#40414f] transition-colors flex items-center gap-3 group"
-                  >
-                    <ImageIcon className="w-5 h-5 text-purple-400 group-hover:text-purple-300 transition-colors" />
-                    <span>Create image</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      toast("Thinking mode coming soon!", { icon: "💡" });
-                      setShowAttachMenu(false);
-                    }}
-                    className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-[#40414f] transition-colors flex items-center gap-3 group"
-                  >
-                    <Lightbulb className="w-5 h-5 text-yellow-400 group-hover:text-yellow-300 transition-colors" />
-                    <span>Thinking</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      toast("Deep research mode coming soon!", { icon: "🔬" });
-                      setShowAttachMenu(false);
-                    }}
-                    className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-[#40414f] transition-colors flex items-center gap-3 group"
-                  >
-                    <Telescope className="w-5 h-5 text-blue-400 group-hover:text-blue-300 transition-colors" />
-                    <span>Deep research</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      toast("Study mode coming soon!", { icon: "📚" });
-                      setShowAttachMenu(false);
-                    }}
-                    className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-[#40414f] transition-colors flex items-center gap-3 group"
-                  >
-                    <BookOpen className="w-5 h-5 text-green-400 group-hover:text-green-300 transition-colors" />
-                    <span>Study and learn</span>
-                  </button>
-
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onMouseEnter={() => setShowMoreMenu(true)}
-                      onMouseLeave={() => setShowMoreMenu(false)}
-                      className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-[#40414f] transition-colors flex items-center justify-between group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <MoreVertical className="w-5 h-5 text-gray-400 group-hover:text-[#10a37f] transition-colors" />
-                        <span>More</span>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-gray-500" />
-                    </button>
-
-                    {/* More submenu */}
-                    {showMoreMenu && (
-                      <div
-                        ref={moreMenuRef}
-                        onMouseEnter={() => setShowMoreMenu(true)}
-                        onMouseLeave={() => setShowMoreMenu(false)}
-                        className="absolute left-full top-0 ml-1 w-56 bg-[#343541] border border-gray-700 rounded-lg shadow-2xl overflow-hidden z-50"
-                      >
-                        <div className="py-1">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              toast("Web search coming soon!", { icon: "🌐" });
-                              setShowAttachMenu(false);
-                              setShowMoreMenu(false);
-                            }}
-                            className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-[#40414f] transition-colors flex items-center gap-3 group"
-                          >
-                            <FileText className="w-5 h-5 text-gray-400 group-hover:text-[#10a37f] transition-colors" />
-                            <span>Web search</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              toast("Canvas coming soon!", { icon: "✏️" });
-                              setShowAttachMenu(false);
-                              setShowMoreMenu(false);
-                            }}
-                            className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-[#40414f] transition-colors flex items-center gap-3 group"
-                          >
-                            <FileText className="w-5 h-5 text-gray-400 group-hover:text-[#10a37f] transition-colors" />
-                            <span>Canvas</span>
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
+            {/* Character counter - Top right */}
+            {charCount > 0 && (
+              <div className="text-xs flex items-center gap-1">
+                <span
+                  className={
+                    exceedMax
+                      ? "text-red-500 font-medium"
+                      : charCount > MAX_CHARS * 0.9
+                      ? "text-yellow-500"
+                      : "text-gray-500"
+                  }
+                >
+                  {charCount}/{MAX_CHARS}
+                </span>
               </div>
             )}
           </div>
 
-          <div className="flex-1 relative">
+          {/* Chat input form */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSend();
+            }}
+            className="w-full relative"
+          >
             {/* Suggestions dropdown */}
             {showSuggestions && suggestions.length > 0 && (
               <div
                 ref={suggestionsRef}
-                className="absolute bottom-full left-0 right-0 mb-2 bg-[#343541] border border-gray-700 rounded-lg shadow-xl overflow-hidden z-50 animate-scale-in"
+                className="absolute bottom-full left-0 right-0 mb-2 bg-[#40414f] border border-gray-700 rounded-lg shadow-xl overflow-hidden z-50"
               >
                 {suggestions.map((suggestion, index) => (
                   <button
                     key={index}
                     type="button"
                     onClick={() => handleSuggestionClick(suggestion)}
-                    className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-[#40414f] transition-colors flex items-center gap-2"
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-[#2d2d2f] transition-colors flex items-center gap-2"
                   >
                     <Sparkles className="w-4 h-4 text-[#10a37f] shrink-0" />
                     <span className="flex-1">{suggestion}</span>
@@ -697,158 +551,91 @@ export default function ChatInput() {
               </div>
             )}
 
-            <div className="relative bg-[#40414f] border border-gray-600 rounded-2xl shadow-sm hover:border-gray-500 focus-within:border-[#10a37f] focus-within:ring-2 focus-within:ring-[#10a37f]/20 transition-all">
-              <textarea
-                ref={textareaRef}
-                value={input}
-                onChange={(e) => {
-                  setInput(e.target.value);
-                  saveCurrentInput(e.target.value);
-                }}
-                onKeyDown={handleKeyPress}
-                onFocus={() => {
-                  if (suggestions.length > 0 && input.length > 0) {
-                    setShowSuggestions(true);
+            {/* Input container */}
+            <div className="w-full relative">
+              <div className="relative w-full bg-[#40414f] border border-gray-700 rounded-2xl shadow-sm hover:border-gray-600 focus-within:border-[#10a37f] focus-within:ring-1 focus-within:ring-[#10a37f]/30 transition-all">
+                <textarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={(e) => {
+                    setInput(e.target.value);
+                    saveCurrentInput(e.target.value);
+                  }}
+                  onKeyDown={handleKeyPress}
+                  onFocus={() => {
+                    if (suggestions.length > 0 && input.length > 0) {
+                      setShowSuggestions(true);
+                    }
+                  }}
+                  placeholder={
+                    mode === "agent"
+                      ? "Message DosiBridge Agent..."
+                      : "Ask me about your documents..."
                   }
-                }}
-                placeholder={
-                  mode === "agent"
-                    ? "Ask anything"
-                    : "Ask me about your documents..."
-                }
-                disabled={inputDisabled}
-                rows={1}
-                className="w-full px-4 py-3 sm:px-4 sm:py-3.5 md:px-5 md:py-4 pr-12 resize-none focus:outline-none bg-transparent text-gray-100 placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm sm:text-base"
-                style={{
-                  minHeight: "44px",
-                  maxHeight: "200px",
-                  boxSizing: "border-box",
-                }}
-                aria-label="Message input"
-              />
+                  disabled={inputDisabled}
+                  rows={1}
+                  className="w-full px-4 py-3 pr-14 resize-none focus:outline-none bg-transparent text-gray-100 placeholder-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm sm:text-base leading-relaxed"
+                  style={{
+                    minHeight: "52px",
+                    maxHeight: "200px",
+                    boxSizing: "border-box",
+                  }}
+                  aria-label="Message input"
+                />
 
-              {/* Clear button inside textarea */}
-              {input && !inputDisabled && (
-                <button
-                  type="button"
-                  onClick={handleClear}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-[#2d2d2f] transition-all touch-manipulation animate-fade-in"
-                  aria-label="Clear message"
-                  title="Clear (Esc)"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
+                {/* Send/Stop button - Inside input area */}
+                <div className="absolute bottom-2 right-2 flex items-center gap-2">
+                  {/* Clear button - Show when there's input and not streaming */}
+                  {input && !inputDisabled && !isStreaming && (
+                    <button
+                      type="button"
+                      onClick={handleClear}
+                      className="p-1.5 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-[#2d2d2f] transition-all"
+                      aria-label="Clear message"
+                      title="Clear"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+
+                  {/* Send/Stop button */}
+                  {isStreaming ? (
+                    <button
+                      type="button"
+                      onClick={handleStop}
+                      className="h-8 w-8 rounded-lg bg-red-500 hover:bg-red-600 text-white transition-all shadow-md hover:shadow-lg flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-[#40414f]"
+                      aria-label="Stop generation"
+                      title="Stop"
+                    >
+                      <Square className="w-4 h-4 fill-white" />
+                    </button>
+                  ) : (
+                    <button
+                      type="submit"
+                      disabled={sendDisabled}
+                      className="h-8 w-8 rounded-lg bg-[#10a37f] hover:bg-[#0d8f6e] disabled:bg-gray-600 disabled:cursor-not-allowed text-white transition-all shadow-md hover:shadow-lg disabled:shadow-none flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[#10a37f] focus:ring-offset-2 focus:ring-offset-[#40414f]"
+                      aria-label="Send message"
+                      title="Send (Enter)"
+                    >
+                      {isLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Send className="w-4 h-4" />
+                      )}
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
 
-            {/* Character counter */}
-            {charCount > 0 && (
-              <div className="absolute -bottom-5 right-0 text-xs flex items-center gap-1">
-                <span
-                  className={
-                    exceedMax
-                      ? "text-red-500 font-medium animate-pulse"
-                      : charCount > MAX_CHARS * 0.9
-                      ? "text-yellow-500"
-                      : "text-gray-400"
-                  }
-                >
-                  {charCount}
-                </span>
-                <span className="text-gray-500">/</span>
-                <span className="text-gray-400">{MAX_CHARS}</span>
-                {exceedMax && (
-                  <span className="ml-2 text-red-500 text-xs">⚠️ Too long</span>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Stop / Send button */}
-          {isStreaming ? (
-            <button
-              type="button"
-              onClick={handleStop}
-              className="shrink-0 h-11 w-11 sm:h-12 sm:w-12 md:h-14 md:w-14 rounded-2xl bg-red-500 hover:bg-red-600 active:bg-red-700 text-white transition-all shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 touch-manipulation relative group"
-              aria-label="Stop generation"
-              title="Stop generation"
-            >
-              <Square className="w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5 fill-white" />
-            </button>
-          ) : (
-            <button
-              type="submit"
-              disabled={sendDisabled}
-              className="shrink-0 h-11 w-11 sm:h-12 sm:w-12 md:h-14 md:w-14 rounded-2xl bg-[#10a37f] hover:bg-[#0d8f6e] active:bg-[#0b7d5f] disabled:bg-gray-600 disabled:cursor-not-allowed text-white transition-all shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 disabled:scale-100 disabled:shadow-none flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[#10a37f] focus:ring-offset-2 touch-manipulation relative group"
-              aria-label="Send message"
-              title={
-                sendDisabled
-                  ? exceedMax
-                    ? "Message too long"
-                    : "Enter a message to send"
-                  : "Send message (Enter)"
-              }
-            >
-              {isLoading ? (
-                <Loader2 className="w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5 animate-spin" />
-              ) : (
-                <Send className="w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-              )}
-            </button>
-          )}
-        </form>
-
-        {/* Bottom section: Status and hints */}
-        <div className="mt-2 sm:mt-3 flex items-center justify-between gap-2 text-xs">
-          {/* Left: Status indicators */}
-          <div className="flex items-center gap-3 flex-wrap">
-            {/* Suggestions indicator */}
-            {showSuggestions && suggestions.length > 0 && (
-              <div className="flex items-center gap-1.5 text-[#10a37f] animate-fade-in">
-                <Sparkles className="w-3 h-3 animate-pulse" />
-                <span className="hidden sm:inline">Suggestions available</span>
-                <span className="sm:hidden">Tips</span>
-              </div>
-            )}
-
-            {/* Character count warning */}
-            {charCount > MAX_CHARS * 0.9 && charCount <= MAX_CHARS && (
-              <div className="flex items-center gap-1.5 text-yellow-500">
-                <span className="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse" />
-                <span className="hidden sm:inline">
-                  {MAX_CHARS - charCount} characters left
-                </span>
-                <span className="sm:hidden">{MAX_CHARS - charCount} left</span>
-              </div>
-            )}
-
-            {/* Character limit exceeded */}
+            {/* Error message for exceeded limit */}
             {exceedMax && (
-              <div className="flex items-center gap-1.5 text-red-500 animate-pulse">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                <span>Message too long</span>
+              <div className="mt-2 text-xs text-red-500 flex items-center gap-1.5">
+                <span>⚠️</span>
+                <span>Message exceeds {MAX_CHARS} characters</span>
               </div>
             )}
-          </div>
-
-          {/* Mobile: Compact shortcuts */}
-          <div className="md:hidden flex items-center gap-2 text-gray-500">
-            {charCount > 0 && !exceedMax && (
-              <span className="text-xs">
-                {charCount}/{MAX_CHARS}
-              </span>
-            )}
-            {showSuggestions && suggestions.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setShowSuggestions(false)}
-                className="px-2 py-0.5 text-xs bg-[#40414f] border border-gray-600 rounded text-gray-400 hover:text-gray-300 transition-colors"
-                aria-label="Close suggestions"
-              >
-                Esc
-              </button>
-            )}
-          </div>
+          </form>
         </div>
       </div>
     </div>

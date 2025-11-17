@@ -7,15 +7,7 @@
 import { StreamChunk, createStreamReader } from "@/lib/api";
 import { getUserFriendlyError, logError } from "@/lib/errors";
 import { Message, useStore } from "@/lib/store";
-import {
-  Bot,
-  Check,
-  Copy,
-  RefreshCw,
-  ThumbsDown,
-  ThumbsUp,
-  User,
-} from "lucide-react";
+import { Check, Copy, RefreshCw, ThumbsDown, ThumbsUp } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import ReactMarkdown from "react-markdown";
@@ -240,16 +232,10 @@ export default function MessageBubble({
 
   return (
     <div
-      className={`group flex gap-2 sm:gap-3 md:gap-4 mb-3 sm:mb-4 md:mb-6 px-1 sm:px-2 transition-all duration-200 hover:bg-transparent ${
+      className={`group flex mb-3 sm:mb-4 md:mb-6 px-1 sm:px-2 transition-all duration-200 hover:bg-transparent ${
         isUser ? "justify-end" : "justify-start"
       }`}
     >
-      {!isUser && (
-        <div className="flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 rounded-full bg-gradient-to-br from-[#10a37f] to-[#0d8f6e] flex items-center justify-center shadow-md ring-2 ring-[#10a37f]/20">
-          <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 text-white" />
-        </div>
-      )}
-
       <div
         className={`flex flex-col ${
           isUser
@@ -278,6 +264,7 @@ export default function MessageBubble({
                         {children}
                       </p>
                     ),
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     code({ className, children, ...props }: any) {
                       const match = /language-(\w+)/.exec(className || "");
                       const language = match ? match[1] : "";
@@ -396,12 +383,6 @@ export default function MessageBubble({
           </div>
         )}
       </div>
-
-      {isUser && (
-        <div className="flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md ring-2 ring-blue-500/20">
-          <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 text-white" />
-        </div>
-      )}
     </div>
   );
 }
