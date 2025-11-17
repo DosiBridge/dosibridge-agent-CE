@@ -508,16 +508,16 @@ export default function ChatInput() {
             {showSuggestions && suggestions.length > 0 && (
               <div
                 ref={suggestionsRef}
-                className="absolute bottom-full left-0 right-0 mb-2 bg-white dark:bg-[#40414f]/95 backdrop-blur-lg border border-gray-200 dark:border-gray-700/50 rounded-lg shadow-xl overflow-hidden z-50"
+                className="absolute bottom-full left-0 right-0 mb-2 bg-[var(--surface)]/95 backdrop-blur-lg border border-[var(--border)] rounded-lg shadow-xl overflow-hidden z-50"
               >
                 {suggestions.map((suggestion, index) => (
                   <button
                     key={index}
                     type="button"
                     onClick={() => handleSuggestionClick(suggestion)}
-                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#2d2d2f]/80 transition-colors flex items-center gap-2"
+                    className="w-full text-left px-4 py-2.5 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors flex items-center gap-2"
                   >
-                    <Sparkles className="w-4 h-4 text-[#10a37f] shrink-0" />
+                    <Sparkles className="w-4 h-4 text-[var(--green)] shrink-0" />
                     <span className="flex-1">{suggestion}</span>
                   </button>
                 ))}
@@ -528,13 +528,13 @@ export default function ChatInput() {
             <div className="w-full relative">
               {/* Input field */}
               <div className="relative w-full">
-                <div className="relative w-full bg-white dark:bg-[#40414f]/80 border border-gray-300 dark:border-gray-700/50 rounded-xl shadow-sm hover:border-gray-400 dark:hover:border-gray-600/70 focus-within:border-[#10a37f] focus-within:ring-1 focus-within:ring-[#10a37f]/30 transition-all">
+                <div className="relative w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl shadow-sm hover:border-[var(--border-hover)] focus-within:border-[var(--green)] focus-within:ring-1 focus-within:ring-[var(--green)]/30 transition-all">
                   {/* Plus button - Left side */}
                   <button
                     type="button"
                     onClick={handleAttachmentClick}
                     disabled={inputDisabled}
-                    className="absolute left-2 bottom-2 h-8 w-8 rounded-full bg-transparent hover:bg-gray-100 dark:hover:bg-[#2d2d2f]/60 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                    className="absolute left-2 bottom-2 h-8 w-8 rounded-full bg-transparent hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                     aria-label="Attach file"
                     title="Attach file"
                   >
@@ -557,7 +557,7 @@ export default function ChatInput() {
                     placeholder="Ask anything"
                     disabled={inputDisabled}
                     rows={1}
-                    className="w-full px-12 py-3 pr-24 resize-none focus:outline-none bg-transparent text-gray-900 dark:text-gray-100 placeholder-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm sm:text-base leading-relaxed"
+                    className="w-full px-12 py-3 pr-24 resize-none focus:outline-none bg-transparent text-[var(--text-primary)] placeholder-[var(--text-tertiary)] disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm sm:text-base leading-relaxed"
                     style={{
                       minHeight: "52px",
                       maxHeight: "200px",
@@ -570,7 +570,7 @@ export default function ChatInput() {
                   <div className="absolute bottom-2 right-2 flex items-center gap-2">
                     {/* Character counter - Before buttons */}
                     {charCount > 0 && (
-                      <div className="text-xs text-gray-400 dark:text-gray-500 pointer-events-none mr-1">
+                      <div className="text-xs text-[var(--text-secondary)] pointer-events-none mr-1">
                         <span
                           className={
                             exceedMax
@@ -590,7 +590,7 @@ export default function ChatInput() {
                         type="button"
                         onClick={() => setShowModelDropdown(!showModelDropdown)}
                         disabled={inputDisabled}
-                        className="h-8 w-8 rounded-full bg-transparent hover:bg-gray-100 dark:hover:bg-[#2d2d2f]/60 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                        className="h-8 w-8 rounded-full bg-transparent hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                         aria-label="Select mode"
                         title={`Mode: ${getModeDisplayName()}`}
                       >
@@ -599,7 +599,7 @@ export default function ChatInput() {
 
                       {/* Model dropdown menu */}
                       {showModelDropdown && (
-                        <div className="absolute bottom-full right-0 mb-2 bg-white dark:bg-[#202123]/95 backdrop-blur-lg border border-gray-200 dark:border-gray-700/50 rounded-lg shadow-xl overflow-hidden z-50 min-w-[120px]">
+                        <div className="absolute bottom-full right-0 mb-2 bg-[var(--surface)]/95 backdrop-blur-lg border border-[var(--border)] rounded-lg shadow-xl overflow-hidden z-50 min-w-[120px]">
                           <button
                             type="button"
                             onClick={() => {
@@ -608,8 +608,8 @@ export default function ChatInput() {
                             }}
                             className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
                               mode === "agent"
-                                ? "bg-[#10a37f]/10 dark:bg-[#10a37f]/20 text-[#10a37f] font-medium"
-                                : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#2d2d2f]/80"
+                                ? "bg-[var(--green)]/10 text-[var(--green)] font-medium"
+                                : "text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
                             }`}
                           >
                             Agent
@@ -630,8 +630,8 @@ export default function ChatInput() {
                             disabled={!isAuthenticated}
                             className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
                               mode === "rag"
-                                ? "bg-[#10a37f]/10 dark:bg-[#10a37f]/20 text-[#10a37f] font-medium"
-                                : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#2d2d2f]/80"
+                                ? "bg-[var(--green)]/10 text-[var(--green)] font-medium"
+                                : "text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
                             } disabled:opacity-50 disabled:cursor-not-allowed`}
                           >
                             RAG
@@ -644,7 +644,7 @@ export default function ChatInput() {
                                 setSettingsOpen(true);
                                 setShowModelDropdown(false);
                               }}
-                              className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#2d2d2f]/80 transition-colors border-t border-gray-200 dark:border-gray-700/50 flex items-center gap-2"
+                              className="w-full text-left px-4 py-2.5 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors border-t border-[var(--border)] flex items-center gap-2"
                             >
                               <Settings className="w-3.5 h-3.5" />
                               <span>RAG Settings</span>
@@ -659,7 +659,7 @@ export default function ChatInput() {
                       type="button"
                       onClick={handleVoiceClick}
                       disabled={inputDisabled}
-                      className="h-8 w-8 rounded-full bg-transparent hover:bg-gray-100 dark:hover:bg-[#2d2d2f]/60 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                      className="h-8 w-8 rounded-full bg-transparent hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                       aria-label="Voice input"
                       title="Voice input"
                     >
@@ -699,7 +699,7 @@ export default function ChatInput() {
 
             {/* Disclaimer */}
             <div className="mt-2 text-center">
-              <p className="text-xs text-gray-500 dark:text-gray-400">
+              <p className="text-xs text-[var(--text-secondary)]">
                 DosiBridge can make mistakes. Check important info.
               </p>
             </div>

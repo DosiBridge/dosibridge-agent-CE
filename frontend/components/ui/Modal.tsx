@@ -71,30 +71,30 @@ export default function Modal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-2 sm:p-3 md:p-4">
+    <div className="fixed inset-0 bg-[var(--modal-overlay)] z-50 flex items-center justify-center p-2 sm:p-3 md:p-4">
       <div
         ref={modalRef}
         className={cn(
-          "bg-[#343541] rounded-xl shadow-2xl w-full flex flex-col border border-gray-700 max-h-[95vh] sm:max-h-[90vh]",
+          "bg-[var(--modal-bg)] rounded-xl shadow-2xl w-full flex flex-col border border-[var(--border)] max-h-[95vh] sm:max-h-[90vh]",
           sizes[size],
           className
         )}
         onClick={(e) => e.stopPropagation()}
       >
         {(title || showCloseButton) && (
-          <div className="flex items-center justify-between p-4 sm:p-5 md:p-6 border-b border-gray-700 shrink-0">
+          <div className="flex items-center justify-between p-4 sm:p-5 md:p-6 border-b border-[var(--border)] shrink-0">
             {title && (
-              <h2 className="text-lg sm:text-xl font-semibold text-gray-200">
+              <h2 className="text-lg sm:text-xl font-semibold text-[var(--text-primary)]">
                 {title}
               </h2>
             )}
             {showCloseButton && (
               <button
                 onClick={onClose}
-                className="p-2 hover:bg-[#40414f] rounded-lg transition-colors touch-manipulation"
+                className="p-2 hover:bg-[var(--surface-hover)] rounded-lg transition-colors touch-manipulation"
                 aria-label="Close modal"
               >
-                <X className="w-5 h-5 text-gray-400" />
+                <X className="w-5 h-5 text-[var(--text-secondary)]" />
               </button>
             )}
           </div>

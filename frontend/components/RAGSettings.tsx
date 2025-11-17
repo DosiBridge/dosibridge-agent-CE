@@ -275,7 +275,7 @@ export default function RAGSettings({
       case "needs_review":
         return <AlertCircle className="w-4 h-4 text-yellow-500" />;
       default:
-        return <File className="w-4 h-4 text-gray-500" />;
+        return <File className="w-4 h-4 text-[var(--text-secondary)]" />;
     }
   };
 
@@ -290,32 +290,32 @@ export default function RAGSettings({
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-2 sm:p-3 md:p-4">
       <div
-        className="bg-[#343541] rounded-xl shadow-2xl w-full max-w-4xl max-h-[95vh] flex flex-col border border-gray-700"
+        className="bg-[var(--modal-bg)] rounded-xl shadow-2xl w-full max-w-4xl max-h-[95vh] flex flex-col border border-[var(--border)]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 sm:p-5 md:p-6 border-b border-gray-700 shrink-0">
-          <h2 className="text-lg sm:text-xl font-semibold text-gray-200 flex items-center gap-2">
+        <div className="flex items-center justify-between p-4 sm:p-5 md:p-6 border-b border-[var(--border)] shrink-0">
+          <h2 className="text-lg sm:text-xl font-semibold text-[var(--text-primary)] flex items-center gap-2">
             <SettingsIcon className="w-5 h-5" />
             RAG Settings
           </h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-[#40414f] rounded-lg transition-colors"
+            className="p-2 hover:bg-[var(--surface-hover)] rounded-lg transition-colors"
             aria-label="Close"
           >
-            <X className="w-5 h-5 text-gray-400" />
+            <X className="w-5 h-5 text-[var(--text-secondary)]" />
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-gray-700 bg-[#2d2d2f] shrink-0 overflow-x-auto">
+        <div className="flex border-b border-[var(--border)] bg-[var(--surface-hover)] shrink-0 overflow-x-auto">
           <button
             onClick={() => setActiveTab("documents")}
             className={`px-4 py-3 font-medium text-sm transition-colors flex items-center gap-2 ${
               activeTab === "documents"
-                ? "border-b-2 border-[#10a37f] text-[#10a37f] bg-[#343541]"
-                : "text-gray-400 hover:text-gray-200"
+                ? "border-b-2 border-[var(--green)] text-[var(--green)] bg-[var(--modal-bg)]"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             }`}
           >
             <File className="w-4 h-4" />
@@ -325,8 +325,8 @@ export default function RAGSettings({
             onClick={() => setActiveTab("collections")}
             className={`px-4 py-3 font-medium text-sm transition-colors flex items-center gap-2 ${
               activeTab === "collections"
-                ? "border-b-2 border-[#10a37f] text-[#10a37f] bg-[#343541]"
-                : "text-gray-400 hover:text-gray-200"
+                ? "border-b-2 border-[var(--green)] text-[var(--green)] bg-[var(--modal-bg)]"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             }`}
           >
             <Folder className="w-4 h-4" />
@@ -336,8 +336,8 @@ export default function RAGSettings({
             onClick={() => setActiveTab("review")}
             className={`px-4 py-3 font-medium text-sm transition-colors flex items-center gap-2 relative ${
               activeTab === "review"
-                ? "border-b-2 border-[#10a37f] text-[#10a37f] bg-[#343541]"
-                : "text-gray-400 hover:text-gray-200"
+                ? "border-b-2 border-[var(--green)] text-[var(--green)] bg-[var(--modal-bg)]"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             }`}
           >
             <Eye className="w-4 h-4" />
@@ -351,14 +351,14 @@ export default function RAGSettings({
         </div>
 
         {/* RAG Mode Settings */}
-        <div className="p-4 border-b border-gray-700 bg-[#2d2d2f] shrink-0">
+        <div className="p-4 border-b border-[var(--border)] bg-[var(--surface-hover)] shrink-0">
           <div className="flex items-center justify-between">
             <div>
-              <label className="text-sm font-medium text-gray-200 flex items-center gap-2">
+              <label className="text-sm font-medium text-[var(--text-primary)] flex items-center gap-2">
                 <Brain className="w-4 h-4" />
                 ReAct Mode
               </label>
-              <p className="text-xs text-gray-400 mt-1">
+              <p className="text-xs text-[var(--text-secondary)] mt-1">
                 Enable reasoning and acting for better problem-solving
               </p>
             </div>
@@ -389,11 +389,11 @@ export default function RAGSettings({
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
               >
-                <Upload className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                <Upload className="w-12 h-12 mx-auto mb-4 text-[var(--text-secondary)]" />
                 <p className="text-gray-300 mb-2">
                   Drag and drop files here, or click to select
                 </p>
-                <p className="text-sm text-gray-500 mb-4">
+                <p className="text-sm text-[var(--text-secondary)] mb-4">
                   Supported: PDF, TXT, DOCX, MD (Max 100MB)
                 </p>
                 <input
@@ -498,22 +498,22 @@ export default function RAGSettings({
               {/* Documents List */}
               <div className="space-y-2">
                 {documents.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
+                  <div className="text-center py-8 text-[var(--text-secondary)]">
                     No documents found
                   </div>
                 ) : (
                   documents.map((doc) => (
                     <div
                       key={doc.id}
-                      className="flex items-center justify-between p-4 bg-gray-800 rounded-lg border border-gray-700"
+                      className="flex items-center justify-between p-4 bg-gray-800 rounded-lg border border-[var(--border)]"
                     >
                       <div className="flex items-center gap-3 flex-1">
                         {getStatusIcon(doc.status)}
                         <div className="flex-1">
-                          <p className="text-gray-200 font-medium">
+                          <p className="text-[var(--text-primary)] font-medium">
                             {doc.original_filename}
                           </p>
-                          <p className="text-sm text-gray-400">
+                          <p className="text-sm text-[var(--text-secondary)]">
                             {formatFileSize(doc.file_size)} • {doc.chunk_count}{" "}
                             chunks • {doc.status}
                           </p>
@@ -553,8 +553,8 @@ export default function RAGSettings({
           {activeTab === "collections" && (
             <div className="space-y-4">
               {/* Create Collection */}
-              <div className="bg-[#40414f] rounded-lg p-4 border border-gray-700">
-                <h3 className="text-lg font-semibold mb-4 text-gray-200">
+              <div className="bg-[#40414f] rounded-lg p-4 border border-[var(--border)]">
+                <h3 className="text-lg font-semibold mb-4 text-[var(--text-primary)]">
                   Create Collection
                 </h3>
                 <div className="space-y-3">
@@ -563,13 +563,13 @@ export default function RAGSettings({
                     value={newCollectionName}
                     onChange={(e) => setNewCollectionName(e.target.value)}
                     placeholder="Collection name"
-                    className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-[#343541] text-gray-100"
+                    className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-[var(--modal-bg)] text-gray-100"
                   />
                   <textarea
                     value={newCollectionDesc}
                     onChange={(e) => setNewCollectionDesc(e.target.value)}
                     placeholder="Description (optional)"
-                    className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-[#343541] text-gray-100"
+                    className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-[var(--modal-bg)] text-gray-100"
                     rows={2}
                   />
                   <button
@@ -585,23 +585,25 @@ export default function RAGSettings({
               {/* Collections List */}
               <div className="space-y-2">
                 {collections.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
+                  <div className="text-center py-8 text-[var(--text-secondary)]">
                     No collections found
                   </div>
                 ) : (
                   collections.map((col) => (
                     <div
                       key={col.id}
-                      className="flex items-center justify-between p-4 bg-gray-800 rounded-lg border border-gray-700"
+                      className="flex items-center justify-between p-4 bg-gray-800 rounded-lg border border-[var(--border)]"
                     >
                       <div className="flex-1">
-                        <p className="text-gray-200 font-medium">{col.name}</p>
+                        <p className="text-[var(--text-primary)] font-medium">
+                          {col.name}
+                        </p>
                         {col.description && (
-                          <p className="text-sm text-gray-400 mt-1">
+                          <p className="text-sm text-[var(--text-secondary)] mt-1">
                             {col.description}
                           </p>
                         )}
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-xs text-[var(--text-secondary)] mt-1">
                           {col.document_count} documents
                         </p>
                       </div>
@@ -636,27 +638,31 @@ export default function RAGSettings({
             <div className="space-y-4">
               {/* Statistics */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-[#40414f] rounded-lg p-4 border border-gray-700">
-                  <p className="text-sm text-gray-400">Pending</p>
-                  <p className="text-2xl font-bold text-gray-200">
+                <div className="bg-[#40414f] rounded-lg p-4 border border-[var(--border)]">
+                  <p className="text-sm text-[var(--text-secondary)]">
+                    Pending
+                  </p>
+                  <p className="text-2xl font-bold text-[var(--text-primary)]">
                     {stats.pending}
                   </p>
                 </div>
-                <div className="bg-[#40414f] rounded-lg p-4 border border-gray-700">
-                  <p className="text-sm text-gray-400">Needs Review</p>
+                <div className="bg-[#40414f] rounded-lg p-4 border border-[var(--border)]">
+                  <p className="text-sm text-[var(--text-secondary)]">
+                    Needs Review
+                  </p>
                   <p className="text-2xl font-bold text-yellow-400">
                     {stats.needs_review}
                   </p>
                 </div>
-                <div className="bg-[#40414f] rounded-lg p-4 border border-gray-700">
-                  <p className="text-sm text-gray-400">Ready</p>
+                <div className="bg-[#40414f] rounded-lg p-4 border border-[var(--border)]">
+                  <p className="text-sm text-[var(--text-secondary)]">Ready</p>
                   <p className="text-2xl font-bold text-green-400">
                     {stats.ready}
                   </p>
                 </div>
-                <div className="bg-[#40414f] rounded-lg p-4 border border-gray-700">
-                  <p className="text-sm text-gray-400">Total</p>
-                  <p className="text-2xl font-bold text-gray-200">
+                <div className="bg-[#40414f] rounded-lg p-4 border border-[var(--border)]">
+                  <p className="text-sm text-[var(--text-secondary)]">Total</p>
+                  <p className="text-2xl font-bold text-[var(--text-primary)]">
                     {stats.total}
                   </p>
                 </div>
@@ -665,21 +671,21 @@ export default function RAGSettings({
               {/* Review Documents */}
               <div className="space-y-2">
                 {reviewDocuments.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
+                  <div className="text-center py-8 text-[var(--text-secondary)]">
                     No documents need review
                   </div>
                 ) : (
                   reviewDocuments.map((doc) => (
                     <div
                       key={doc.id}
-                      className="p-4 bg-gray-800 rounded-lg border border-gray-700"
+                      className="p-4 bg-gray-800 rounded-lg border border-[var(--border)]"
                     >
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
-                          <p className="text-gray-200 font-medium">
+                          <p className="text-[var(--text-primary)] font-medium">
                             {doc.original_filename}
                           </p>
-                          <p className="text-sm text-gray-400 mt-1">
+                          <p className="text-sm text-[var(--text-secondary)] mt-1">
                             {formatFileSize(doc.file_size)} • {doc.chunk_count}{" "}
                             chunks
                           </p>

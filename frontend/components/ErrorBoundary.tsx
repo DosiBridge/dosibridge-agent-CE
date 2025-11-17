@@ -76,30 +76,30 @@ export class ErrorBoundary extends Component<Props, State> {
 
       // Default error UI
       return (
-        <div className="min-h-screen flex items-center justify-center bg-[#343541] dark:bg-[#2d2d2f] p-4">
-          <div className="max-w-2xl w-full bg-[#40414f] rounded-xl shadow-2xl border border-gray-700 p-6 sm:p-8">
+        <div className="min-h-screen flex items-center justify-center bg-[var(--background)] p-4">
+          <div className="max-w-2xl w-full bg-[var(--modal-bg)] rounded-xl shadow-2xl border border-[var(--border)] p-6 sm:p-8">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-6 h-6 text-red-400" />
+              <div className="w-12 h-12 rounded-full bg-[var(--error)]/20 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-6 h-6 text-[var(--error)]" />
               </div>
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-white">
+                <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)]">
                   Something went wrong
                 </h1>
-                <p className="text-sm text-gray-400 mt-1">
+                <p className="text-sm text-[var(--text-secondary)] mt-1">
                   An unexpected error occurred
                 </p>
               </div>
             </div>
 
             {process.env.NODE_ENV === "development" && this.state.error && (
-              <div className="mb-6 p-4 bg-[#2d2d2f] rounded-lg border border-gray-700">
-                <p className="text-sm font-mono text-red-400 mb-2">
+              <div className="mb-6 p-4 bg-[var(--surface-hover)] rounded-lg border border-[var(--border)]">
+                <p className="text-sm font-mono text-[var(--error)] mb-2">
                   {this.state.error.toString()}
                 </p>
                 {this.state.errorInfo && (
                   <details className="mt-2">
-                    <summary className="text-xs text-gray-500 cursor-pointer hover:text-gray-400">
+                    <summary className="text-xs text-[var(--text-secondary)] cursor-pointer hover:text-[var(--text-primary)]">
                       Stack trace
                     </summary>
                     <pre className="mt-2 text-xs text-gray-500 overflow-auto max-h-48">

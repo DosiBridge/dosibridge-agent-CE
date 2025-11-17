@@ -293,12 +293,12 @@ export default function MessageBubble({
       >
         {/* Status indicators for streaming AI messages */}
         {!isUser && isLastMessage && isStreaming && streamingStatus && (
-          <div className="mb-2 flex items-center gap-4 text-xs text-gray-400">
+          <div className="mb-2 flex items-center gap-4 text-xs text-[var(--text-secondary)]">
             {/* Thinking/Thought status */}
             {streamingStatus === "thinking" && (
               <button
                 onClick={() => setShowStatusDetails(!showStatusDetails)}
-                className="flex items-center gap-1 hover:text-gray-300 transition-colors"
+                className="flex items-center gap-1 hover:text-[var(--text-primary)] transition-colors"
               >
                 {showStatusDetails ? (
                   <ChevronDown className="w-3 h-3" />
@@ -317,7 +317,7 @@ export default function MessageBubble({
             {streamingStatus === "analyzing" && (
               <button
                 onClick={() => setShowStatusDetails(!showStatusDetails)}
-                className="flex items-center gap-1 hover:text-gray-300 transition-colors"
+                className="flex items-center gap-1 hover:text-[var(--text-primary)] transition-colors"
               >
                 {showStatusDetails ? (
                   <ChevronDown className="w-3 h-3" />
@@ -330,21 +330,21 @@ export default function MessageBubble({
 
             {/* Answering status */}
             {streamingStatus === "answering" && (
-              <span className="text-gray-500">Answering...</span>
+              <span className="text-[var(--text-secondary)]">Answering...</span>
             )}
 
             {/* Answer now button */}
             {streamingStatus === "thinking" && (
-              <button className="text-gray-400 hover:text-gray-300 underline decoration-dotted underline-offset-2 transition-colors">
+              <button className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] underline decoration-dotted underline-offset-2 transition-colors">
                 Answer now
               </button>
             )}
 
             {/* Progress bar */}
             {streamingStatus && (
-              <div className="flex-1 h-0.5 bg-gray-700/50 rounded-full overflow-hidden">
+              <div className="flex-1 h-0.5 bg-[var(--border)]/50 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-[#10a37f] transition-all duration-300"
+                  className="h-full bg-[var(--green)] transition-all duration-300"
                   style={{
                     width: streamingStatus === "answering" ? "100%" : "30%",
                     animation:
@@ -363,8 +363,8 @@ export default function MessageBubble({
           <div
             className={`rounded-2xl px-3 py-2 sm:px-3.5 sm:py-2.5 md:px-4 md:py-3 transition-all duration-200 ${
               isUser
-                ? "bg-[#10a37f]/90 backdrop-blur-sm text-white hover:bg-[#0d8f6e]/90 hover:shadow-md shadow-sm"
-                : "bg-[#343541]/60 dark:bg-[#2d2d2f]/60 backdrop-blur-sm text-gray-100"
+                ? "bg-[var(--message-user-bg)]/90 backdrop-blur-sm text-white hover:bg-[var(--message-user-hover)]/90 hover:shadow-md shadow-sm"
+                : "bg-transparent text-[var(--message-ai-text)]"
             }`}
           >
             {isUser ? (
@@ -372,7 +372,7 @@ export default function MessageBubble({
                 {message.content}
               </p>
             ) : (
-              <div className="prose prose-sm dark:prose-invert max-w-full prose-pre:bg-[#1e1e1e] prose-pre:border prose-pre:border-gray-700 prose-pre:overflow-x-auto prose-p:whitespace-pre-wrap prose-p:break-words prose-code:break-words">
+              <div className="prose prose-sm prose-invert max-w-full prose-pre:bg-[var(--code-bg)] prose-pre:border prose-pre:border-[var(--code-border)] prose-pre:overflow-x-auto prose-p:whitespace-pre-wrap prose-p:break-words prose-code:break-words prose-p:text-[var(--message-ai-text)]">
                 <ReactMarkdown
                   components={{
                     p: ({ children }) => (
@@ -390,13 +390,13 @@ export default function MessageBubble({
                       return !inline && match ? (
                         <div className="relative my-3 group/codeblock">
                           {/* Code block header with language and copy button */}
-                          <div className="flex items-center justify-between px-4 py-2 bg-[#1e1e1e] border-b border-gray-700/50 rounded-t-lg">
-                            <span className="text-xs font-medium text-gray-400 uppercase">
+                          <div className="flex items-center justify-between px-4 py-2 bg-[var(--code-header-bg)] border-b border-[var(--code-border)] rounded-t-lg">
+                            <span className="text-xs font-medium text-[var(--text-secondary)] uppercase">
                               {language}
                             </span>
                             <button
                               onClick={() => handleCopyCode(codeString)}
-                              className="flex items-center gap-1.5 px-2 py-1 text-xs text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors"
+                              className="flex items-center gap-1.5 px-2 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] rounded transition-colors"
                               title="Copy code"
                             >
                               {copiedCodeBlock === codeString ? (
@@ -451,7 +451,7 @@ export default function MessageBubble({
                   e.stopPropagation();
                   handleCopy();
                 }}
-                className="p-1.5 sm:p-1.5 md:p-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white transition-all shadow-md touch-manipulation"
+                className="p-1.5 sm:p-1.5 md:p-2 rounded-lg bg-[var(--surface-hover)] hover:bg-[var(--surface-elevated)] text-[var(--text-primary)] hover:text-[var(--text-primary)] transition-all shadow-md touch-manipulation"
                 aria-label="Copy message"
                 type="button"
                 title="Copy"
@@ -469,7 +469,7 @@ export default function MessageBubble({
                   handleRegenerate();
                 }}
                 disabled={isRegenerating}
-                className={`p-1.5 sm:p-1.5 md:p-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white transition-all shadow-md touch-manipulation ${
+                className={`p-1.5 sm:p-1.5 md:p-2 rounded-lg bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] hover:text-[var(--text-inverse)] transition-all shadow-md touch-manipulation ${
                   isRegenerating ? "opacity-50 cursor-not-allowed" : ""
                 }`}
                 aria-label="Regenerate response"
@@ -489,7 +489,7 @@ export default function MessageBubble({
                     e.stopPropagation();
                     handleFeedback("thumbs-up");
                   }}
-                  className="p-1.5 sm:p-1.5 md:p-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-green-400 transition-all shadow-md touch-manipulation"
+                  className="p-1.5 sm:p-1.5 md:p-2 rounded-lg bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] hover:text-[var(--green)] transition-all shadow-md touch-manipulation"
                   aria-label="Thumbs up"
                   type="button"
                   title="Good response"
@@ -502,7 +502,7 @@ export default function MessageBubble({
                     e.stopPropagation();
                     handleFeedback("thumbs-down");
                   }}
-                  className="p-1.5 sm:p-1.5 md:p-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-red-400 transition-all shadow-md touch-manipulation"
+                  className="p-1.5 sm:p-1.5 md:p-2 rounded-lg bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] hover:text-[var(--error)] transition-all shadow-md touch-manipulation"
                   aria-label="Thumbs down"
                   type="button"
                   title="Poor response"
@@ -516,11 +516,13 @@ export default function MessageBubble({
 
         {message.tools_used && message.tools_used.length > 0 && (
           <div className="mt-1 sm:mt-1.5 md:mt-2 flex items-center gap-1 sm:gap-1.5 md:gap-2 flex-wrap">
-            <span className="text-xs font-medium text-gray-400">Tools:</span>
+            <span className="text-xs font-medium text-[var(--text-secondary)]">
+              Tools:
+            </span>
             {message.tools_used.map((tool, idx) => (
               <span
                 key={idx}
-                className="text-xs px-1.5 sm:px-2 py-0.5 bg-[#40414f] text-gray-300 rounded-full font-medium"
+                className="text-xs px-1.5 sm:px-2 py-0.5 bg-[var(--surface-elevated)] text-[var(--text-primary)] rounded-full font-medium"
               >
                 {tool}
               </span>

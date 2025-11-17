@@ -69,6 +69,10 @@ interface AppState {
   health: HealthStatus | null;
   settingsOpen: boolean;
 
+  // Theme
+  theme: "light" | "dark" | "system";
+  setTheme: (theme: "light" | "dark" | "system") => void;
+
   // Auth actions
   checkAuth: () => Promise<void>;
   handleLogin: (data: LoginRequest) => Promise<void>;
@@ -139,6 +143,9 @@ export const useStore = create<AppState>((set, get) => ({
     }
     return {};
   })(),
+
+  // Theme initialization - will be set properly on client side
+  theme: "system" as "light" | "dark" | "system",
 
   // Auth actions
   checkAuth: async () => {
@@ -580,4 +587,83 @@ export const useStore = create<AppState>((set, get) => ({
   setSettingsOpen: (open: boolean) => {
     set({ settingsOpen: open });
   },
+
+  setTheme: (theme: "light" | "dark" | "system") => {
+    set({ theme });
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("theme", theme);
+        // Apply theme to HTML element immediately
+        const root = document.documentElement;
+        let actualTheme: "light" | "dark" = theme;
+
+        if (theme === "system") {
+          // Use system preference
+          actualTheme = window.matchMedia("(prefers-color-scheme: dark)")
+            .matches
+            ? "dark"
+            : "light";
+        }
+
+        if (actualTheme === "dark") {
+          root.classList.add("dark");
+        } else {
+          root.classList.remove("dark");
+        }
+      } catch (error) {
+        console.error("Failed to set theme:", error);
+      }
+    }
+  },
 }));
+
+// Initialize theme on client side - this runs when the module loads
+if (typeof window !== "undefined") {
+  try {
+    // Get theme from localStorage or use system
+    const stored = localStorage.getItem("theme");
+    const themePreference: "light" | "dark" | "system" =
+      stored === "light" || stored === "dark" || stored === "system"
+        ? stored
+        : "system";
+
+    // Determine actual theme to apply
+    let actualTheme: "light" | "dark" = "dark";
+    if (themePreference === "system") {
+      actualTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
+        ? "dark"
+        : "light";
+    } else {
+      actualTheme = themePreference;
+    }
+
+    // Apply theme to HTML element immediately (before React hydrates)
+    const root = document.documentElement;
+    if (actualTheme === "dark") {
+      root.classList.add("dark");
+    } else {
+      root.classList.remove("dark");
+    }
+
+    // Set theme preference in store
+    useStore.setState({ theme: themePreference });
+
+    // Listen for system theme changes if using system preference
+    if (themePreference === "system") {
+      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+      const handleSystemThemeChange = (e: MediaQueryListEvent) => {
+        const root = document.documentElement;
+        if (e.matches) {
+          root.classList.add("dark");
+        } else {
+          root.classList.remove("dark");
+        }
+      };
+      mediaQuery.addEventListener("change", handleSystemThemeChange);
+    }
+  } catch (error) {
+    // If there's an error, default to dark mode
+    document.documentElement.classList.add("dark");
+    useStore.setState({ theme: "dark" });
+  }
+}
