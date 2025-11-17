@@ -8,7 +8,9 @@ const fs = require('fs');
 const path = require('path');
 
 // Get API base URL from environment variable, with fallback
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.API_BASE_URL || 'http://localhost:8085';
+// Both API_BASE_URL and NEXT_PUBLIC_API_BASE_URL should be set to the same value in compose-vps.yml
+// Priority: API_BASE_URL > NEXT_PUBLIC_API_BASE_URL > default
+const API_BASE_URL = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8085';
 
 // Create config object
 const config = {
