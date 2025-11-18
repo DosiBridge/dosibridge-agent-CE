@@ -226,10 +226,11 @@ export default function ChatPage() {
       <SessionSidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        onToggle={() => setSidebarOpen((prev) => !prev)}
       />
 
       <div className="flex-1 flex flex-col min-w-0 w-full">
-        <header className="border-none bg-none px-2 sm:px-3 py-1.5 flex items-center justify-between shrink-0 sticky top-0 z-40">
+        <header className="border-none bg-[var(--background)]/80 backdrop-blur-md px-2 sm:px-3 py-1.5 flex items-center justify-between shrink-0 sticky top-0 z-40">
           <div className="flex items-center gap-1.5 min-w-0 flex-1">
             {/* Back to Home Button */}
             <Link

@@ -32,10 +32,18 @@ export default function EmptyState({
         className
       )}
     >
-      {icon && <div className="mb-4 text-gray-500 opacity-50">{icon}</div>}
-      <h3 className="text-lg font-semibold text-gray-300 mb-2">{title}</h3>
+      {icon && (
+        <div className="mb-4 text-[var(--text-tertiary)] opacity-50">
+          {icon}
+        </div>
+      )}
+      <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
+        {title}
+      </h3>
       {description && (
-        <p className="text-sm text-gray-500 max-w-md mb-6">{description}</p>
+        <p className="text-sm text-[var(--text-secondary)] max-w-md mb-6">
+          {description}
+        </p>
       )}
       {action && (
         <Button onClick={action.onClick} variant="primary" size="md">

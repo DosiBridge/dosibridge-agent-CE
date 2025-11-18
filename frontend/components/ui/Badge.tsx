@@ -19,7 +19,8 @@ export default function Badge({
   ...props
 }: BadgeProps) {
   const variants = {
-    default: "bg-[#40414f] text-gray-300",
+    default:
+      "bg-[var(--surface-elevated)] text-[var(--text-primary)] border border-[var(--border)]",
     success: "bg-green-500/20 text-green-400 border border-green-500/30",
     warning: "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30",
     error: "bg-red-500/20 text-red-400 border border-red-500/30",
