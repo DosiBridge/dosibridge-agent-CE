@@ -595,7 +595,7 @@ export const useStore = create<AppState>((set, get) => ({
         localStorage.setItem("theme", theme);
         // Apply theme to HTML element immediately
         const root = document.documentElement;
-        let actualTheme: "light" | "dark" = theme;
+        let actualTheme: "light" | "dark";
 
         if (theme === "system") {
           // Use system preference
@@ -603,6 +603,8 @@ export const useStore = create<AppState>((set, get) => ({
             .matches
             ? "dark"
             : "light";
+        } else {
+          actualTheme = theme;
         }
 
         if (actualTheme === "dark") {
