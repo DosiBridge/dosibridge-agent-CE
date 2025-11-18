@@ -35,7 +35,7 @@ export default function ErrorDisplay({
         <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
         <div className="flex-1 min-w-0">
           <h4 className="text-sm font-semibold text-red-400 mb-1">{title}</h4>
-          <p className="text-sm text-gray-300">{errorMessage}</p>
+          <p className="text-sm text-[var(--text-primary)]">{errorMessage}</p>
           {(onRetry || onDismiss) && (
             <div className="flex items-center gap-2 mt-3">
               {onRetry && (

@@ -99,14 +99,16 @@ export default function ToastNotification({
     >
       <Icon className={cn("w-5 h-5 shrink-0 mt-0.5", style.icon)} />
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-200">{message}</p>
+        <p className="text-sm font-medium text-[var(--text-primary)]">
+          {message}
+        </p>
         {action && (
           <button
             onClick={() => {
               action.onClick();
               handleClose();
             }}
-            className="mt-2 text-xs font-medium text-[#10a37f] hover:text-[#0d8f6e] transition-colors"
+            className="mt-2 text-xs font-medium text-[var(--green)] hover:text-[var(--green-hover)] transition-colors"
           >
             {action.label}
           </button>
@@ -114,10 +116,10 @@ export default function ToastNotification({
       </div>
       <button
         onClick={handleClose}
-        className="p-1 hover:bg-white/10 rounded transition-colors shrink-0"
+        className="p-1 hover:bg-[var(--surface-hover)] rounded transition-colors shrink-0"
         aria-label="Dismiss"
       >
-        <X className="w-4 h-4 text-gray-400" />
+        <X className="w-4 h-4 text-[var(--text-secondary)]" />
       </button>
     </div>
   );

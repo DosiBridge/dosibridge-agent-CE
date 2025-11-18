@@ -13,6 +13,7 @@ import {
 import { useStore } from "@/lib/store";
 import {
   AlertTriangle,
+  ChevronRight,
   Edit2,
   MessageSquare,
   Plus,
@@ -27,11 +28,13 @@ import toast from "react-hot-toast";
 interface SessionSidebarProps {
   isOpen?: boolean;
   onClose?: () => void;
+  onToggle?: () => void;
 }
 
 export default function SessionSidebar({
   isOpen = true,
   onClose,
+  onToggle,
 }: SessionSidebarProps) {
   const isAuthenticated = useStore((state) => state.isAuthenticated);
   const user = useStore((state) => state.user);
@@ -54,9 +57,26 @@ export default function SessionSidebar({
   const [editTitle, setEditTitle] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [isHovered, setIsHovered] = useState(false);
+  const [isButtonHovered, setIsButtonHovered] = useState(false);
 
-  // On desktop, sidebar is expanded if open OR hovered
-  const isExpanded = isOpen || isHovered;
+  // Check if we're on desktop (>= 768px)
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    const checkDesktop = () => {
+      setIsDesktop(window.innerWidth >= 768);
+    };
+    checkDesktop();
+    window.addEventListener("resize", checkDesktop);
+    return () => window.removeEventListener("resize", checkDesktop);
+  }, []);
+
+  // On desktop, sidebar is expanded if open OR hovered (sidebar or button)
+  const isExpanded = isOpen || (isDesktop && (isHovered || isButtonHovered));
+
+  // Show sidebar when it's explicitly open OR when hovering on desktop
+  const shouldShowSidebar =
+    isOpen || (isDesktop && (isHovered || isButtonHovered));
 
   const handleDeleteSession = async (
     sessionId: string,
@@ -170,10 +190,41 @@ export default function SessionSidebar({
 
   return (
     <>
-      {/* Mobile overlay */}
+      {/* Fixed Toggle Button - Always visible when sidebar is closed and not hovered */}
+      {!shouldShowSidebar && (
+        <div
+          className="fixed left-0 top-1/2 -translate-y-1/2 z-50"
+          onMouseEnter={() => {
+            if (isDesktop) {
+              setIsButtonHovered(true);
+            }
+          }}
+          onMouseLeave={() => {
+            // Small delay to allow smooth transition to sidebar
+            setTimeout(() => {
+              if (!isHovered) {
+                setIsButtonHovered(false);
+              }
+            }, 150);
+          }}
+        >
+          <button
+            onClick={() => {
+              onToggle?.();
+              setIsButtonHovered(false);
+            }}
+            className="w-10 h-16 bg-[var(--sidebar-bg)] border-r border-y border-[var(--sidebar-border)] rounded-r-lg shadow-lg hover:bg-[var(--surface-hover)] transition-all duration-200 flex items-center justify-center group"
+            aria-label="Open sidebar"
+          >
+            <ChevronRight className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors" />
+          </button>
+        </div>
+      )}
+
+      {/* Overlay - shown when sidebar is open on mobile */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-[var(--modal-overlay)] z-40 md:hidden"
           onClick={onClose}
           aria-hidden="true"
         />
@@ -181,26 +232,37 @@ export default function SessionSidebar({
 
       {/* Sidebar */}
       <div
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+        onMouseEnter={() => {
+          if (isDesktop) {
+            setIsHovered(true);
+            setIsButtonHovered(true); // Keep button hovered when sidebar is hovered
+          }
+        }}
+        onMouseLeave={() => {
+          // Small delay to allow smooth transition
+          setTimeout(() => {
+            setIsHovered(false);
+            if (!isOpen) {
+              setIsButtonHovered(false);
+            }
+          }, 150);
+        }}
         className={`
-                fixed lg:static inset-y-0 left-0 z-50
-                border-r border-gray-700 bg-[#202123] 
+                fixed inset-y-0 left-0 z-50
+                border-r border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] 
                 flex flex-col shrink-0
                 transform transition-all duration-300 ease-in-out
-                ${isOpen ? "translate-x-0" : "-translate-x-full"}
-                ${!isOpen ? "lg:translate-x-0" : ""}
-                ${isExpanded ? "lg:w-64" : "lg:w-16"}
-                w-[280px] sm:w-72
-                shadow-xl lg:shadow-none
-                h-screen lg:h-auto
+                ${shouldShowSidebar ? "translate-x-0" : "-translate-x-full"}
+                ${isExpanded ? "w-64" : "w-16"}
+                shadow-xl
+                h-screen
                 overflow-hidden
             `}
       >
         {/* Header with close button for mobile */}
         <div
-          className={`p-3 sm:p-4 border-b border-gray-700 flex items-center ${
-            isExpanded ? "justify-between" : "justify-center lg:justify-center"
+          className={`p-3 sm:p-4 border-b border-[var(--sidebar-border)] flex items-center ${
+            isExpanded ? "justify-between" : "justify-center"
           } shrink-0`}
         >
           <div
@@ -208,12 +270,10 @@ export default function SessionSidebar({
               isExpanded ? "gap-2" : "gap-0"
             } min-w-0`}
           >
-            <MessageSquare className="w-5 h-5 sm:w-5 sm:h-5 text-[#10a37f] shrink-0" />
+            <MessageSquare className="w-5 h-5 sm:w-5 sm:h-5 text-[var(--green)] shrink-0" />
             <h2
-              className={`text-base sm:text-lg font-semibold text-gray-200 truncate transition-opacity duration-300 ${
-                isExpanded
-                  ? "opacity-100"
-                  : "opacity-0 lg:w-0 lg:overflow-hidden"
+              className={`text-base sm:text-lg font-semibold text-[var(--text-primary)] truncate transition-opacity duration-300 ${
+                isExpanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
               }`}
             >
               Chats
@@ -221,32 +281,34 @@ export default function SessionSidebar({
           </div>
           {onClose && (
             <button
-              onClick={onClose}
-              className="lg:hidden p-1.5 sm:p-2 hover:bg-[#343541] rounded-lg transition-colors touch-manipulation shrink-0"
+              onClick={() => {
+                onClose();
+                setIsHovered(false);
+                setIsButtonHovered(false);
+              }}
+              className="p-1.5 sm:p-2 hover:bg-[var(--surface-hover)] rounded-lg transition-colors touch-manipulation shrink-0"
               aria-label="Close sidebar"
             >
-              <X className="w-5 h-5 text-gray-400" />
+              <X className="w-5 h-5 text-[var(--text-secondary)]" />
             </button>
           )}
         </div>
 
         {/* New Chat Button and Delete All */}
-        <div className="p-2 sm:p-3 border-b border-gray-700 shrink-0 space-y-2">
+        <div className="p-2 sm:p-3 border-b border-[var(--sidebar-border)] shrink-0 space-y-2">
           <button
             onClick={createNewSession}
             className={`w-full flex items-center ${
               isExpanded
                 ? "justify-center gap-2 px-3 py-2.5 sm:px-4 sm:py-3"
-                : "justify-center lg:justify-center lg:px-2 lg:py-2.5"
-            } bg-[#10a37f] hover:bg-[#0d8f6e] text-white rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-[#10a37f] font-medium text-sm shadow-md hover:shadow-lg active:scale-95 touch-manipulation`}
+                : "justify-center px-2 py-2.5"
+            } bg-[var(--green)] hover:bg-[var(--green-hover)] text-white rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-[var(--green)] font-medium text-sm shadow-md hover:shadow-lg active:scale-95 touch-manipulation`}
             aria-label="Create new session"
           >
             <Plus className="w-4 h-4 shrink-0" aria-hidden="true" />
             <span
               className={`truncate transition-opacity duration-300 ${
-                isExpanded
-                  ? "opacity-100"
-                  : "opacity-0 lg:w-0 lg:overflow-hidden"
+                isExpanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
               }`}
             >
               New chat
@@ -259,16 +321,14 @@ export default function SessionSidebar({
               className={`w-full flex items-center ${
                 isExpanded
                   ? "justify-center gap-2 px-3 py-2 sm:px-4 sm:py-2.5"
-                  : "justify-center lg:justify-center lg:px-2 lg:py-2"
+                  : "justify-center px-2 py-2"
               } bg-red-600/20 hover:bg-red-600/30 text-red-400 hover:text-red-300 border border-red-600/30 hover:border-red-600/50 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-red-500/50 font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation`}
               aria-label="Delete all sessions"
             >
               <Trash2 className="w-4 h-4 shrink-0" aria-hidden="true" />
               <span
                 className={`truncate transition-opacity duration-300 ${
-                  isExpanded
-                    ? "opacity-100"
-                    : "opacity-0 lg:w-0 lg:overflow-hidden"
+                  isExpanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
                 }`}
               >
                 Delete All
@@ -279,15 +339,15 @@ export default function SessionSidebar({
 
         {/* Search Bar */}
         {sessions.length > 0 && isExpanded && (
-          <div className="p-2 sm:p-3 border-b border-gray-700 shrink-0">
+          <div className="p-2 sm:p-3 border-b border-[var(--sidebar-border)] shrink-0">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
               <input
                 type="search"
                 placeholder="Search conversations..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 bg-[#343541] border border-gray-600 rounded-lg text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#10a37f] focus:border-[#10a37f]"
+                className="w-full pl-9 pr-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-lg text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--input-focus)] focus:border-[var(--input-focus)]"
               />
             </div>
           </div>
@@ -301,16 +361,16 @@ export default function SessionSidebar({
               {[1, 2, 3, 4].map((i) => (
                 <div
                   key={i}
-                  className="animate-pulse p-3 rounded-lg bg-[#343541] border border-gray-700"
+                  className="animate-pulse p-3 rounded-lg bg-[var(--surface-elevated)] border border-[var(--border)]"
                   style={{
                     animationDelay: `${i * 100}ms`,
                   }}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-4 h-4 bg-gray-700 rounded shrink-0" />
+                    <div className="w-4 h-4 bg-[var(--border)] rounded shrink-0" />
                     <div className="flex-1 space-y-2">
-                      <div className="h-4 bg-gray-700 rounded w-3/4" />
-                      <div className="h-3 bg-gray-800 rounded w-1/2" />
+                      <div className="h-4 bg-[var(--border)] rounded w-3/4" />
+                      <div className="h-3 bg-[var(--border)] rounded w-1/2" />
                     </div>
                   </div>
                 </div>
@@ -319,19 +379,19 @@ export default function SessionSidebar({
           ) : sessions.length === 0 ? (
             <div className="text-center py-12 sm:py-16 px-3 sm:px-4 animate-fade-in">
               <div className="relative mb-4 flex justify-center">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-[#343541] flex items-center justify-center border-2 border-dashed border-gray-600">
-                  <MessageSquare className="w-8 h-8 sm:w-10 sm:h-10 text-gray-600" />
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-[var(--surface-elevated)] flex items-center justify-center border-2 border-dashed border-[var(--border)]">
+                  <MessageSquare className="w-8 h-8 sm:w-10 sm:h-10 text-[var(--text-secondary)]" />
                 </div>
               </div>
-              <h3 className="text-sm sm:text-base font-semibold text-gray-300 mb-1">
+              <h3 className="text-sm sm:text-base font-semibold text-[var(--text-primary)] mb-1">
                 No conversations yet
               </h3>
-              <p className="text-xs sm:text-sm text-gray-500 mb-4">
+              <p className="text-xs sm:text-sm text-[var(--text-secondary)] mb-4">
                 Start a new chat to begin your conversation
               </p>
               <button
                 onClick={createNewSession}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-[#10a37f] hover:bg-[#0d8f6e] text-white rounded-lg text-sm font-medium transition-all hover:scale-105 active:scale-95"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--green)] hover:bg-[var(--green-hover)] text-white rounded-lg text-sm font-medium transition-all hover:scale-105 active:scale-95"
               >
                 <Plus className="w-4 h-4" />
                 Create First Chat
@@ -355,8 +415,8 @@ export default function SessionSidebar({
               if (filteredSessions.length === 0) {
                 return (
                   <div className="text-center py-8 px-3">
-                    <Search className="w-8 h-8 mx-auto mb-2 text-gray-600" />
-                    <p className="text-xs text-gray-500">
+                    <Search className="w-8 h-8 mx-auto mb-2 text-[var(--text-secondary)]" />
+                    <p className="text-xs text-[var(--text-tertiary)]">
                       No conversations found
                     </p>
                   </div>
@@ -395,32 +455,32 @@ export default function SessionSidebar({
                     role="button"
                     aria-label={`Switch to session ${sessionTitle}`}
                     className={`group flex items-center ${
-                      isExpanded
-                        ? "justify-between"
-                        : "justify-center lg:justify-center"
-                    } p-2.5 sm:p-3 rounded-lg cursor-pointer transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#10a37f] touch-manipulation ${
+                      isExpanded ? "justify-between" : "justify-center"
+                    } p-2.5 sm:p-3 rounded-lg cursor-pointer transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--green)] touch-manipulation ${
                       session.session_id === currentSessionId
-                        ? "bg-[#343541] text-white shadow-md border-l-4 border-[#10a37f]"
-                        : "hover:bg-[#2d2d2f] text-gray-300 active:bg-[#2d2d2f] border-l-4 border-transparent hover:border-gray-600"
+                        ? "bg-[var(--surface-elevated)] text-[var(--text-primary)] shadow-md border-l-4 border-[var(--green)]"
+                        : "hover:bg-[var(--surface-hover)] text-[var(--text-primary)] active:bg-[var(--surface-hover)] border-l-4 border-transparent hover:border-[var(--border)]"
                     }`}
                   >
                     <div
                       className={`flex items-center ${
-                        isExpanded ? "gap-2 sm:gap-3 flex-1 min-w-0" : "gap-0"
-                      } ${!isExpanded ? "lg:justify-center" : ""}`}
+                        isExpanded
+                          ? "gap-2 sm:gap-3 flex-1 min-w-0"
+                          : "gap-0 justify-center"
+                      }`}
                     >
                       <MessageSquare
                         className={`w-4 h-4 shrink-0 ${
                           session.session_id === currentSessionId
-                            ? "text-[#10a37f]"
-                            : "text-gray-500"
+                            ? "text-[var(--green)]"
+                            : "text-[var(--text-secondary)]"
                         }`}
                       />
                       <div
                         className={`flex-1 min-w-0 transition-opacity duration-300 ${
                           isExpanded
                             ? "opacity-100"
-                            : "opacity-0 lg:w-0 lg:overflow-hidden"
+                            : "opacity-0 w-0 overflow-hidden"
                         }`}
                       >
                         {isEditing ? (
@@ -440,7 +500,7 @@ export default function SessionSidebar({
                                 }
                               }}
                               onClick={(e) => e.stopPropagation()}
-                              className="flex-1 px-2 py-1 bg-[#2d2d2f] border border-gray-600 rounded text-xs sm:text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#10a37f]"
+                              className="flex-1 px-2 py-1 bg-[var(--input-bg)] border border-[var(--input-border)] rounded text-xs sm:text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--input-focus)]"
                               autoFocus
                             />
                             <button
@@ -448,24 +508,24 @@ export default function SessionSidebar({
                                 e.stopPropagation();
                                 handleSaveEdit(session.session_id);
                               }}
-                              className="p-1 hover:bg-[#40414f] rounded"
+                              className="p-1 hover:bg-[var(--surface-hover)] rounded"
                             >
-                              <Save className="w-3 h-3 text-[#10a37f]" />
+                              <Save className="w-3 h-3 text-[var(--green)]" />
                             </button>
                           </div>
                         ) : (
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-200 truncate">
+                            <p className="text-sm font-medium text-[var(--text-primary)] truncate">
                               {sessionTitle}
                             </p>
                             {/* Show summary if available */}
                             {session.summary && (
-                              <p className="text-xs text-gray-500 truncate mt-0.5 line-clamp-2">
+                              <p className="text-xs text-[var(--text-secondary)] truncate mt-0.5 line-clamp-2">
                                 {session.summary}
                               </p>
                             )}
                             {/* Show message count */}
-                            <p className="text-xs text-gray-600 mt-0.5">
+                            <p className="text-xs text-[var(--text-secondary)] mt-0.5">
                               {session.message_count || 0}{" "}
                               {session.message_count === 1
                                 ? "message"
@@ -481,11 +541,11 @@ export default function SessionSidebar({
                           onClick={(e) =>
                             handleEditSession(session.session_id, e)
                           }
-                          className="p-1.5 hover:bg-[#40414f] rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-[#10a37f] touch-manipulation shrink-0"
+                          className="p-1.5 hover:bg-[var(--surface-hover)] rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-[var(--green)] touch-manipulation shrink-0"
                           aria-label={`Rename session ${sessionTitle}`}
                         >
                           <Edit2
-                            className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 hover:text-gray-300"
+                            className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                             aria-hidden="true"
                           />
                         </button>
@@ -511,23 +571,19 @@ export default function SessionSidebar({
         </div>
 
         {/* Profile Section at Bottom */}
-        <div className="mt-auto border-t border-gray-700 shrink-0">
+        <div className="mt-auto border-t border-[var(--sidebar-border)] shrink-0">
           {isAuthenticated ? (
-            <div className={`p-2 sm:p-3 ${!isExpanded ? "lg:p-2" : ""}`}>
+            <div className={`p-2 sm:p-3 ${!isExpanded ? "p-2" : ""}`}>
               <div
                 className={`flex items-center ${
                   isExpanded
                     ? "gap-2 sm:gap-3 p-2 rounded-lg"
-                    : "justify-center lg:justify-center lg:p-1.5"
-                } hover:bg-[#343541] transition-all duration-200 group ${
-                  !isExpanded ? "lg:rounded-full" : ""
-                }`}
+                    : "justify-center p-1.5 rounded-full"
+                } hover:bg-[var(--surface-hover)] transition-all duration-200 group`}
               >
                 <div
-                  className={`rounded-full bg-gradient-to-br from-[#10a37f] to-[#0d8f6e] flex items-center justify-center text-white font-medium shrink-0 transition-all duration-200 ${
-                    isExpanded
-                      ? "w-8 h-8 text-sm"
-                      : "w-8 h-8 lg:w-9 lg:h-9 text-base"
+                  className={`rounded-full bg-gradient-to-br from-[var(--green)] to-[var(--green-hover)] flex items-center justify-center text-white font-medium shrink-0 transition-all duration-200 ${
+                    isExpanded ? "w-8 h-8 text-sm" : "w-9 h-9 text-base"
                   }`}
                 >
                   {user?.name?.[0]?.toUpperCase() ||
@@ -536,11 +592,11 @@ export default function SessionSidebar({
                 </div>
                 {isExpanded && (
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-gray-200 truncate">
+                    <div className="text-sm font-medium text-[var(--text-primary)] truncate">
                       {user?.name || user?.email || "User"}
                     </div>
                     {user?.email && user?.name && (
-                      <div className="text-xs text-gray-500 truncate">
+                      <div className="text-xs text-[var(--text-secondary)] truncate">
                         {user.email}
                       </div>
                     )}
@@ -559,7 +615,7 @@ export default function SessionSidebar({
                       })
                     );
                   }}
-                  className="w-full px-3 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-[#343541] rounded-lg transition-colors"
+                  className="w-full px-3 py-2 text-sm font-medium text-[var(--text-primary)] hover:text-white hover:bg-[var(--primary)] rounded-lg transition-colors"
                 >
                   Log in
                 </button>
@@ -571,7 +627,7 @@ export default function SessionSidebar({
                       })
                     );
                   }}
-                  className="w-full px-3 py-2 text-sm font-medium bg-[#10a37f] hover:bg-[#0d8f6e] text-white rounded-lg transition-colors"
+                  className="w-full px-3 py-2 text-sm font-medium bg-[var(--green)] hover:bg-[var(--green-hover)] text-white rounded-lg transition-colors"
                 >
                   Create account
                 </button>
@@ -583,20 +639,20 @@ export default function SessionSidebar({
 
       {/* Delete Confirmation Modal */}
       {deletingSession && (
-        <div className="fixed inset-0 bg-black/60 z-60 flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-[#343541] rounded-xl shadow-2xl max-w-md w-full border border-gray-700">
+        <div className="fixed inset-0 bg-[var(--modal-overlay)] z-60 flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-[var(--modal-bg)] rounded-xl shadow-2xl max-w-md w-full border border-[var(--border)]">
             <div className="p-4 sm:p-5 md:p-6">
               <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
                 <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
                   <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />
                 </div>
-                <h3 className="text-base sm:text-lg font-semibold text-gray-200">
+                <h3 className="text-base sm:text-lg font-semibold text-[var(--text-primary)]">
                   Delete Session
                 </h3>
               </div>
-              <p className="text-sm sm:text-base text-gray-300 mb-4 sm:mb-6">
+              <p className="text-sm sm:text-base text-[var(--text-secondary)] mb-4 sm:mb-6">
                 Are you sure you want to delete{" "}
-                <span className="font-medium text-white">
+                <span className="font-medium text-[var(--text-primary)]">
                   {deletingSession === "default" ? "Default" : deletingSession}
                 </span>
                 ? This action cannot be undone.
@@ -604,7 +660,7 @@ export default function SessionSidebar({
               <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end">
                 <button
                   onClick={() => setDeletingSession(null)}
-                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-[#40414f] rounded-lg transition-colors touch-manipulation"
+                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-sm font-medium text-[var(--text-primary)] hover:text-white hover:bg-[var(--primary)] rounded-lg transition-colors touch-manipulation"
                 >
                   Cancel
                 </button>
@@ -622,20 +678,20 @@ export default function SessionSidebar({
 
       {/* Delete All Confirmation Modal */}
       {showDeleteAllConfirm && (
-        <div className="fixed inset-0 bg-black/60 z-60 flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-[#343541] rounded-xl shadow-2xl max-w-md w-full border border-gray-700">
+        <div className="fixed inset-0 bg-[var(--modal-overlay)] z-60 flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-[var(--modal-bg)] rounded-xl shadow-2xl max-w-md w-full border border-[var(--border)]">
             <div className="p-4 sm:p-5 md:p-6">
               <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
                 <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
                   <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />
                 </div>
-                <h3 className="text-base sm:text-lg font-semibold text-gray-200">
+                <h3 className="text-base sm:text-lg font-semibold text-[var(--text-primary)]">
                   Delete All Sessions
                 </h3>
               </div>
-              <p className="text-sm sm:text-base text-gray-300 mb-4 sm:mb-6">
+              <p className="text-sm sm:text-base text-[var(--text-secondary)] mb-4 sm:mb-6">
                 Are you sure you want to delete all{" "}
-                <span className="font-medium text-white">
+                <span className="font-medium text-[var(--text-primary)]">
                   {sessions.length} session{sessions.length !== 1 ? "s" : ""}
                 </span>
                 ? This will permanently remove all conversations and messages.
@@ -645,7 +701,7 @@ export default function SessionSidebar({
                 <button
                   onClick={() => setShowDeleteAllConfirm(false)}
                   disabled={deletingAll}
-                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-[#40414f] rounded-lg transition-colors touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-sm font-medium text-[var(--text-primary)] hover:text-white hover:bg-[var(--surface-elevated)] rounded-lg transition-colors touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </button>

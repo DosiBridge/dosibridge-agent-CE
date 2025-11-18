@@ -43,14 +43,16 @@ export function showToast(
       <div className="flex items-start gap-3 max-w-md">
         <Icon className={`w-5 h-5 ${iconColor} shrink-0 mt-0.5`} />
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-gray-200">{message}</p>
+          <p className="text-sm font-medium text-[var(--text-primary)]">
+            {message}
+          </p>
           {options?.action && (
             <button
               onClick={() => {
                 options.action?.onClick();
                 hotToast.dismiss(t.id);
               }}
-              className="mt-2 text-xs font-medium text-[#10a37f] hover:text-[#0d8f6e] transition-colors"
+              className="mt-2 text-xs font-medium text-[var(--green)] hover:text-[var(--green-hover)] transition-colors"
             >
               {options.action.label}
             </button>
@@ -58,20 +60,20 @@ export function showToast(
         </div>
         <button
           onClick={() => hotToast.dismiss(t.id)}
-          className="p-1 hover:bg-gray-700 rounded transition-colors shrink-0"
+          className="p-1 hover:bg-[var(--surface-hover)] rounded transition-colors shrink-0"
           aria-label="Dismiss"
         >
-          <X className="w-4 h-4 text-gray-400" />
+          <X className="w-4 h-4 text-[var(--text-secondary)]" />
         </button>
       </div>
     ),
     {
       duration: options?.duration || 4000,
       style: {
-        background: "#343541",
-        color: "#fff",
+        background: "var(--modal-bg)",
+        color: "var(--text-primary)",
         borderRadius: "12px",
-        border: "1px solid rgba(255, 255, 255, 0.1)",
+        border: "1px solid var(--border)",
         boxShadow: "0 10px 25px rgba(0, 0, 0, 0.3)",
         padding: "16px",
       },

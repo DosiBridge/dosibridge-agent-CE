@@ -45,12 +45,12 @@ export default function Tooltip({
   };
 
   const arrows = {
-    top: "top-full left-1/2 -translate-x-1/2 border-t-gray-800 border-l-transparent border-r-transparent border-b-transparent",
+    top: "top-full left-1/2 -translate-x-1/2 border-t-[var(--surface-elevated)] border-l-transparent border-r-transparent border-b-transparent",
     bottom:
-      "bottom-full left-1/2 -translate-x-1/2 border-b-gray-800 border-l-transparent border-r-transparent border-t-transparent",
-    left: "left-full top-1/2 -translate-y-1/2 border-l-gray-800 border-t-transparent border-b-transparent border-r-transparent",
+      "bottom-full left-1/2 -translate-x-1/2 border-b-[var(--surface-elevated)] border-l-transparent border-r-transparent border-t-transparent",
+    left: "left-full top-1/2 -translate-y-1/2 border-l-[var(--surface-elevated)] border-t-transparent border-b-transparent border-r-transparent",
     right:
-      "right-full top-1/2 -translate-y-1/2 border-r-gray-800 border-t-transparent border-b-transparent border-l-transparent",
+      "right-full top-1/2 -translate-y-1/2 border-r-[var(--surface-elevated)] border-t-transparent border-b-transparent border-l-transparent",
   };
 
   return (
@@ -65,7 +65,7 @@ export default function Tooltip({
       {isVisible && (
         <div
           className={cn(
-            "absolute z-50 px-2 py-1 text-xs text-white bg-gray-800 rounded shadow-lg whitespace-nowrap",
+            "absolute z-50 px-2 py-1 text-xs text-[var(--text-inverse)] bg-[var(--surface-elevated)] rounded shadow-lg whitespace-nowrap border border-[var(--border)]",
             positions[position],
             className
           )}

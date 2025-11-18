@@ -22,13 +22,15 @@ export default function LoadingOverlay({
   return (
     <div
       className={cn(
-        "fixed inset-0 z-50 flex items-center justify-center bg-[#0a0a0a]/80 backdrop-blur-sm",
+        "fixed inset-0 z-50 flex items-center justify-center bg-[var(--modal-overlay)] backdrop-blur-sm",
         className
       )}
     >
       <div className="text-center">
-        <Loader2 className="w-12 h-12 animate-spin text-[#10a37f] mx-auto mb-4" />
-        <p className="text-gray-300 text-lg font-medium">{message}</p>
+        <Loader2 className="w-12 h-12 animate-spin text-[var(--green)] mx-auto mb-4" />
+        <p className="text-[var(--text-primary)] text-lg font-medium">
+          {message}
+        </p>
       </div>
     </div>
   );

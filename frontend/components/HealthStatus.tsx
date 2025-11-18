@@ -47,18 +47,18 @@ export default function HealthStatus() {
   // Show connection status
   if (!isConnected && !health) {
     return (
-      <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-        <WifiOff className="w-4 h-4 animate-pulse" />
-        <span className="text-sm">Connecting...</span>
+      <div className="flex items-center gap-1.5 text-[var(--text-secondary)]">
+        <WifiOff className="w-3 h-3 animate-pulse" />
+        <span className="text-xs">Connecting...</span>
       </div>
     );
   }
 
   if (!health) {
     return (
-      <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-        <Loader2 className="w-4 h-4 animate-spin" />
-        <span className="text-sm">Checking...</span>
+      <div className="flex items-center gap-1.5 text-[var(--text-secondary)]">
+        <Loader2 className="w-3 h-3 animate-spin" />
+        <span className="text-xs">Checking...</span>
       </div>
     );
   }
@@ -66,29 +66,28 @@ export default function HealthStatus() {
   const isHealthy = health.status === "healthy";
 
   return (
-    <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-[#40414f] border border-gray-600">
+    <div className="flex items-center gap-1 px-1.5 py-1 rounded-lg bg-[var(--surface-elevated)]/80 border border-[var(--border)] backdrop-blur-sm">
       {/* Connection indicator */}
       {isConnected ? (
         <Wifi
-          className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-green-500 shrink-0"
+          className="w-3 h-3 text-[var(--success)] shrink-0"
           aria-label="Connected"
         />
       ) : (
         <WifiOff
-          className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-yellow-500 shrink-0 animate-pulse"
+          className="w-3 h-3 text-[var(--warning)] shrink-0 animate-pulse"
           aria-label="Reconnecting..."
         />
       )}
 
       {isHealthy ? (
-        <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-500 shrink-0" />
+        <CheckCircle2 className="w-3 h-3 text-[var(--success)] shrink-0" />
       ) : (
-        <XCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-500 shrink-0" />
+        <XCircle className="w-3 h-3 text-[var(--error)] shrink-0" />
       )}
-      <span className="text-xs sm:text-sm font-medium text-gray-300 whitespace-nowrap">
-        <span className="text-[#10a37f]">{health.mcp_servers}</span>
-        <span className="hidden sm:inline"> MCP servers</span>
-        <span className="sm:hidden"> MCP</span>
+      <span className="text-xs font-medium text-[var(--text-primary)] whitespace-nowrap">
+        <span className="text-[var(--green)]">{health.mcp_servers}</span>
+        <span className="hidden sm:inline"> MCP</span>
       </span>
     </div>
   );

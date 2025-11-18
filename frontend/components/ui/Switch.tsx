@@ -42,7 +42,9 @@ const Switch = forwardRef<HTMLButtonElement, SwitchProps>(
       <label
         className={cn("flex items-center gap-3 cursor-pointer", className)}
       >
-        {label && <span className="text-sm text-gray-300">{label}</span>}
+        {label && (
+          <span className="text-sm text-[var(--text-primary)]">{label}</span>
+        )}
         <button
           ref={ref}
           type="button"
@@ -51,9 +53,9 @@ const Switch = forwardRef<HTMLButtonElement, SwitchProps>(
           disabled={disabled}
           onClick={() => !disabled && onChange(!checked)}
           className={cn(
-            "relative inline-flex items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#10a37f] focus:ring-offset-2 focus:ring-offset-[#343541] disabled:opacity-50 disabled:cursor-not-allowed",
+            "relative inline-flex items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--green)] focus:ring-offset-2 focus:ring-offset-[var(--background)] disabled:opacity-50 disabled:cursor-not-allowed",
             sizes[size],
-            checked ? "bg-[#10a37f]" : "bg-gray-600",
+            checked ? "bg-[var(--green)]" : "bg-[var(--border)]",
             !disabled && "hover:opacity-80"
           )}
         >

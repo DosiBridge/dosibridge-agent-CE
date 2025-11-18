@@ -1,5 +1,6 @@
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import RuntimeConfigLoader from "@/components/RuntimeConfigLoader";
+import ThemeProvider from "@/components/ThemeProvider";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
@@ -39,6 +40,38 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         suppressHydrationWarning
       >
+        {/* Initialize theme before React hydration to prevent flash */}
+        <Script
+          id="theme-init"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  const stored = localStorage.getItem('theme');
+                  let themePreference = stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'system';
+                  let actualTheme = 'dark';
+                  
+                  if (themePreference === 'system') {
+                    actualTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                  } else {
+                    actualTheme = themePreference;
+                  }
+                  
+                  const root = document.documentElement;
+                  if (actualTheme === 'dark') {
+                    root.classList.add('dark');
+                  } else {
+                    root.classList.remove('dark');
+                  }
+                } catch (e) {
+                  // Fallback to dark if there's an error
+                  document.documentElement.classList.add('dark');
+                }
+              })();
+            `,
+          }}
+        />
         {/* Suppress console errors and network errors for blocked resources (e.g., ad blockers) */}
         <Script
           id="suppress-blocked-resource-errors"
@@ -140,6 +173,7 @@ export default function RootLayout({
             `,
           }}
         />
+        <ThemeProvider />
         <RuntimeConfigLoader />
         <ErrorBoundary>{children}</ErrorBoundary>
       </body>

@@ -420,7 +420,7 @@ export default function SettingsPanel({
       case "needs_review":
         return <AlertTriangle className="w-4 h-4 text-yellow-500" />;
       default:
-        return <File className="w-4 h-4 text-gray-500" />;
+        return <File className="w-4 h-4 text-[var(--text-secondary)]" />;
     }
   };
 
@@ -815,23 +815,23 @@ export default function SettingsPanel({
     return (
       <>
         <div
-          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-2 sm:p-3 md:p-4"
+          className="fixed inset-0 bg-[var(--modal-overlay)] z-50 flex items-center justify-center p-2 sm:p-3 md:p-4"
           onClick={onClose}
         >
           <div
-            className="bg-[#343541] rounded-xl shadow-2xl w-full max-w-md flex flex-col border border-gray-700"
+            className="bg-[var(--modal-bg)] rounded-xl shadow-2xl w-full max-w-md flex flex-col border border-[var(--border)]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-6 sm:p-8 text-center">
               <div className="mb-6 flex justify-center">
-                <div className="p-4 bg-[#40414f] rounded-full">
-                  <Lock className="w-12 h-12 text-[#10a37f]" />
+                <div className="p-4 bg-[var(--surface-elevated)] rounded-full">
+                  <Lock className="w-12 h-12 text-[var(--green)]" />
                 </div>
               </div>
-              <h2 className="text-2xl font-bold text-white mb-3">
+              <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-3">
                 Authentication Required
               </h2>
-              <p className="text-gray-400 mb-6">
+              <p className="text-[var(--text-secondary)] mb-6">
                 Please log in or create an account to access MCP server
                 configuration and model settings.
               </p>
@@ -844,7 +844,7 @@ export default function SettingsPanel({
                     });
                     window.dispatchEvent(event);
                   }}
-                  className="px-6 py-2.5 bg-[#10a37f] hover:bg-[#0d8f6e] text-white font-medium rounded-lg transition-colors"
+                  className="px-6 py-2.5 bg-[var(--green)] hover:bg-[var(--green-hover)] text-white font-medium rounded-lg transition-colors"
                 >
                   Log in
                 </button>
@@ -856,14 +856,14 @@ export default function SettingsPanel({
                     });
                     window.dispatchEvent(event);
                   }}
-                  className="px-6 py-2.5 bg-[#40414f] hover:bg-[#2d2d2f] text-white font-medium rounded-lg transition-colors border border-gray-600"
+                  className="px-6 py-2.5 bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] font-medium rounded-lg transition-colors border border-[var(--border)]"
                 >
                   Create account
                 </button>
               </div>
               <button
                 onClick={onClose}
-                className="mt-4 text-gray-400 hover:text-gray-300 text-sm transition-colors"
+                className="mt-4 text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-sm transition-colors"
               >
                 Cancel
               </button>
@@ -877,49 +877,49 @@ export default function SettingsPanel({
   return (
     <>
       <div
-        className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-2 sm:p-3 md:p-4"
+        className="fixed inset-0 bg-[var(--modal-overlay)] z-50 flex items-center justify-center p-2 sm:p-3 md:p-4"
         onClick={onClose}
       >
         <div
-          className="bg-[#343541] rounded-xl shadow-2xl w-full max-w-3xl max-h-[95vh] sm:max-h-[90vh] flex flex-col border border-gray-700"
+          className="bg-[var(--modal-bg)] rounded-xl shadow-2xl w-full max-w-3xl max-h-[95vh] sm:max-h-[90vh] flex flex-col border border-[var(--border)]"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-4 sm:p-5 md:p-6 border-b border-gray-700 shrink-0 bg-gradient-to-r from-[#343541] to-[#2d2d2f]">
+          <div className="flex items-center justify-between p-4 sm:p-5 md:p-6 border-b border-[var(--border)] shrink-0 bg-gradient-to-r from-[var(--surface)] to-[var(--surface-hover)]">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-[#10a37f]/10 rounded-lg">
-                <Settings className="w-5 h-5 sm:w-6 sm:h-6 text-[#10a37f]" />
+              <div className="p-2 bg-[var(--green)]/10 rounded-lg">
+                <Settings className="w-5 h-5 sm:w-6 sm:h-6 text-[var(--green)]" />
               </div>
               <div>
-                <h2 className="text-lg sm:text-xl font-semibold text-gray-200">
+                <h2 className="text-lg sm:text-xl font-semibold text-[var(--text-primary)]">
                   Settings
                 </h2>
-                <p className="text-xs text-gray-500 mt-0.5">
+                <p className="text-xs text-[var(--text-secondary)] mt-0.5">
                   Configure MCP servers and model settings
                 </p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-[#40414f] rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 touch-manipulation group"
+              className="p-2 hover:bg-[var(--surface-hover)] rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 touch-manipulation group"
               aria-label="Close settings"
             >
-              <X className="w-5 h-5 text-gray-400 group-hover:text-gray-200 transition-colors" />
+              <X className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors" />
             </button>
           </div>
 
           {/* Tabs */}
-          <div className="flex border-b border-gray-700 bg-[#2d2d2f] shrink-0 overflow-x-auto">
+          <div className="flex border-b border-[var(--border)] bg-[var(--surface-hover)] shrink-0 overflow-x-auto">
             <button
               onClick={() => setActiveTab("mcp")}
               className={`flex-1 min-w-0 px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 font-medium text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-1.5 sm:gap-2 touch-manipulation relative ${
                 activeTab === "mcp"
-                  ? "text-[#10a37f] bg-[#343541]"
-                  : "text-gray-400 hover:text-gray-200 hover:bg-[#343541]/50"
+                  ? "text-[var(--green)] bg-[var(--surface-elevated)]"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-elevated)]/50"
               }`}
             >
               {activeTab === "mcp" && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#10a37f] rounded-t-full" />
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--green)] rounded-t-full" />
               )}
               <Server
                 className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 transition-transform ${
@@ -932,8 +932,8 @@ export default function SettingsPanel({
             {/* <button
                             onClick={() => setActiveTab('llm')}
                             className={`flex-1 min-w-0 px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 font-medium text-xs sm:text-sm transition-colors flex items-center justify-center gap-1.5 sm:gap-2 touch-manipulation ${activeTab === 'llm'
-                                ? 'border-b-2 border-[#10a37f] text-[#10a37f] bg-[#343541]'
-                                : 'text-gray-400 hover:text-gray-200'
+                                ? 'border-b-2 border-[var(--green)] text-[var(--green)] bg-[var(--surface-elevated)]'
+                                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                                 }`}
                         >
                             <Cpu className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
@@ -943,12 +943,12 @@ export default function SettingsPanel({
               onClick={() => setActiveTab("tools")}
               className={`flex-1 min-w-0 px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 font-medium text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-1.5 sm:gap-2 touch-manipulation relative ${
                 activeTab === "tools"
-                  ? "text-[#10a37f] bg-[#343541]"
-                  : "text-gray-400 hover:text-gray-200 hover:bg-[#343541]/50"
+                  ? "text-[var(--green)] bg-[var(--surface-elevated)]"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-elevated)]/50"
               }`}
             >
               {activeTab === "tools" && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#10a37f] rounded-t-full" />
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--green)] rounded-t-full" />
               )}
               <Wrench
                 className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 transition-transform ${
@@ -962,12 +962,12 @@ export default function SettingsPanel({
                 onClick={() => setActiveTab("rag")}
                 className={`flex-1 min-w-0 px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 font-medium text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-1.5 sm:gap-2 touch-manipulation relative ${
                   activeTab === "rag"
-                    ? "text-[#10a37f] bg-[#343541]"
-                    : "text-gray-400 hover:text-gray-200 hover:bg-[#343541]/50"
+                    ? "text-[var(--green)] bg-[var(--surface-elevated)]"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-elevated)]/50"
                 }`}
               >
                 {activeTab === "rag" && (
-                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#10a37f] rounded-t-full" />
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--green)] rounded-t-full" />
                 )}
                 <File
                   className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 transition-transform ${
@@ -989,24 +989,26 @@ export default function SettingsPanel({
             {activeTab === "mcp" && (
               <div className="space-y-4 sm:space-y-5 md:space-y-6">
                 {/* Add/Edit Server Form */}
-                <div className="bg-gradient-to-br from-[#40414f] to-[#343541] rounded-xl p-4 sm:p-5 md:p-6 border border-gray-700 shadow-lg">
+                <div className="bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] rounded-xl p-4 sm:p-5 md:p-6 border border-[var(--border)] shadow-lg">
                   <div className="flex items-center gap-3 mb-4 sm:mb-5">
                     <div
                       className={`p-2 rounded-lg ${
-                        editingServer ? "bg-blue-500/10" : "bg-[#10a37f]/10"
+                        editingServer
+                          ? "bg-blue-500/10"
+                          : "bg-[var(--green)]/10"
                       }`}
                     >
                       {editingServer ? (
                         <Edit2 className="w-5 h-5 text-blue-400" />
                       ) : (
-                        <Plus className="w-5 h-5 text-[#10a37f]" />
+                        <Plus className="w-5 h-5 text-[var(--green)]" />
                       )}
                     </div>
                     <div>
-                      <h3 className="text-base sm:text-lg font-semibold text-gray-200">
+                      <h3 className="text-base sm:text-lg font-semibold text-[var(--text-primary)]">
                         {editingServer ? "Edit MCP Server" : "Add MCP Server"}
                       </h3>
-                      <p className="text-xs text-gray-500 mt-0.5">
+                      <p className="text-xs text-[var(--text-secondary)] mt-0.5">
                         {editingServer
                           ? "Update server configuration"
                           : "Connect a new MCP server"}
@@ -1015,7 +1017,7 @@ export default function SettingsPanel({
                   </div>
                   <div className="space-y-3 sm:space-y-4">
                     <div>
-                      <label className="block text-xs sm:text-sm font-medium mb-1.5 sm:mb-2 text-gray-300">
+                      <label className="block text-xs sm:text-sm font-medium mb-1.5 sm:mb-2 text-[var(--text-primary)]">
                         <span className="flex items-center gap-2">
                           <span>Name</span>
                           <span className="text-red-400">*</span>
@@ -1027,12 +1029,12 @@ export default function SettingsPanel({
                         onChange={(e) =>
                           setServerForm({ ...serverForm, name: e.target.value })
                         }
-                        className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base border border-gray-600 rounded-lg bg-[#2d2d2f] text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#10a37f] focus:border-[#10a37f] transition-all duration-200 hover:border-gray-500"
+                        className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base border border-[var(--input-border)] rounded-lg bg-[var(--surface-hover)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--green)] focus:border-[var(--green)] transition-all duration-200 hover:border-[var(--border-hover)]"
                         placeholder="e.g., My MCP Server"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs sm:text-sm font-medium mb-1.5 sm:mb-2 text-gray-300">
+                      <label className="block text-xs sm:text-sm font-medium mb-1.5 sm:mb-2 text-[var(--text-primary)]">
                         Connection Type
                       </label>
                       <select
@@ -1047,15 +1049,15 @@ export default function SettingsPanel({
                           });
                           setConnectionStatus(null); // Clear status when connection type changes
                         }}
-                        className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base border border-gray-600 rounded-lg bg-[#2d2d2f] text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#10a37f] focus:border-[#10a37f] transition-all duration-200 hover:border-gray-500 cursor-pointer"
+                        className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base border border-[var(--input-border)] rounded-lg bg-[var(--surface-hover)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--green)] focus:border-[var(--green)] transition-all duration-200 hover:border-[var(--border-hover)] cursor-pointer"
                       >
                         <option value="http">HTTP</option>
                         <option value="sse">SSE (Server-Sent Events)</option>
                         <option value="stdio">STDIO (Command)</option>
                       </select>
-                      <div className="mt-2 p-2.5 bg-[#2d2d2f] rounded-lg border border-gray-700">
-                        <p className="text-xs text-gray-400 flex items-start gap-2">
-                          <span className="text-[#10a37f] mt-0.5">ℹ️</span>
+                      <div className="mt-2 p-2.5 bg-[var(--surface-hover)] rounded-lg border border-[var(--border)]">
+                        <p className="text-xs text-[var(--text-secondary)] flex items-start gap-2">
+                          <span className="text-[var(--green)] mt-0.5">ℹ️</span>
                           <span>
                             {serverForm.connection_type === "stdio"
                               ? "Enter the command to run (e.g., 'npx @modelcontextprotocol/server-filesystem /path')"
@@ -1067,7 +1069,7 @@ export default function SettingsPanel({
                       </div>
                     </div>
                     <div>
-                      <label className="block text-xs sm:text-sm font-medium mb-1.5 sm:mb-2 text-gray-300">
+                      <label className="block text-xs sm:text-sm font-medium mb-1.5 sm:mb-2 text-[var(--text-primary)]">
                         <span className="flex items-center gap-2">
                           <span>
                             {serverForm.connection_type === "stdio"
@@ -1084,7 +1086,7 @@ export default function SettingsPanel({
                           setServerForm({ ...serverForm, url: e.target.value });
                           setConnectionStatus(null); // Clear status when URL changes
                         }}
-                        className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base border border-gray-600 rounded-lg bg-[#2d2d2f] text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#10a37f] focus:border-[#10a37f] transition-all duration-200 hover:border-gray-500 font-mono"
+                        className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base border border-[var(--input-border)] rounded-lg bg-[var(--surface-hover)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--green)] focus:border-[var(--green)] transition-all duration-200 hover:border-[var(--border-hover)] font-mono"
                         placeholder={
                           serverForm.connection_type === "stdio"
                             ? "npx @modelcontextprotocol/server-filesystem /path"
@@ -1095,9 +1097,9 @@ export default function SettingsPanel({
                       />
                     </div>
                     <div>
-                      <label className="block text-xs sm:text-sm font-medium mb-1.5 sm:mb-2 text-gray-300">
+                      <label className="block text-xs sm:text-sm font-medium mb-1.5 sm:mb-2 text-[var(--text-primary)]">
                         API Key{" "}
-                        <span className="text-gray-500 font-normal">
+                        <span className="text-[var(--text-secondary)] font-normal">
                           (optional)
                         </span>
                       </label>
@@ -1111,17 +1113,17 @@ export default function SettingsPanel({
                           });
                           setConnectionStatus(null); // Clear status when API key changes
                         }}
-                        className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base border border-gray-600 rounded-lg bg-[#2d2d2f] text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#10a37f] focus:border-[#10a37f] transition-all duration-200 hover:border-gray-500"
+                        className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base border border-[var(--input-border)] rounded-lg bg-[var(--surface-hover)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--green)] focus:border-[var(--green)] transition-all duration-200 hover:border-[var(--border-hover)]"
                         placeholder="Enter API key if required"
                       />
                     </div>
 
                     {/* Authentication Section */}
-                    <div className="border-t border-gray-700 pt-4 mt-4">
+                    <div className="border-t border-[var(--border)] pt-4 mt-4">
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-2">
-                          <Lock className="w-4 h-4 text-gray-400" />
-                          <h4 className="text-sm font-semibold text-gray-200">
+                          <Lock className="w-4 h-4 text-[var(--text-secondary)]" />
+                          <h4 className="text-sm font-semibold text-[var(--text-primary)]">
                             Custom Headers
                           </h4>
                         </div>
@@ -1130,7 +1132,7 @@ export default function SettingsPanel({
                       {/* Custom Headers */}
                       <div>
                         <div className="flex items-center justify-between mb-3">
-                          <label className="text-xs sm:text-sm font-medium text-gray-300">
+                          <label className="text-xs sm:text-sm font-medium text-[var(--text-primary)]">
                             Headers
                           </label>
                           <div className="flex gap-2">
@@ -1147,8 +1149,8 @@ export default function SettingsPanel({
                               }}
                               className={`px-3 py-1.5 text-xs border rounded-lg transition-colors flex items-center gap-1.5 ${
                                 headerJsonMode
-                                  ? "bg-[#10a37f] border-[#10a37f] text-white"
-                                  : "bg-[#40414f] border-gray-600 text-gray-300 hover:bg-[#2d2d2f]"
+                                  ? "bg-[var(--green)] border-[var(--green)] text-white"
+                                  : "bg-[var(--surface-elevated)] border-[var(--input-border)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
                               }`}
                             >
                               <FileJson className="w-3.5 h-3.5" />
@@ -1166,7 +1168,7 @@ export default function SettingsPanel({
                                   ]);
                                 }
                               }}
-                              className="px-3 py-1.5 text-xs bg-[#40414f] border border-gray-600 text-gray-300 rounded-lg hover:bg-[#2d2d2f] transition-colors flex items-center gap-1.5"
+                              className="px-3 py-1.5 text-xs bg-[var(--surface-elevated)] border border-[var(--input-border)] text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-hover)] transition-colors flex items-center gap-1.5"
                             >
                               <Plus className="w-3.5 h-3.5" />
                               Add
@@ -1181,14 +1183,14 @@ export default function SettingsPanel({
                               onChange={(e) =>
                                 setHeaderJsonText(e.target.value)
                               }
-                              className="w-full px-3 py-2 text-sm border border-gray-600 rounded-lg bg-[#343541] text-gray-100 font-mono focus:outline-none focus:ring-2 focus:ring-[#10a37f] focus:border-[#10a37f] min-h-[120px]"
+                              className="w-full px-3 py-2 text-sm border border-[var(--input-border)] rounded-lg bg-[var(--surface-elevated)] text-[var(--text-primary)] font-mono focus:outline-none focus:ring-2 focus:ring-[var(--green)] focus:border-[var(--green)] min-h-[120px]"
                               placeholder='{\n  "Authorization": "Bearer token",\n  "X-Custom-Header": "value"\n}'
                             />
                           </div>
                         ) : (
                           <div className="space-y-3">
                             {headerPairs.length === 0 ? (
-                              <div className="text-center py-4 text-sm text-gray-500">
+                              <div className="text-center py-4 text-sm text-[var(--text-secondary)]">
                                 No headers added. Click "+ Add" to add a header.
                               </div>
                             ) : (
@@ -1204,9 +1206,9 @@ export default function SettingsPanel({
                                           !newPairs[index].enabled;
                                         setHeaderPairs(newPairs);
                                       }}
-                                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#10a37f] focus:ring-offset-2 focus:ring-offset-[#343541] ${
+                                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--green)] focus:ring-offset-2 focus:ring-offset-[#343541] ${
                                         pair.enabled
-                                          ? "bg-[#10a37f]"
+                                          ? "bg-[var(--green)]"
                                           : "bg-gray-600"
                                       }`}
                                       role="switch"
@@ -1230,7 +1232,7 @@ export default function SettingsPanel({
                                         newPairs[index].key = e.target.value;
                                         setHeaderPairs(newPairs);
                                       }}
-                                      className="flex-1 px-3 py-2 text-sm border border-gray-600 rounded-lg bg-[#343541] text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#10a37f] focus:border-[#10a37f]"
+                                      className="flex-1 px-3 py-2 text-sm border border-[var(--input-border)] rounded-lg bg-[var(--surface-elevated)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--green)] focus:border-[var(--green)]"
                                       placeholder="Header Name"
                                     />
 
@@ -1245,7 +1247,7 @@ export default function SettingsPanel({
                                           newPairs.length > 0 ? newPairs : []
                                         );
                                       }}
-                                      className="p-2 text-gray-400 hover:text-red-400 transition-colors"
+                                      className="p-2 text-[var(--text-secondary)] hover:text-red-400 transition-colors"
                                       aria-label="Remove header"
                                     >
                                       <Trash2 className="w-4 h-4" />
@@ -1266,7 +1268,7 @@ export default function SettingsPanel({
                                         newPairs[index].value = e.target.value;
                                         setHeaderPairs(newPairs);
                                       }}
-                                      className="flex-1 px-3 py-2 text-sm border border-gray-600 rounded-lg bg-[#343541] text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#10a37f] focus:border-[#10a37f]"
+                                      className="flex-1 px-3 py-2 text-sm border border-[var(--input-border)] rounded-lg bg-[var(--surface-elevated)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--green)] focus:border-[var(--green)]"
                                       placeholder="Header Value"
                                     />
                                     <button
@@ -1277,7 +1279,7 @@ export default function SettingsPanel({
                                           [index]: !headerVisibility[index],
                                         });
                                       }}
-                                      className="p-2 text-gray-400 hover:text-gray-200 transition-colors"
+                                      className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                                       aria-label={
                                         headerVisibility[index]
                                           ? "Hide value"
@@ -1297,7 +1299,7 @@ export default function SettingsPanel({
                           </div>
                         )}
 
-                        <p className="text-xs text-gray-500 mt-3">
+                        <p className="text-xs text-[var(--text-secondary)] mt-3">
                           Use the toggle to enable/disable headers. Only enabled
                           headers with both name and value will be sent.
                         </p>
@@ -1343,7 +1345,7 @@ export default function SettingsPanel({
                       <button
                         onClick={handleTestConnection}
                         disabled={!serverForm.url.trim() || testingConnection}
-                        className="px-4 py-2.5 bg-[#40414f] hover:bg-[#2d2d2f] disabled:opacity-50 disabled:cursor-not-allowed text-gray-300 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 font-medium text-sm sm:text-base touch-manipulation hover:scale-[1.02] active:scale-[0.98] border border-gray-600 hover:border-gray-500"
+                        className="px-4 py-2.5 bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] disabled:opacity-50 disabled:cursor-not-allowed text-[var(--text-primary)] rounded-lg transition-all duration-200 flex items-center justify-center gap-2 font-medium text-sm sm:text-base touch-manipulation hover:scale-[1.02] active:scale-[0.98] border border-[var(--input-border)] hover:border-[var(--border-hover)]"
                       >
                         {testingConnection ? (
                           <>
@@ -1364,7 +1366,7 @@ export default function SettingsPanel({
                             : handleAddServer()
                         }
                         disabled={testingConnection}
-                        className="flex-1 px-4 py-2.5 bg-[#10a37f] hover:bg-[#0d8f6e] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-all duration-200 flex items-center justify-center gap-2 font-medium text-sm sm:text-base touch-manipulation hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl shadow-[#10a37f]/20"
+                        className="flex-1 px-4 py-2.5 bg-[var(--green)] hover:bg-[var(--green-hover)] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-all duration-200 flex items-center justify-center gap-2 font-medium text-sm sm:text-base touch-manipulation hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl shadow-[#10a37f]/20"
                       >
                         {testingConnection ? (
                           <>
@@ -1402,7 +1404,7 @@ export default function SettingsPanel({
                             setConnectionStatus(null);
                           }}
                           disabled={testingConnection}
-                          className="w-full sm:w-auto px-4 py-2.5 bg-[#40414f] hover:bg-[#2d2d2f] disabled:opacity-50 disabled:cursor-not-allowed text-gray-300 rounded-lg transition-colors font-medium text-sm sm:text-base touch-manipulation"
+                          className="w-full sm:w-auto px-4 py-2.5 bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] disabled:opacity-50 disabled:cursor-not-allowed text-[var(--text-primary)] rounded-lg transition-colors font-medium text-sm sm:text-base touch-manipulation"
                         >
                           Cancel
                         </button>
@@ -1414,14 +1416,14 @@ export default function SettingsPanel({
                 {/* Configured Servers List */}
                 <div>
                   <div className="flex items-center gap-3 mb-4 sm:mb-5">
-                    <div className="p-2 bg-[#10a37f]/10 rounded-lg">
-                      <Server className="w-5 h-5 text-[#10a37f]" />
+                    <div className="p-2 bg-[var(--green)]/10 rounded-lg">
+                      <Server className="w-5 h-5 text-[var(--green)]" />
                     </div>
                     <div>
-                      <h3 className="text-base sm:text-lg font-semibold text-gray-200">
+                      <h3 className="text-base sm:text-lg font-semibold text-[var(--text-primary)]">
                         Configured Servers
                       </h3>
-                      <p className="text-xs text-gray-500 mt-0.5">
+                      <p className="text-xs text-[var(--text-secondary)] mt-0.5">
                         {mcpServers.length} server
                         {mcpServers.length !== 1 ? "s" : ""} configured
                       </p>
@@ -1429,14 +1431,14 @@ export default function SettingsPanel({
                   </div>
                   <div className="space-y-2">
                     {mcpServers.length === 0 ? (
-                      <div className="text-center py-12 sm:py-16 px-3 sm:px-4 bg-gradient-to-br from-[#40414f] to-[#343541] rounded-xl border-2 border-dashed border-gray-700">
-                        <div className="p-4 bg-[#2d2d2f] rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                          <Server className="w-8 h-8 text-gray-500" />
+                      <div className="text-center py-12 sm:py-16 px-3 sm:px-4 bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] rounded-xl border-2 border-dashed border-[var(--border)]">
+                        <div className="p-4 bg-[var(--surface-hover)] rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                          <Server className="w-8 h-8 text-[var(--text-secondary)]" />
                         </div>
-                        <p className="text-sm sm:text-base font-medium text-gray-300 mb-1">
+                        <p className="text-sm sm:text-base font-medium text-[var(--text-primary)] mb-1">
                           No MCP servers configured
                         </p>
-                        <p className="text-xs sm:text-sm text-gray-500">
+                        <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
                           Add a server above to get started
                         </p>
                       </div>
@@ -1444,21 +1446,21 @@ export default function SettingsPanel({
                       mcpServers.map((server) => (
                         <div
                           key={server.name}
-                          className="flex items-center justify-between p-4 sm:p-5 bg-gradient-to-br from-[#40414f] to-[#343541] border border-gray-700 rounded-xl hover:border-[#10a37f]/50 transition-all duration-200 hover:shadow-lg hover:shadow-[#10a37f]/10 group"
+                          className="flex items-center justify-between p-4 sm:p-5 bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] border border-[var(--border)] rounded-xl hover:border-[var(--green)]/50 transition-all duration-200 hover:shadow-lg hover:shadow-[#10a37f]/10 group"
                         >
                           <div className="flex-1 min-w-0 pr-2">
-                            <div className="font-medium text-sm sm:text-base text-gray-200 mb-1 truncate">
+                            <div className="font-medium text-sm sm:text-base text-[var(--text-primary)] mb-1 truncate">
                               {server.name}
                             </div>
-                            <div className="text-xs sm:text-sm text-gray-400 truncate">
+                            <div className="text-xs sm:text-sm text-[var(--text-secondary)] truncate">
                               {server.url}
                             </div>
                             <div className="flex items-center gap-2 mt-1">
-                              <span className="text-xs text-gray-500">
+                              <span className="text-xs text-[var(--text-secondary)]">
                                 Type: {server.connection_type || "http"}
                               </span>
                               {server.has_api_key && (
-                                <span className="text-xs text-gray-500">
+                                <span className="text-xs text-[var(--text-secondary)]">
                                   🔒 API key configured
                                 </span>
                               )}
@@ -1475,11 +1477,11 @@ export default function SettingsPanel({
                                 }
                                 startEditServer(server);
                               }}
-                              className="p-1.5 sm:p-2 hover:bg-[#343541] rounded-lg transition-colors touch-manipulation"
+                              className="p-1.5 sm:p-2 hover:bg-[var(--surface-elevated)] rounded-lg transition-colors touch-manipulation"
                               aria-label={`Edit ${server.name}`}
                               type="button"
                             >
-                              <Edit2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 hover:text-[#10a37f]" />
+                              <Edit2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--text-secondary)] hover:text-[var(--green)]" />
                             </button>
                             <button
                               onClick={(e) => {
@@ -1509,9 +1511,9 @@ export default function SettingsPanel({
             {/* LLM Config tab disabled - commented out to avoid TypeScript errors */}
             {/* {activeTab === 'llm' && (
                             <div className="space-y-4 sm:space-y-5 md:space-y-6">
-                                <div className="bg-[#40414f] rounded-lg p-4 sm:p-5 border border-gray-700">
-                                    <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-200">LLM Configuration</h3>
-                                    <p className="text-gray-400">LLM configuration is disabled. The system uses a fixed OpenAI GPT (gpt-4o) configuration.</p>
+                                <div className="bg-[var(--surface-elevated)] rounded-lg p-4 sm:p-5 border border-[var(--border)]">
+                                    <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-[var(--text-primary)]">LLM Configuration</h3>
+                                    <p className="text-[var(--text-secondary)]">LLM configuration is disabled. The system uses a fixed OpenAI GPT (gpt-4o) configuration.</p>
                                 </div>
                             </div>
                         )} */}
@@ -1519,14 +1521,14 @@ export default function SettingsPanel({
             {activeTab === "tools" && (
               <div className="space-y-4 sm:space-y-5 md:space-y-6">
                 <div className="flex items-center gap-3 mb-4 sm:mb-5">
-                  <div className="p-2 bg-[#10a37f]/10 rounded-lg">
-                    <Wrench className="w-5 h-5 text-[#10a37f]" />
+                  <div className="p-2 bg-[var(--green)]/10 rounded-lg">
+                    <Wrench className="w-5 h-5 text-[var(--green)]" />
                   </div>
                   <div>
-                    <h3 className="text-base sm:text-lg font-semibold text-gray-200">
+                    <h3 className="text-base sm:text-lg font-semibold text-[var(--text-primary)]">
                       Available Tools
                     </h3>
-                    <p className="text-xs text-gray-500 mt-0.5">
+                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">
                       Manage and view available tools from MCP servers
                     </p>
                   </div>
@@ -1534,23 +1536,23 @@ export default function SettingsPanel({
                 {toolsInfo ? (
                   <div className="space-y-4 sm:space-y-5 md:space-y-6">
                     <div>
-                      <h4 className="font-medium mb-3 sm:mb-4 text-sm sm:text-base text-gray-300 flex items-center gap-2">
-                        <Wrench className="w-4 h-4 shrink-0 text-[#10a37f]" />
+                      <h4 className="font-medium mb-3 sm:mb-4 text-sm sm:text-base text-[var(--text-primary)] flex items-center gap-2">
+                        <Wrench className="w-4 h-4 shrink-0 text-[var(--green)]" />
                         <span>Local Tools</span>
-                        <span className="text-xs text-gray-500 font-normal">
+                        <span className="text-xs text-[var(--text-secondary)] font-normal">
                           ({toolsInfo.local_tools.length})
                         </span>
                       </h4>
                       <div className="space-y-2">
                         {toolsInfo.local_tools.length === 0 ? (
-                          <div className="text-center py-8 sm:py-12 px-3 sm:px-4 bg-gradient-to-br from-[#40414f] to-[#343541] rounded-xl border-2 border-dashed border-gray-700">
-                            <div className="p-4 bg-[#2d2d2f] rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                              <Wrench className="w-8 h-8 text-gray-500" />
+                          <div className="text-center py-8 sm:py-12 px-3 sm:px-4 bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] rounded-xl border-2 border-dashed border-[var(--border)]">
+                            <div className="p-4 bg-[var(--surface-hover)] rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                              <Wrench className="w-8 h-8 text-[var(--text-secondary)]" />
                             </div>
-                            <p className="text-sm sm:text-base font-medium text-gray-300 mb-1">
+                            <p className="text-sm sm:text-base font-medium text-[var(--text-primary)] mb-1">
                               No local tools available
                             </p>
-                            <p className="text-xs sm:text-sm text-gray-500">
+                            <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
                               Local tools will appear here when configured
                             </p>
                           </div>
@@ -1558,20 +1560,20 @@ export default function SettingsPanel({
                           toolsInfo.local_tools.map((tool) => (
                             <div
                               key={tool.name}
-                              className="p-4 sm:p-5 bg-gradient-to-br from-[#40414f] to-[#343541] border border-gray-700 rounded-xl hover:border-[#10a37f]/50 transition-all duration-200 hover:shadow-lg hover:shadow-[#10a37f]/10"
+                              className="p-4 sm:p-5 bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] border border-[var(--border)] rounded-xl hover:border-[var(--green)]/50 transition-all duration-200 hover:shadow-lg hover:shadow-[#10a37f]/10"
                             >
                               <div className="flex items-start gap-3">
-                                <div className="p-2 bg-[#10a37f]/10 rounded-lg shrink-0">
-                                  <Wrench className="w-4 h-4 text-[#10a37f]" />
+                                <div className="p-2 bg-[var(--green)]/10 rounded-lg shrink-0">
+                                  <Wrench className="w-4 h-4 text-[var(--green)]" />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <div className="font-semibold text-sm sm:text-base text-gray-200 mb-1">
+                                  <div className="font-semibold text-sm sm:text-base text-[var(--text-primary)] mb-1">
                                     {tool.name}
                                   </div>
-                                  <div className="text-xs sm:text-sm text-gray-400 mb-2 leading-relaxed">
+                                  <div className="text-xs sm:text-sm text-[var(--text-secondary)] mb-2 leading-relaxed">
                                     {tool.description}
                                   </div>
-                                  <div className="inline-flex items-center px-2 py-1 bg-[#2d2d2f] rounded-md text-xs text-gray-500 border border-gray-700">
+                                  <div className="inline-flex items-center px-2 py-1 bg-[var(--surface-hover)] rounded-md text-xs text-[var(--text-secondary)] border border-[var(--border)]">
                                     Type: {tool.type}
                                   </div>
                                 </div>
@@ -1587,14 +1589,14 @@ export default function SettingsPanel({
                       <div>
                         <div className="flex items-center justify-between mb-3 sm:mb-4">
                           <div className="flex-1">
-                            <h4 className="font-medium text-sm sm:text-base text-gray-300 flex items-center gap-2 mb-1">
-                              <FileJson className="w-4 h-4 shrink-0 text-[#10a37f]" />
+                            <h4 className="font-medium text-sm sm:text-base text-[var(--text-primary)] flex items-center gap-2 mb-1">
+                              <FileJson className="w-4 h-4 shrink-0 text-[var(--green)]" />
                               <span>Custom RAG Tools</span>
-                              <span className="text-xs text-gray-500 font-normal">
+                              <span className="text-xs text-[var(--text-secondary)] font-normal">
                                 ({customRAGTools.length})
                               </span>
                             </h4>
-                            <p className="text-xs text-gray-500 ml-6">
+                            <p className="text-xs text-[var(--text-secondary)] ml-6">
                               Supported file types: PDF, TXT, DOCX, DOC, MD (Max
                               100MB)
                             </p>
@@ -1610,7 +1612,7 @@ export default function SettingsPanel({
                                 enabled: true,
                               });
                             }}
-                            className="flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium text-white bg-[#10a37f] hover:bg-[#0d8f6e] rounded-lg transition-colors touch-manipulation active:scale-95"
+                            className="flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium text-white bg-[var(--green)] hover:bg-[var(--green-hover)] rounded-lg transition-colors touch-manipulation active:scale-95"
                           >
                             <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
                             <span className="hidden sm:inline">Add Tool</span>
@@ -1619,22 +1621,22 @@ export default function SettingsPanel({
                         </div>
                         <div className="space-y-2">
                           {customRAGTools.length === 0 ? (
-                            <div className="text-center py-8 sm:py-12 px-3 sm:px-4 bg-gradient-to-br from-[#40414f] to-[#343541] rounded-xl border-2 border-dashed border-gray-700">
-                              <div className="p-4 bg-[#2d2d2f] rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                                <FileJson className="w-8 h-8 text-gray-500" />
+                            <div className="text-center py-8 sm:py-12 px-3 sm:px-4 bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] rounded-xl border-2 border-dashed border-[var(--border)]">
+                              <div className="p-4 bg-[var(--surface-hover)] rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                                <FileJson className="w-8 h-8 text-[var(--text-secondary)]" />
                               </div>
-                              <p className="text-sm sm:text-base font-medium text-gray-300 mb-1">
+                              <p className="text-sm sm:text-base font-medium text-[var(--text-primary)] mb-1">
                                 No custom RAG tools
                               </p>
-                              <p className="text-xs sm:text-sm text-gray-500 mb-2">
+                              <p className="text-xs sm:text-sm text-[var(--text-secondary)] mb-2">
                                 Create custom retrieval tools from your document
                                 collections
                               </p>
-                              <div className="text-xs text-gray-500 mb-4 px-4 py-2 bg-[#2d2d2f] rounded-lg border border-gray-700">
-                                <p className="font-medium text-gray-400 mb-1">
+                              <div className="text-xs text-[var(--text-secondary)] mb-4 px-4 py-2 bg-[var(--surface-hover)] rounded-lg border border-[var(--border)]">
+                                <p className="font-medium text-[var(--text-secondary)] mb-1">
                                   Supported File Types:
                                 </p>
-                                <ul className="list-disc list-inside space-y-0.5 text-gray-500">
+                                <ul className="list-disc list-inside space-y-0.5 text-[var(--text-secondary)]">
                                   <li>PDF (.pdf) — PDF files</li>
                                   <li>TXT (.txt) — Plain text files</li>
                                   <li>
@@ -1643,7 +1645,7 @@ export default function SettingsPanel({
                                   <li>DOC (.doc) — Older Word documents</li>
                                   <li>MD (.md) — Markdown files</li>
                                 </ul>
-                                <p className="mt-2 text-gray-400">
+                                <p className="mt-2 text-[var(--text-secondary)]">
                                   Maximum file size: 100MB per file
                                 </p>
                               </div>
@@ -1658,7 +1660,7 @@ export default function SettingsPanel({
                                     enabled: true,
                                   });
                                 }}
-                                className="px-4 py-2 text-sm font-medium text-white bg-[#10a37f] hover:bg-[#0d8f6e] rounded-lg transition-colors"
+                                className="px-4 py-2 text-sm font-medium text-white bg-[var(--green)] hover:bg-[var(--green-hover)] rounded-lg transition-colors"
                               >
                                 Create Your First Tool
                               </button>
@@ -1667,23 +1669,23 @@ export default function SettingsPanel({
                             customRAGTools.map((tool) => (
                               <div
                                 key={tool.id}
-                                className="p-4 sm:p-5 bg-gradient-to-br from-[#40414f] to-[#343541] border border-gray-700 rounded-xl hover:border-[#10a37f]/50 transition-all duration-200 hover:shadow-lg hover:shadow-[#10a37f]/10"
+                                className="p-4 sm:p-5 bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] border border-[var(--border)] rounded-xl hover:border-[var(--green)]/50 transition-all duration-200 hover:shadow-lg hover:shadow-[#10a37f]/10"
                               >
                                 <div className="flex items-start gap-3">
-                                  <div className="p-2 bg-[#10a37f]/10 rounded-lg shrink-0">
-                                    <FileJson className="w-4 h-4 text-[#10a37f]" />
+                                  <div className="p-2 bg-[var(--green)]/10 rounded-lg shrink-0">
+                                    <FileJson className="w-4 h-4 text-[var(--green)]" />
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-start justify-between gap-2 mb-2">
                                       <div className="flex-1">
-                                        <div className="font-semibold text-sm sm:text-base text-gray-200 mb-1">
+                                        <div className="font-semibold text-sm sm:text-base text-[var(--text-primary)] mb-1">
                                           {tool.name}
                                         </div>
-                                        <div className="text-xs sm:text-sm text-gray-400 mb-2 leading-relaxed">
+                                        <div className="text-xs sm:text-sm text-[var(--text-secondary)] mb-2 leading-relaxed">
                                           {tool.description}
                                         </div>
                                         {tool.collection_id && (
-                                          <div className="text-xs text-gray-500 mb-2">
+                                          <div className="text-xs text-[var(--text-secondary)] mb-2">
                                             Collection:{" "}
                                             {collections.find(
                                               (c) => c.id === tool.collection_id
@@ -1691,7 +1693,7 @@ export default function SettingsPanel({
                                           </div>
                                         )}
                                         <div className="flex items-center gap-2">
-                                          <div className="inline-flex items-center px-2 py-1 bg-[#2d2d2f] rounded-md text-xs text-gray-500 border border-gray-700">
+                                          <div className="inline-flex items-center px-2 py-1 bg-[var(--surface-hover)] rounded-md text-xs text-[var(--text-secondary)] border border-[var(--border)]">
                                             Type: RAG
                                           </div>
                                           <div
@@ -1736,7 +1738,7 @@ export default function SettingsPanel({
                                           className={`p-2 rounded-lg transition-colors ${
                                             tool.enabled
                                               ? "bg-green-500/10 text-green-400 hover:bg-green-500/20"
-                                              : "bg-gray-700 text-gray-400 hover:bg-gray-600"
+                                              : "bg-gray-700 text-[var(--text-secondary)] hover:bg-gray-600"
                                           }`}
                                           title={
                                             tool.enabled ? "Disable" : "Enable"
@@ -1759,7 +1761,7 @@ export default function SettingsPanel({
                                             });
                                             setShowToolForm(true);
                                           }}
-                                          className="p-2 rounded-lg bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors"
+                                          className="p-2 rounded-lg bg-gray-700 text-[var(--text-primary)] hover:bg-gray-600 transition-colors"
                                           title="Edit"
                                         >
                                           <Edit2 className="w-4 h-4" />
@@ -1785,23 +1787,23 @@ export default function SettingsPanel({
                     )}
 
                     <div>
-                      <h4 className="font-medium mb-3 sm:mb-4 text-sm sm:text-base text-gray-300 flex items-center gap-2">
-                        <Server className="w-4 h-4 shrink-0 text-[#10a37f]" />
+                      <h4 className="font-medium mb-3 sm:mb-4 text-sm sm:text-base text-[var(--text-primary)] flex items-center gap-2">
+                        <Server className="w-4 h-4 shrink-0 text-[var(--green)]" />
                         <span>MCP Servers</span>
-                        <span className="text-xs text-gray-500 font-normal">
+                        <span className="text-xs text-[var(--text-secondary)] font-normal">
                           ({mcpServers.length})
                         </span>
                       </h4>
                       <div className="space-y-2">
                         {mcpServers.length === 0 ? (
-                          <div className="text-center py-8 sm:py-12 px-3 sm:px-4 bg-gradient-to-br from-[#40414f] to-[#343541] rounded-xl border-2 border-dashed border-gray-700">
-                            <div className="p-4 bg-[#2d2d2f] rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                              <Server className="w-8 h-8 text-gray-500" />
+                          <div className="text-center py-8 sm:py-12 px-3 sm:px-4 bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] rounded-xl border-2 border-dashed border-[var(--border)]">
+                            <div className="p-4 bg-[var(--surface-hover)] rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                              <Server className="w-8 h-8 text-[var(--text-secondary)]" />
                             </div>
-                            <p className="text-sm sm:text-base font-medium text-gray-300 mb-1">
+                            <p className="text-sm sm:text-base font-medium text-[var(--text-primary)] mb-1">
                               No MCP servers configured
                             </p>
-                            <p className="text-xs sm:text-sm text-gray-500">
+                            <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
                               Configure MCP servers in the MCP Servers tab
                             </p>
                           </div>
@@ -1809,16 +1811,16 @@ export default function SettingsPanel({
                           mcpServers.map((server) => (
                             <div
                               key={server.name}
-                              className="p-4 sm:p-5 bg-gradient-to-br from-[#40414f] to-[#343541] border border-gray-700 rounded-xl hover:border-[#10a37f]/50 transition-all duration-200 hover:shadow-lg hover:shadow-[#10a37f]/10 flex items-center justify-between gap-3"
+                              className="p-4 sm:p-5 bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] border border-[var(--border)] rounded-xl hover:border-[var(--green)]/50 transition-all duration-200 hover:shadow-lg hover:shadow-[#10a37f]/10 flex items-center justify-between gap-3"
                             >
                               <div className="flex-1 min-w-0">
-                                <div className="font-medium text-sm sm:text-base text-gray-200 mb-1 truncate">
+                                <div className="font-medium text-sm sm:text-base text-[var(--text-primary)] mb-1 truncate">
                                   {server.name}
                                 </div>
-                                <div className="text-xs sm:text-sm text-gray-400 mb-2 truncate">
+                                <div className="text-xs sm:text-sm text-[var(--text-secondary)] mb-2 truncate">
                                   {server.url}
                                 </div>
-                                <div className="text-xs text-gray-500">
+                                <div className="text-xs text-[var(--text-secondary)]">
                                   Status:{" "}
                                   <span
                                     className={
@@ -1866,7 +1868,7 @@ export default function SettingsPanel({
                                   }}
                                   className="sr-only peer"
                                 />
-                                <div className="w-10 h-5 sm:w-11 sm:h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[#10a37f] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 sm:after:h-5 sm:after:w-5 after:transition-all peer-checked:bg-[#10a37f] touch-manipulation"></div>
+                                <div className="w-10 h-5 sm:w-11 sm:h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[var(--green)] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 sm:after:h-5 sm:after:w-5 after:transition-all peer-checked:bg-[var(--green)] touch-manipulation"></div>
                               </label>
                             </div>
                           ))
@@ -1875,8 +1877,8 @@ export default function SettingsPanel({
                     </div>
                   </div>
                 ) : (
-                  <div className="text-center py-8 sm:py-12 text-gray-500">
-                    <Loader2 className="w-6 h-6 sm:w-8 sm:h-8 animate-spin mx-auto mb-2 text-[#10a37f]" />
+                  <div className="text-center py-8 sm:py-12 text-[var(--text-secondary)]">
+                    <Loader2 className="w-6 h-6 sm:w-8 sm:h-8 animate-spin mx-auto mb-2 text-[var(--green)]" />
                     <p className="text-xs sm:text-sm">
                       Loading tools information...
                     </p>
@@ -1888,14 +1890,14 @@ export default function SettingsPanel({
             {activeTab === "rag" && isAuthenticated && (
               <div className="space-y-4 sm:space-y-5 md:space-y-6">
                 {/* ReAct Mode Toggle */}
-                <div className="p-4 border border-gray-700 rounded-xl bg-gradient-to-br from-[#40414f] to-[#343541]">
+                <div className="p-4 border border-[var(--border)] rounded-xl bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)]">
                   <div className="flex items-center justify-between">
                     <div>
-                      <label className="text-sm font-medium text-gray-200 flex items-center gap-2">
-                        <Brain className="w-4 h-4 text-[#10a37f]" />
+                      <label className="text-sm font-medium text-[var(--text-primary)] flex items-center gap-2">
+                        <Brain className="w-4 h-4 text-[var(--green)]" />
                         ReAct Mode
                       </label>
-                      <p className="text-xs text-gray-400 mt-1">
+                      <p className="text-xs text-[var(--text-secondary)] mt-1">
                         Enable reasoning and acting for better problem-solving
                       </p>
                     </div>
@@ -1906,19 +1908,19 @@ export default function SettingsPanel({
                         onChange={(e) => handleUseReactChange(e.target.checked)}
                         className="sr-only peer"
                       />
-                      <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[#10a37f] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#10a37f]"></div>
+                      <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[var(--green)] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--green)]"></div>
                     </label>
                   </div>
                 </div>
 
                 {/* RAG Sub-tabs */}
-                <div className="flex border-b border-gray-700 bg-[#2d2d2f] rounded-t-lg overflow-x-auto">
+                <div className="flex border-b border-[var(--border)] bg-[var(--surface-hover)] rounded-t-lg overflow-x-auto">
                   <button
                     onClick={() => setRagActiveTab("documents")}
                     className={`px-4 py-3 font-medium text-sm transition-colors flex items-center gap-2 ${
                       ragActiveTab === "documents"
-                        ? "border-b-2 border-[#10a37f] text-[#10a37f] bg-[#343541]"
-                        : "text-gray-400 hover:text-gray-200"
+                        ? "border-b-2 border-[var(--green)] text-[var(--green)] bg-[var(--surface-elevated)]"
+                        : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                     }`}
                   >
                     <File className="w-4 h-4" />
@@ -1928,8 +1930,8 @@ export default function SettingsPanel({
                     onClick={() => setRagActiveTab("collections")}
                     className={`px-4 py-3 font-medium text-sm transition-colors flex items-center gap-2 ${
                       ragActiveTab === "collections"
-                        ? "border-b-2 border-[#10a37f] text-[#10a37f] bg-[#343541]"
-                        : "text-gray-400 hover:text-gray-200"
+                        ? "border-b-2 border-[var(--green)] text-[var(--green)] bg-[var(--surface-elevated)]"
+                        : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                     }`}
                   >
                     <Folder className="w-4 h-4" />
@@ -1939,8 +1941,8 @@ export default function SettingsPanel({
                     onClick={() => setRagActiveTab("review")}
                     className={`px-4 py-3 font-medium text-sm transition-colors flex items-center gap-2 relative ${
                       ragActiveTab === "review"
-                        ? "border-b-2 border-[#10a37f] text-[#10a37f] bg-[#343541]"
-                        : "text-gray-400 hover:text-gray-200"
+                        ? "border-b-2 border-[var(--green)] text-[var(--green)] bg-[var(--surface-elevated)]"
+                        : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                     }`}
                   >
                     <Eye className="w-4 h-4" />
@@ -1960,18 +1962,18 @@ export default function SettingsPanel({
                     <div
                       className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
                         isDragging
-                          ? "border-[#10a37f] bg-[#10a37f]/10"
-                          : "border-gray-600 bg-[#2d2d2f]/50"
+                          ? "border-[var(--green)] bg-[var(--green)]/10"
+                          : "border-[var(--input-border)] bg-[var(--surface-hover)]/50"
                       }`}
                       onDragOver={handleDragOver}
                       onDragLeave={handleDragLeave}
                       onDrop={handleDrop}
                     >
-                      <Upload className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                      <p className="text-gray-300 mb-2">
+                      <Upload className="w-12 h-12 mx-auto mb-4 text-[var(--text-secondary)]" />
+                      <p className="text-[var(--text-primary)] mb-2">
                         Drag and drop files here, or click to select
                       </p>
-                      <p className="text-sm text-gray-500 mb-4">
+                      <p className="text-sm text-[var(--text-secondary)] mb-4">
                         Supported: PDF, TXT, DOCX, DOC, MD (Max 100MB)
                       </p>
                       <input
@@ -1985,7 +1987,7 @@ export default function SettingsPanel({
                       />
                       <label
                         htmlFor="file-upload"
-                        className={`inline-block px-4 py-2 rounded bg-[#10a37f] text-white cursor-pointer hover:bg-[#0d8f6e] transition-colors ${
+                        className={`inline-block px-4 py-2 rounded bg-[var(--green)] text-white cursor-pointer hover:bg-[var(--green-hover)] transition-colors ${
                           isUploading ? "opacity-50 cursor-not-allowed" : ""
                         }`}
                       >
@@ -1995,7 +1997,7 @@ export default function SettingsPanel({
 
                     {/* Collection Filter */}
                     <div>
-                      <label className="block text-sm font-medium mb-2 text-gray-300">
+                      <label className="block text-sm font-medium mb-2 text-[var(--text-primary)]">
                         Filter by Collection
                       </label>
                       <select
@@ -2005,7 +2007,7 @@ export default function SettingsPanel({
                             e.target.value ? parseInt(e.target.value) : null
                           )
                         }
-                        className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-[#40414f] text-gray-100"
+                        className="w-full px-3 py-2 border border-[var(--input-border)] rounded-lg bg-[var(--surface-elevated)] text-[var(--text-primary)]"
                       >
                         <option value="">All Documents</option>
                         {ragCollections.map((col) => (
@@ -2019,22 +2021,22 @@ export default function SettingsPanel({
                     {/* Documents List */}
                     <div className="space-y-2">
                       {documents.length === 0 ? (
-                        <div className="text-center py-8 text-gray-500">
+                        <div className="text-center py-8 text-[var(--text-secondary)]">
                           No documents found
                         </div>
                       ) : (
                         documents.map((doc) => (
                           <div
                             key={doc.id}
-                            className="flex items-center justify-between p-4 bg-gradient-to-br from-[#40414f] to-[#343541] rounded-lg border border-gray-700"
+                            className="flex items-center justify-between p-4 bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] rounded-lg border border-[var(--border)]"
                           >
                             <div className="flex items-center gap-3 flex-1">
                               {getStatusIcon(doc.status)}
                               <div className="flex-1">
-                                <p className="text-gray-200 font-medium">
+                                <p className="text-[var(--text-primary)] font-medium">
                                   {doc.original_filename}
                                 </p>
-                                <p className="text-sm text-gray-400">
+                                <p className="text-sm text-[var(--text-secondary)]">
                                   {formatFileSize(doc.file_size)} •{" "}
                                   {doc.chunk_count} chunks • {doc.status}
                                 </p>
@@ -2075,8 +2077,8 @@ export default function SettingsPanel({
                 {ragActiveTab === "collections" && (
                   <div className="space-y-4">
                     {/* Create Collection */}
-                    <div className="bg-gradient-to-br from-[#40414f] to-[#343541] rounded-lg p-4 border border-gray-700">
-                      <h3 className="text-lg font-semibold mb-4 text-gray-200">
+                    <div className="bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] rounded-lg p-4 border border-[var(--border)]">
+                      <h3 className="text-lg font-semibold mb-4 text-[var(--text-primary)]">
                         Create Collection
                       </h3>
                       <div className="space-y-3">
@@ -2085,18 +2087,18 @@ export default function SettingsPanel({
                           value={newCollectionName}
                           onChange={(e) => setNewCollectionName(e.target.value)}
                           placeholder="Collection name"
-                          className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-[#343541] text-gray-100"
+                          className="w-full px-3 py-2 border border-[var(--input-border)] rounded-lg bg-[var(--surface-elevated)] text-[var(--text-primary)]"
                         />
                         <textarea
                           value={newCollectionDesc}
                           onChange={(e) => setNewCollectionDesc(e.target.value)}
                           placeholder="Description (optional)"
-                          className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-[#343541] text-gray-100"
+                          className="w-full px-3 py-2 border border-[var(--input-border)] rounded-lg bg-[var(--surface-elevated)] text-[var(--text-primary)]"
                           rows={2}
                         />
                         <button
                           onClick={handleCreateCollection}
-                          className="px-4 py-2 bg-[#10a37f] hover:bg-[#0d8f6e] text-white rounded-lg flex items-center gap-2"
+                          className="px-4 py-2 bg-[var(--green)] hover:bg-[var(--green-hover)] text-white rounded-lg flex items-center gap-2"
                         >
                           <Plus className="w-4 h-4" />
                           Create Collection
@@ -2107,25 +2109,25 @@ export default function SettingsPanel({
                     {/* Collections List */}
                     <div className="space-y-2">
                       {ragCollections.length === 0 ? (
-                        <div className="text-center py-8 text-gray-500">
+                        <div className="text-center py-8 text-[var(--text-secondary)]">
                           No collections found
                         </div>
                       ) : (
                         ragCollections.map((col) => (
                           <div
                             key={col.id}
-                            className="flex items-center justify-between p-4 bg-gradient-to-br from-[#40414f] to-[#343541] rounded-lg border border-gray-700"
+                            className="flex items-center justify-between p-4 bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] rounded-lg border border-[var(--border)]"
                           >
                             <div className="flex-1">
-                              <p className="text-gray-200 font-medium">
+                              <p className="text-[var(--text-primary)] font-medium">
                                 {col.name}
                               </p>
                               {col.description && (
-                                <p className="text-sm text-gray-400 mt-1">
+                                <p className="text-sm text-[var(--text-secondary)] mt-1">
                                   {col.description}
                                 </p>
                               )}
-                              <p className="text-xs text-gray-500 mt-1">
+                              <p className="text-xs text-[var(--text-secondary)] mt-1">
                                 {col.document_count} documents
                               </p>
                             </div>
@@ -2134,8 +2136,8 @@ export default function SettingsPanel({
                                 onClick={() => handleCollectionSelect(col.id)}
                                 className={`px-3 py-1 text-sm rounded ${
                                   currentCollectionId === col.id
-                                    ? "bg-[#10a37f] text-white"
-                                    : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                                    ? "bg-[var(--green)] text-white"
+                                    : "bg-gray-700 text-[var(--text-primary)] hover:bg-gray-600"
                                 }`}
                               >
                                 {currentCollectionId === col.id
@@ -2161,27 +2163,35 @@ export default function SettingsPanel({
                   <div className="space-y-4">
                     {/* Statistics */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div className="bg-gradient-to-br from-[#40414f] to-[#343541] rounded-lg p-4 border border-gray-700">
-                        <p className="text-sm text-gray-400">Pending</p>
-                        <p className="text-2xl font-bold text-gray-200">
+                      <div className="bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] rounded-lg p-4 border border-[var(--border)]">
+                        <p className="text-sm text-[var(--text-secondary)]">
+                          Pending
+                        </p>
+                        <p className="text-2xl font-bold text-[var(--text-primary)]">
                           {stats.pending}
                         </p>
                       </div>
-                      <div className="bg-gradient-to-br from-[#40414f] to-[#343541] rounded-lg p-4 border border-gray-700">
-                        <p className="text-sm text-gray-400">Needs Review</p>
+                      <div className="bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] rounded-lg p-4 border border-[var(--border)]">
+                        <p className="text-sm text-[var(--text-secondary)]">
+                          Needs Review
+                        </p>
                         <p className="text-2xl font-bold text-yellow-400">
                           {stats.needs_review}
                         </p>
                       </div>
-                      <div className="bg-gradient-to-br from-[#40414f] to-[#343541] rounded-lg p-4 border border-gray-700">
-                        <p className="text-sm text-gray-400">Ready</p>
+                      <div className="bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] rounded-lg p-4 border border-[var(--border)]">
+                        <p className="text-sm text-[var(--text-secondary)]">
+                          Ready
+                        </p>
                         <p className="text-2xl font-bold text-green-400">
                           {stats.ready}
                         </p>
                       </div>
-                      <div className="bg-gradient-to-br from-[#40414f] to-[#343541] rounded-lg p-4 border border-gray-700">
-                        <p className="text-sm text-gray-400">Total</p>
-                        <p className="text-2xl font-bold text-gray-200">
+                      <div className="bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] rounded-lg p-4 border border-[var(--border)]">
+                        <p className="text-sm text-[var(--text-secondary)]">
+                          Total
+                        </p>
+                        <p className="text-2xl font-bold text-[var(--text-primary)]">
                           {stats.total}
                         </p>
                       </div>
@@ -2190,21 +2200,21 @@ export default function SettingsPanel({
                     {/* Review Documents */}
                     <div className="space-y-2">
                       {reviewDocuments.length === 0 ? (
-                        <div className="text-center py-8 text-gray-500">
+                        <div className="text-center py-8 text-[var(--text-secondary)]">
                           No documents need review
                         </div>
                       ) : (
                         reviewDocuments.map((doc) => (
                           <div
                             key={doc.id}
-                            className="p-4 bg-gradient-to-br from-[#40414f] to-[#343541] rounded-lg border border-gray-700"
+                            className="p-4 bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] rounded-lg border border-[var(--border)]"
                           >
                             <div className="flex items-start justify-between mb-3">
                               <div className="flex-1">
-                                <p className="text-gray-200 font-medium">
+                                <p className="text-[var(--text-primary)] font-medium">
                                   {doc.original_filename}
                                 </p>
-                                <p className="text-sm text-gray-400 mt-1">
+                                <p className="text-sm text-[var(--text-secondary)] mt-1">
                                   {formatFileSize(doc.file_size)} •{" "}
                                   {doc.chunk_count} chunks
                                 </p>
@@ -2239,17 +2249,17 @@ export default function SettingsPanel({
       {/* Delete Server Confirmation Modal */}
       {deletingServer && (
         <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-[#343541] rounded-xl shadow-2xl max-w-md w-full border border-gray-700">
+          <div className="bg-[var(--surface-elevated)] rounded-xl shadow-2xl max-w-md w-full border border-[var(--border)]">
             <div className="p-4 sm:p-5 md:p-6">
               <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
                 <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
                   <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />
                 </div>
-                <h3 className="text-base sm:text-lg font-semibold text-gray-200">
+                <h3 className="text-base sm:text-lg font-semibold text-[var(--text-primary)]">
                   Delete MCP Server
                 </h3>
               </div>
-              <p className="text-sm sm:text-base text-gray-300 mb-4 sm:mb-6">
+              <p className="text-sm sm:text-base text-[var(--text-primary)] mb-4 sm:mb-6">
                 Are you sure you want to delete{" "}
                 <span className="font-medium text-white">{deletingServer}</span>
                 ? This action cannot be undone.
@@ -2257,7 +2267,7 @@ export default function SettingsPanel({
               <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end">
                 <button
                   onClick={() => setDeletingServer(null)}
-                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-[#40414f] rounded-lg transition-colors touch-manipulation"
+                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-sm font-medium text-[var(--text-primary)] hover:text-white hover:bg-[var(--surface-hover)] rounded-lg transition-colors touch-manipulation"
                 >
                   Cancel
                 </button>
@@ -2276,14 +2286,14 @@ export default function SettingsPanel({
       {/* Custom RAG Tool Form Modal */}
       {showToolForm && (
         <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-[#343541] rounded-xl shadow-2xl max-w-2xl w-full border border-gray-700 max-h-[90vh] overflow-y-auto">
+          <div className="bg-[var(--surface-elevated)] rounded-xl shadow-2xl max-w-2xl w-full border border-[var(--border)] max-h-[90vh] overflow-y-auto">
             <div className="p-4 sm:p-5 md:p-6">
               <div className="flex items-center justify-between mb-4 sm:mb-6">
                 <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[#10a37f]/20 flex items-center justify-center shrink-0">
-                    <FileJson className="w-4 h-4 sm:w-5 sm:h-5 text-[#10a37f]" />
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[var(--green)]/20 flex items-center justify-center shrink-0">
+                    <FileJson className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--green)]" />
                   </div>
-                  <h3 className="text-base sm:text-lg font-semibold text-gray-200">
+                  <h3 className="text-base sm:text-lg font-semibold text-[var(--text-primary)]">
                     {editingTool
                       ? "Edit Custom RAG Tool"
                       : "Create Custom RAG Tool"}
@@ -2300,15 +2310,15 @@ export default function SettingsPanel({
                       enabled: true,
                     });
                   }}
-                  className="p-2 hover:bg-[#40414f] rounded-lg transition-colors"
+                  className="p-2 hover:bg-[var(--surface-hover)] rounded-lg transition-colors"
                 >
-                  <X className="w-5 h-5 text-gray-400" />
+                  <X className="w-5 h-5 text-[var(--text-secondary)]" />
                 </button>
               </div>
 
               <div className="space-y-4 sm:space-y-5">
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                  <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
                     <span>Tool Name</span>
                     <span className="text-red-400 ml-1">*</span>
                   </label>
@@ -2319,15 +2329,15 @@ export default function SettingsPanel({
                       setToolForm({ ...toolForm, name: e.target.value })
                     }
                     placeholder="e.g., retrieve_my_docs"
-                    className="w-full px-4 py-2.5 bg-[#40414f] border border-gray-600 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#10a37f] focus:border-transparent"
+                    className="w-full px-4 py-2.5 bg-[var(--surface-elevated)] border border-[var(--input-border)] rounded-lg text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--green)] focus:border-transparent"
                   />
-                  <p className="mt-1.5 text-xs text-gray-500">
+                  <p className="mt-1.5 text-xs text-[var(--text-secondary)]">
                     Unique name for the tool (lowercase, underscores allowed)
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                  <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
                     <span>Description</span>
                     <span className="text-red-400 ml-1">*</span>
                   </label>
@@ -2338,16 +2348,16 @@ export default function SettingsPanel({
                     }
                     placeholder="Describe what this tool retrieves..."
                     rows={3}
-                    className="w-full px-4 py-2.5 bg-[#40414f] border border-gray-600 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#10a37f] focus:border-transparent resize-none"
+                    className="w-full px-4 py-2.5 bg-[var(--surface-elevated)] border border-[var(--input-border)] rounded-lg text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--green)] focus:border-transparent resize-none"
                   />
-                  <p className="mt-1.5 text-xs text-gray-500">
+                  <p className="mt-1.5 text-xs text-[var(--text-secondary)]">
                     This description helps the AI understand when to use this
                     tool
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                  <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
                     Collection (Optional)
                   </label>
                   <select
@@ -2360,7 +2370,7 @@ export default function SettingsPanel({
                           : null,
                       })
                     }
-                    className="w-full px-4 py-2.5 bg-[#40414f] border border-gray-600 rounded-lg text-gray-200 focus:outline-none focus:ring-2 focus:ring-[#10a37f] focus:border-transparent"
+                    className="w-full px-4 py-2.5 bg-[var(--surface-elevated)] border border-[var(--input-border)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--green)] focus:border-transparent"
                   >
                     <option value="">All Collections</option>
                     {collections.map((collection) => (
@@ -2369,24 +2379,24 @@ export default function SettingsPanel({
                       </option>
                     ))}
                   </select>
-                  <p className="mt-1.5 text-xs text-gray-500">
+                  <p className="mt-1.5 text-xs text-[var(--text-secondary)]">
                     Select a specific collection or leave blank to search all
                     documents
                   </p>
                 </div>
 
-                <div className="p-3 bg-[#2d2d2f] rounded-lg border border-gray-700">
-                  <p className="text-xs font-medium text-gray-400 mb-2">
+                <div className="p-3 bg-[var(--surface-hover)] rounded-lg border border-[var(--border)]">
+                  <p className="text-xs font-medium text-[var(--text-secondary)] mb-2">
                     📄 Supported Document Types:
                   </p>
-                  <ul className="text-xs text-gray-500 space-y-1 list-disc list-inside">
+                  <ul className="text-xs text-[var(--text-secondary)] space-y-1 list-disc list-inside">
                     <li>PDF (.pdf) — PDF files</li>
                     <li>TXT (.txt) — Plain text files</li>
                     <li>DOCX (.docx) — Microsoft Word documents</li>
                     <li>DOC (.doc) — Older Word documents</li>
                     <li>MD (.md) — Markdown files</li>
                   </ul>
-                  <p className="text-xs text-gray-500 mt-2">
+                  <p className="text-xs text-[var(--text-secondary)] mt-2">
                     💡 Upload documents in RAG Settings tab first, then create
                     tools to retrieve from them.
                   </p>
@@ -2400,11 +2410,11 @@ export default function SettingsPanel({
                     onChange={(e) =>
                       setToolForm({ ...toolForm, enabled: e.target.checked })
                     }
-                    className="w-4 h-4 text-[#10a37f] bg-[#40414f] border-gray-600 rounded focus:ring-[#10a37f] focus:ring-2"
+                    className="w-4 h-4 text-[var(--green)] bg-[var(--surface-elevated)] border-[var(--input-border)] rounded focus:ring-[var(--green)] focus:ring-2"
                   />
                   <label
                     htmlFor="tool-enabled"
-                    className="text-sm text-gray-300 cursor-pointer"
+                    className="text-sm text-[var(--text-primary)] cursor-pointer"
                   >
                     Enable this tool
                   </label>
@@ -2423,7 +2433,7 @@ export default function SettingsPanel({
                       enabled: true,
                     });
                   }}
-                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-[#40414f] rounded-lg transition-colors touch-manipulation"
+                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-sm font-medium text-[var(--text-primary)] hover:text-white hover:bg-[var(--surface-hover)] rounded-lg transition-colors touch-manipulation"
                 >
                   Cancel
                 </button>
@@ -2461,7 +2471,7 @@ export default function SettingsPanel({
                       );
                     }
                   }}
-                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-sm font-medium bg-[#10a37f] hover:bg-[#0d8f6e] text-white rounded-lg transition-colors touch-manipulation"
+                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-sm font-medium bg-[var(--green)] hover:bg-[var(--green-hover)] text-white rounded-lg transition-colors touch-manipulation"
                 >
                   {editingTool ? "Update Tool" : "Create Tool"}
                 </button>
@@ -2474,24 +2484,24 @@ export default function SettingsPanel({
       {/* Delete Custom RAG Tool Confirmation Modal */}
       {deletingTool && (
         <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-[#343541] rounded-xl shadow-2xl max-w-md w-full border border-gray-700">
+          <div className="bg-[var(--surface-elevated)] rounded-xl shadow-2xl max-w-md w-full border border-[var(--border)]">
             <div className="p-4 sm:p-5 md:p-6">
               <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
                 <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
                   <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />
                 </div>
-                <h3 className="text-base sm:text-lg font-semibold text-gray-200">
+                <h3 className="text-base sm:text-lg font-semibold text-[var(--text-primary)]">
                   Delete Custom RAG Tool
                 </h3>
               </div>
-              <p className="text-sm sm:text-base text-gray-300 mb-4 sm:mb-6">
+              <p className="text-sm sm:text-base text-[var(--text-primary)] mb-4 sm:mb-6">
                 Are you sure you want to delete this tool? This action cannot be
                 undone.
               </p>
               <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end">
                 <button
                   onClick={() => setDeletingTool(null)}
-                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-[#40414f] rounded-lg transition-colors touch-manipulation"
+                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-sm font-medium text-[var(--text-primary)] hover:text-white hover:bg-[var(--surface-hover)] rounded-lg transition-colors touch-manipulation"
                 >
                   Cancel
                 </button>
