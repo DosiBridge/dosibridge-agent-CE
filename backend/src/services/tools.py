@@ -85,7 +85,8 @@ def create_appointment_tool(user_id: Optional[int] = None, db=None) -> BaseTool:
                 except ValueError:
                     return f"Error: Invalid date format '{preferred_date}'. Use ISO format (YYYY-MM-DDTHH:MM:SS)."
             
-            # Create appointment request in database
+            # When called by AI agent, treat as confirmed and save directly
+            # (The human-in-the-loop confirmation is handled at the API level, not tool level)
             appointment = AppointmentRequest(
                 user_id=user_id,
                 name=name,
@@ -135,19 +136,19 @@ def create_appointment_tool(user_id: Optional[int] = None, db=None) -> BaseTool:
             
             result = (
                 f"✅ Appointment/contact request created successfully!\n\n"
-                f"Request ID: {appointment.id}\n"
-                f"Name: {name}\n"
-                f"Email: {email}\n"
-                f"Type: {request_type}\n"
-                f"Message: {message}\n"
+                f"**Request ID:** #{appointment.id}\n"
+                f"**Name:** {name}\n"
+                f"**Email:** {email}\n"
+                f"**Type:** {request_type}\n"
+                f"**Message:** {message}\n"
             )
             
             if preferred_date:
-                result += f"Preferred Date: {preferred_date}\n"
+                result += f"**Preferred Date:** {preferred_date}\n"
             if preferred_time:
-                result += f"Preferred Time: {preferred_time}\n"
+                result += f"**Preferred Time:** {preferred_time}\n"
             
-            result += f"\nThe DOSIBridge team will be notified and you will receive a confirmation email at {email}."
+            result += f"\nThe DOSIBridge team will be notified and a confirmation email will be sent to {email}."
             
             return result
         except Exception as e:
