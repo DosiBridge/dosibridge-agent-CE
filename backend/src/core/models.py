@@ -370,6 +370,47 @@ if Base is not None:
                 "created_at": self.created_at.isoformat() if self.created_at else None,
                 "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             }
+
+    class AppointmentRequest(Base):
+        """Appointment and contact request model"""
+        __tablename__ = "appointment_requests"
+        
+        id = Column(Integer, primary_key=True, index=True)
+        user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)  # Nullable for anonymous requests
+        name = Column(String(255), nullable=False)
+        email = Column(String(255), nullable=False, index=True)
+        phone = Column(String(50), nullable=True)
+        request_type = Column(String(50), nullable=False, default="appointment")  # "appointment", "contact", "support"
+        subject = Column(String(255), nullable=True)
+        message = Column(Text, nullable=False)
+        preferred_date = Column(DateTime(timezone=True), nullable=True)  # For appointments
+        preferred_time = Column(String(50), nullable=True)  # e.g., "morning", "afternoon", "evening", or specific time
+        status = Column(String(50), nullable=False, default="pending")  # "pending", "confirmed", "cancelled", "completed"
+        notes = Column(Text, nullable=True)  # Internal notes
+        created_at = Column(DateTime(timezone=True), server_default=func.now())
+        updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+        
+        # Relationship
+        user = relationship("User", backref="appointment_requests")
+        
+        def to_dict(self) -> dict:
+            """Convert model to dictionary"""
+            return {
+                "id": self.id,
+                "user_id": self.user_id,
+                "name": self.name,
+                "email": self.email,
+                "phone": self.phone,
+                "request_type": self.request_type,
+                "subject": self.subject,
+                "message": self.message,
+                "preferred_date": self.preferred_date.isoformat() if self.preferred_date else None,
+                "preferred_time": self.preferred_time,
+                "status": self.status,
+                "notes": self.notes,
+                "created_at": self.created_at.isoformat() if self.created_at else None,
+                "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            }
 else:
     # Dummy classes when database is not available
     LLMConfig = None  # type: ignore
@@ -381,3 +422,4 @@ else:
     Document = None  # type: ignore
     DocumentChunk = None  # type: ignore
     CustomRAGTool = None  # type: ignore
+    AppointmentRequest = None  # type: ignore

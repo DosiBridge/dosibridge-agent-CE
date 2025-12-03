@@ -350,6 +350,18 @@ export default function MessageBubble({
                       </p>
                     ),
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    a: ({ href, children, ...props }: any) => (
+                      <a
+                        href={href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[var(--green)] hover:text-[var(--green)]/80 underline transition-colors"
+                        {...props}
+                      >
+                        {children}
+                      </a>
+                    ),
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     code({ className, children, ...props }: any) {
                       const match = /language-(\w+)/.exec(className || "");
                       const language = match ? match[1] : "";

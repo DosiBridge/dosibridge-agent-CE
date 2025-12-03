@@ -9,7 +9,7 @@ from src.core import Config
 from .history import history_manager
 from .rag import rag_system
 from .mcp_client import MCPClientManager
-from .tools import retrieve_dosiblog_context, load_custom_rag_tools
+from .tools import retrieve_dosiblog_context, load_custom_rag_tools, create_appointment_tool
 
 
 async def run_agent_query(agent_executor, question: str, session_id: str = "default"):
@@ -127,8 +127,9 @@ async def run_agent_mode(
     # Note: If servers are unavailable, we'll continue with available ones
     try:
         async with MCPClientManager(mcp_servers) as mcp_tools:
-            # Combine with local DosiBlog RAG tool
-            all_tools = [retrieve_dosiblog_context] + mcp_tools
+            # Combine with local DosiBlog RAG tool and appointment tool
+            appointment_tool = create_appointment_tool(user_id=user_id, db=None)
+            all_tools = [retrieve_dosiblog_context, appointment_tool] + mcp_tools
             
             print(f"\n📦 Total tools available: {len(all_tools)}")
             print(f"   • Local RAG tools: 1 (DosiBlog)")
@@ -190,9 +191,11 @@ async def run_agent_mode(
         print(f"\n⚠️  MCP connection failed: {str(e)}")
         print("   Continuing with RAG-only mode...\n")
         
-        all_tools = [retrieve_dosiblog_context]
+        appointment_tool = create_appointment_tool(user_id=user_id, db=None)
+        all_tools = [retrieve_dosiblog_context, appointment_tool]
         print(f"📦 Total tools available: {len(all_tools)}")
         print(f"   • Local RAG tools: 1 (DosiBlog)")
+        print(f"   • Appointment tool: 1")
         print(f"   • Remote MCP tools: 0 (connection failed)\n")
         
         # Create agent with just RAG tool

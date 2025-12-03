@@ -16,7 +16,7 @@ from src.core import Config, User, get_db, DB_AVAILABLE
 from src.core.auth import get_current_active_user, get_current_user
 from src.services import history_manager, MCPClientManager, create_llm_from_config, rag_system
 from src.services.chat_service import ChatService
-from src.services.tools import retrieve_dosiblog_context, load_custom_rag_tools
+from src.services.tools import retrieve_dosiblog_context, load_custom_rag_tools, create_appointment_tool
 from typing import Optional
 from sqlalchemy.orm import Session
 from ..models import ChatRequest, ChatResponse
@@ -325,7 +325,9 @@ async def chat_stream(
                     mcp_tools = []
                     # Load custom RAG tools if authenticated
                     custom_rag_tools = load_custom_rag_tools(user_id, db) if user_id and db else []
-                    all_tools = [retrieve_dosiblog_context] + custom_rag_tools
+                    # Create appointment tool with user context
+                    appointment_tool = create_appointment_tool(user_id=user_id, db=db)
+                    all_tools = [retrieve_dosiblog_context, appointment_tool] + custom_rag_tools
                     
                     # Get LLM from config
                     llm_config = Config.load_llm_config()
@@ -566,7 +568,9 @@ async def chat_stream(
                     async with MCPClientManager(mcp_servers) as mcp_tools:
                         # Load custom RAG tools if authenticated
                         custom_rag_tools = load_custom_rag_tools(user_id, db) if user_id and db else []
-                        all_tools = [retrieve_dosiblog_context] + custom_rag_tools + mcp_tools
+                        # Create appointment tool with user context
+                        appointment_tool = create_appointment_tool(user_id=user_id, db=db)
+                        all_tools = [retrieve_dosiblog_context, appointment_tool] + custom_rag_tools + mcp_tools
                         
                         # Get LLM from config
                         llm_config = Config.load_llm_config()

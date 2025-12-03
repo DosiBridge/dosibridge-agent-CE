@@ -46,6 +46,13 @@ services:
       FIRECRAWL_API_KEY: ""
       # JWT Secret Key - set JWT_SECRET_KEY environment variable to override
       JWT_SECRET_KEY: "your-secret-key-change-in-production-use-strong-random-key"
+      # Email/SMTP Configuration (optional - for appointment notifications)
+      # SMTP_HOST: "smtp.gmail.com"
+      # SMTP_PORT: "587"
+      # SMTP_USER: "your-email@gmail.com"
+      # SMTP_PASSWORD: "your-app-password"
+      # SMTP_FROM_EMAIL: "noreply@dosibridge.com"
+      # ADMIN_EMAIL: "admin@dosibridge.com"
     volumes:
       - ./config:/app/config
     restart: unless-stopped
