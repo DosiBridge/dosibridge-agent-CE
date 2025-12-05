@@ -2369,7 +2369,7 @@ export default function SettingsPanel({
                               "Switched to Agent mode. MCP tools are now available."
                             );
                           } else {
-                            toast.info("Already in Agent mode");
+                            toast("Already in Agent mode");
                           }
                         }}
                         className="w-full px-4 py-2.5 text-sm font-medium text-[var(--text-primary)] bg-[var(--input-bg)] hover:bg-[var(--surface-hover)] border border-[var(--input-border)] rounded-lg transition-colors flex items-center justify-center gap-2"
