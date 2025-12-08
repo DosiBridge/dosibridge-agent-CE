@@ -59,7 +59,7 @@ class ChatService:
     @staticmethod
     async def _process_rag(message: str, session_id: str, user_id: Optional[int], db: Optional["Session"] = None, collection_id: Optional[int] = None, use_react: bool = False, agent_prompt: Optional[str] = None) -> dict:
         """Process RAG mode with advanced RAG system"""
-        llm_config = Config.load_llm_config()
+        llm_config = Config.load_llm_config(db=db, user_id=user_id)
         
         # Use ReAct agent if requested
         if use_react and user_id:
@@ -180,7 +180,7 @@ class ChatService:
             appointment_tool = create_appointment_tool(user_id=user_id, db=db)
             all_tools = [retrieve_dosiblog_context, appointment_tool] + custom_rag_tools + mcp_tools
             
-            llm_config = Config.load_llm_config()
+            llm_config = Config.load_llm_config(db=db, user_id=user_id)
             llm = create_llm_from_config(llm_config, streaming=False, temperature=0)
             
             # Check if LLM is Ollama (doesn't support bind_tools)

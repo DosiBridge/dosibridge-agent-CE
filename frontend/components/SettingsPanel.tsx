@@ -469,6 +469,7 @@ export default function SettingsPanel({
         "groq",
         "ollama",
         "gemini",
+        "openrouter",
       ] as LLMConfig["type"][];
       const type = allowedTypes.includes(llmConfig.type as LLMConfig["type"])
         ? (llmConfig.type as LLMConfig["type"])
@@ -741,7 +742,8 @@ export default function SettingsPanel({
       (llmForm.type === "openai" ||
         llmForm.type === "deepseek" ||
         llmForm.type === "groq" ||
-        llmForm.type === "gemini") &&
+        llmForm.type === "gemini" ||
+        llmForm.type === "openrouter") &&
       !llmForm.api_key?.trim()
     ) {
       toast.error("API key is required for this LLM type");
@@ -754,6 +756,39 @@ export default function SettingsPanel({
     } catch (error) {
       toast.error(
         `Failed to save config: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
+  };
+
+  const handleUseDefaultLLM = async () => {
+    if (
+      !confirm(
+        "Switch to default DeepSeek LLM? You'll have 100 requests per day. Add your own API key for unlimited requests."
+      )
+    ) {
+      return;
+    }
+    try {
+      await setLLMConfig({
+        type: "deepseek",
+        model: "deepseek-chat",
+        use_default: true,
+      });
+      toast.success("Switched to default DeepSeek LLM (100 requests/day)");
+      loadLLMConfig();
+      // Update form to show default values
+      setLlmForm({
+        type: "deepseek",
+        model: "deepseek-chat",
+        api_key: "",
+        base_url: "",
+        api_base: "https://api.deepseek.com",
+      });
+    } catch (error) {
+      toast.error(
+        `Failed to switch to default LLM: ${
           error instanceof Error ? error.message : "Unknown error"
         }`
       );
@@ -933,17 +968,24 @@ export default function SettingsPanel({
               />
               <span className="truncate">MCP Servers</span>
             </button>
-            {/* LLM Config tab disabled */}
-            {/* <button
-                            onClick={() => setActiveTab('llm')}
-                            className={`flex-1 min-w-0 px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 font-medium text-xs sm:text-sm transition-colors flex items-center justify-center gap-1.5 sm:gap-2 touch-manipulation ${activeTab === 'llm'
-                                ? 'border-b-2 border-[var(--green)] text-[var(--green)] bg-[var(--surface-elevated)]'
-                                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                                }`}
-                        >
-                            <Cpu className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-                            <span className="truncate">LLM Config</span>
-                        </button> */}
+            <button
+              onClick={() => setActiveTab("llm")}
+              className={`flex-1 min-w-0 px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 font-medium text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-1.5 sm:gap-2 touch-manipulation relative ${
+                activeTab === "llm"
+                  ? "text-[var(--green)] bg-[var(--surface-elevated)]"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-elevated)]/50"
+              }`}
+            >
+              {activeTab === "llm" && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--green)] rounded-t-full" />
+              )}
+              <Brain
+                className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 transition-transform ${
+                  activeTab === "llm" ? "scale-110" : ""
+                }`}
+              />
+              <span className="truncate">LLM Config</span>
+            </button>
             <button
               onClick={() => setActiveTab("tools")}
               className={`flex-1 min-w-0 px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 font-medium text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-1.5 sm:gap-2 touch-manipulation relative ${
@@ -1513,15 +1555,245 @@ export default function SettingsPanel({
               </div>
             )}
 
-            {/* LLM Config tab disabled - commented out to avoid TypeScript errors */}
-            {/* {activeTab === 'llm' && (
-                            <div className="space-y-4 sm:space-y-5 md:space-y-6">
-                                <div className="bg-[var(--surface-elevated)] rounded-lg p-4 sm:p-5 border border-[var(--border)]">
-                                    <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-[var(--text-primary)]">LLM Configuration</h3>
-                                    <p className="text-[var(--text-secondary)]">LLM configuration is disabled. The system uses a fixed DeepSeek (deepseek-chat) configuration.</p>
-                                </div>
-                            </div>
-                        )} */}
+            {activeTab === "llm" && (
+              <div className="space-y-4 sm:space-y-5 md:space-y-6">
+                <div className="flex items-center gap-3 mb-4 sm:mb-5">
+                  <div className="p-2 bg-[var(--green)]/10 rounded-lg">
+                    <Brain className="w-5 h-5 text-[var(--green)]" />
+                  </div>
+                  <div>
+                    <h3 className="text-base sm:text-lg font-semibold text-[var(--text-primary)]">
+                      LLM Configuration
+                    </h3>
+                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                      Configure your LLM provider and API keys
+                    </p>
+                  </div>
+                </div>
+
+                {/* Default LLM Option */}
+                <div className="bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] rounded-xl border border-[var(--border)] p-4 sm:p-5">
+                  <div className="flex items-start justify-between gap-4 mb-4">
+                    <div className="flex-1">
+                      <h4 className="text-sm sm:text-base font-semibold text-[var(--text-primary)] mb-2">
+                        Default LLM (DeepSeek)
+                      </h4>
+                      <p className="text-xs sm:text-sm text-[var(--text-secondary)] mb-2">
+                        Use the default DeepSeek LLM with 100 requests per day limit.
+                        Perfect for testing and light usage.
+                      </p>
+                      {llmConfig?.is_default && (
+                        <div className="flex items-center gap-2 mt-2">
+                          <div className="px-2 py-1 bg-[var(--green)]/10 text-[var(--green)] rounded-md text-xs font-medium border border-[var(--green)]/20">
+                            Currently Active
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={handleUseDefaultLLM}
+                      disabled={llmConfig?.is_default}
+                      className="px-4 py-2 text-sm font-medium text-white bg-[var(--green)] hover:bg-[var(--green-hover)] disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors touch-manipulation"
+                    >
+                      {llmConfig?.is_default ? "Active" : "Use Default"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Custom LLM Configuration */}
+                <div className="bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] rounded-xl border border-[var(--border)] p-4 sm:p-5">
+                  <h4 className="text-sm sm:text-base font-semibold text-[var(--text-primary)] mb-4">
+                    Custom LLM Configuration
+                  </h4>
+                  <p className="text-xs sm:text-sm text-[var(--text-secondary)] mb-4">
+                    Add your own API key for unlimited requests. Supports OpenAI, OpenRouter, Groq, Gemini, DeepSeek, and Ollama.
+                  </p>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs sm:text-sm font-medium text-[var(--text-primary)] mb-2">
+                        Provider Type
+                      </label>
+                      <select
+                        value={llmForm.type}
+                        onChange={(e) =>
+                          setLlmForm({
+                            ...llmForm,
+                            type: e.target.value as LLMConfig["type"],
+                            api_key: "",
+                            api_base: "",
+                            base_url: "",
+                          })
+                        }
+                        className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--green)]"
+                      >
+                        <option value="openai">OpenAI</option>
+                        <option value="openrouter">OpenRouter</option>
+                        <option value="groq">Groq</option>
+                        <option value="gemini">Google Gemini</option>
+                        <option value="deepseek">DeepSeek</option>
+                        <option value="ollama">Ollama (Local)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs sm:text-sm font-medium text-[var(--text-primary)] mb-2">
+                        Model Name
+                      </label>
+                      <input
+                        type="text"
+                        value={llmForm.model}
+                        onChange={(e) =>
+                          setLlmForm({ ...llmForm, model: e.target.value })
+                        }
+                        placeholder={
+                          llmForm.type === "openai"
+                            ? "gpt-4o, gpt-4-turbo, etc."
+                            : llmForm.type === "openrouter"
+                            ? "anthropic/claude-3.7-sonnet, openai/gpt-4o, etc."
+                            : llmForm.type === "groq"
+                            ? "llama-3.1-70b-versatile, mixtral-8x7b-32768, etc."
+                            : llmForm.type === "gemini"
+                            ? "gemini-1.5-pro, gemini-2.0-flash, etc."
+                            : llmForm.type === "deepseek"
+                            ? "deepseek-chat, deepseek-coder, etc."
+                            : "llama3.2, mistral, etc."
+                        }
+                        className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--green)]"
+                      />
+                    </div>
+
+                    {llmForm.type !== "ollama" && (
+                      <div>
+                        <label className="block text-xs sm:text-sm font-medium text-[var(--text-primary)] mb-2">
+                          API Key
+                        </label>
+                        <input
+                          type="password"
+                          value={llmForm.api_key || ""}
+                          onChange={(e) =>
+                            setLlmForm({ ...llmForm, api_key: e.target.value })
+                          }
+                          placeholder={
+                            llmForm.type === "openrouter"
+                              ? "sk-or-v1-..."
+                              : "Enter your API key"
+                          }
+                          className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--green)]"
+                        />
+                        {llmForm.type === "openrouter" && (
+                          <p className="text-xs text-[var(--text-secondary)] mt-1">
+                            Get your API key from{" "}
+                            <a
+                              href="https://openrouter.ai/"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[var(--green)] hover:underline"
+                            >
+                              openrouter.ai
+                            </a>
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {(llmForm.type === "openai" ||
+                      llmForm.type === "openrouter" ||
+                      llmForm.type === "groq" ||
+                      llmForm.type === "deepseek") && (
+                      <div>
+                        <label className="block text-xs sm:text-sm font-medium text-[var(--text-primary)] mb-2">
+                          API Base URL (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          value={llmForm.api_base || ""}
+                          onChange={(e) =>
+                            setLlmForm({ ...llmForm, api_base: e.target.value })
+                          }
+                          placeholder={
+                            llmForm.type === "openrouter"
+                              ? "https://openrouter.ai/api/v1"
+                              : "Leave empty for default"
+                          }
+                          className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--green)]"
+                        />
+                      </div>
+                    )}
+
+                    {llmForm.type === "ollama" && (
+                      <div>
+                        <label className="block text-xs sm:text-sm font-medium text-[var(--text-primary)] mb-2">
+                          Base URL
+                        </label>
+                        <input
+                          type="text"
+                          value={llmForm.base_url || ""}
+                          onChange={(e) =>
+                            setLlmForm({ ...llmForm, base_url: e.target.value })
+                          }
+                          placeholder="http://localhost:11434"
+                          className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--green)]"
+                        />
+                      </div>
+                    )}
+
+                    <div className="flex gap-2 pt-2">
+                      <button
+                        onClick={handleSaveLLMConfig}
+                        className="flex-1 px-4 py-2 text-sm font-medium text-white bg-[var(--green)] hover:bg-[var(--green-hover)] rounded-lg transition-colors touch-manipulation"
+                      >
+                        Save Configuration
+                      </button>
+                      {!llmConfig?.is_default && (
+                        <button
+                          onClick={handleResetLLMConfig}
+                          className="px-4 py-2 text-sm font-medium text-[var(--text-primary)] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] rounded-lg transition-colors touch-manipulation"
+                        >
+                          Reset
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Current Configuration Display */}
+                {llmConfig && (
+                  <div className="bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] rounded-xl border border-[var(--border)] p-4 sm:p-5">
+                    <h4 className="text-sm sm:text-base font-semibold text-[var(--text-primary)] mb-3">
+                      Current Configuration
+                    </h4>
+                    <div className="space-y-2 text-xs sm:text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-[var(--text-secondary)]">Provider:</span>
+                        <span className="text-[var(--text-primary)] font-medium">
+                          {llmConfig.type}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-[var(--text-secondary)]">Model:</span>
+                        <span className="text-[var(--text-primary)] font-medium">
+                          {llmConfig.model}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-[var(--text-secondary)]">API Key:</span>
+                        <span className="text-[var(--text-primary)] font-medium">
+                          {llmConfig.has_api_key ? "✓ Configured" : "✗ Not set"}
+                        </span>
+                      </div>
+                      {llmConfig.is_default && (
+                        <div className="mt-3 p-2 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                          <p className="text-xs text-yellow-400">
+                            ⚠️ Using default LLM: 100 requests/day limit. Add your own API key for unlimited requests.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {activeTab === "tools" && (
               <div className="space-y-4 sm:space-y-5 md:space-y-6">

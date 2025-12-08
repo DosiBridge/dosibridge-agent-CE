@@ -186,6 +186,20 @@ def init_db():
                         except Exception as e:
                             print(f"⚠️  Could not make user_id nullable: {e}")
                 
+                # Check and add is_default column to llm_config table
+                result = conn.execute(
+                    text("SELECT column_name FROM information_schema.columns "
+                         "WHERE table_name='llm_config' AND column_name='is_default'")
+                )
+                if not result.fetchone():
+                    print("📝 Adding is_default column to llm_config table...")
+                    conn.execute(
+                        text("ALTER TABLE llm_config "
+                             "ADD COLUMN is_default BOOLEAN DEFAULT FALSE NOT NULL")
+                    )
+                    conn.commit()
+                    print("✓ Added is_default column to llm_config table")
+                
                 # Check and add connection_type to mcp_servers table
                 result = conn.execute(
                     text("SELECT column_name FROM information_schema.columns "

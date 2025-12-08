@@ -23,12 +23,13 @@ if Base is not None:
         
         id = Column(Integer, primary_key=True, index=True)
         user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
-        type = Column(String(50), nullable=False, default="openai")  # openai, gemini, ollama, groq
+        type = Column(String(50), nullable=False, default="openai")  # openai, gemini, ollama, groq, deepseek, openrouter
         model = Column(String(200), nullable=False)
         api_key = Column(Text, nullable=True)  # Encrypted or stored securely
         base_url = Column(String(500), nullable=True)  # For custom API endpoints
         api_base = Column(String(500), nullable=True)  # Alternative base URL field
         active = Column(Boolean, default=True, nullable=False)
+        is_default = Column(Boolean, default=False, nullable=False)  # True if using default DeepSeek LLM (100 requests/day limit)
         created_at = Column(DateTime(timezone=True), server_default=func.now())
         updated_at = Column(DateTime(timezone=True), onupdate=func.now())
         
@@ -38,11 +39,14 @@ if Base is not None:
         def to_dict(self, include_api_key: bool = False) -> dict:
             """Convert model to dictionary"""
             result = {
+                "id": self.id,
+                "user_id": self.user_id,
                 "type": self.type,
                 "model": self.model,
                 "base_url": self.base_url,
                 "api_base": self.api_base,
                 "active": self.active,
+                "is_default": self.is_default,
                 "has_api_key": bool(self.api_key)
             }
             if include_api_key:

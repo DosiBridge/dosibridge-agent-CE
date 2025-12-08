@@ -21,13 +21,14 @@ class UsageTracker:
         return datetime.combine(today, datetime.min.time()).replace(tzinfo=timezone.utc)
     
     @staticmethod
-    def check_daily_limit(user_id: Optional[int], db: Session) -> Tuple[bool, int, int]:
+    def check_daily_limit(user_id: Optional[int], db: Session, is_default_llm: bool = False) -> Tuple[bool, int, int]:
         """
         Check if user has exceeded daily request limit
         
         Args:
             user_id: User ID (None for anonymous users)
             db: Database session
+            is_default_llm: True if using default DeepSeek LLM (100/day limit), False for custom API keys (unlimited)
             
         Returns:
             Tuple of (is_allowed, current_count, limit)
@@ -36,13 +37,18 @@ class UsageTracker:
             # If database not available, allow all requests
             return True, 0, DAILY_REQUEST_LIMIT
         
+        # If using custom API key (not default LLM), no limit
+        if not is_default_llm:
+            return True, 0, -1  # -1 means unlimited
+        
         try:
             today_start = UsageTracker.get_today_start()
             
-            # Get today's usage
+            # Get today's usage (only count default LLM requests)
             usage = db.query(APIUsage).filter(
                 APIUsage.user_id == user_id,
-                func.date(APIUsage.usage_date) == today_start.date()
+                func.date(APIUsage.usage_date) == today_start.date(),
+                APIUsage.llm_provider == "deepseek"  # Only count default DeepSeek usage
             ).first()
             
             current_count = usage.request_count if usage else 0

@@ -49,10 +49,11 @@ def create_llm_from_config(config: dict, streaming: bool = False, temperature: f
     - groq: Groq models (requires api_key and model)
     - ollama: Local Ollama models (requires base_url and model)
     - gemini: Google Gemini models (requires api_key and model)
+    - openrouter: OpenRouter models (requires api_key and model, uses OpenAI-compatible API)
     
     Args:
         config: LLM configuration dictionary with keys:
-            - type: "openai", "deepseek", "groq", "ollama", or "gemini"
+            - type: "openai", "deepseek", "groq", "ollama", "gemini", or "openrouter"
             - model: Model name
             - api_key: API key (for openai/deepseek/groq/gemini)
             - base_url: Base URL (for ollama, defaults to http://localhost:11434)
@@ -214,6 +215,33 @@ def create_llm_from_config(config: dict, streaming: bool = False, temperature: f
             kwargs["base_url"] = api_base
         
         return ChatOpenAI(**kwargs)
+    
+    elif llm_type == "openrouter":
+        # OpenRouter API (OpenAI-compatible)
+        api_key = config.get("api_key") or os.getenv("OPENROUTER_API_KEY")
+        if not api_key:
+            raise ValueError(
+                "OpenRouter API key is required. "
+                "Please set it in the LLM configuration or set OPENROUTER_API_KEY environment variable. "
+                "Get an API key from: https://openrouter.ai/"
+            )
+        
+        # OpenRouter uses OpenAI-compatible API
+        api_base = config.get("api_base") or "https://openrouter.ai/api/v1"
+        
+        # OpenRouter requires HTTP Referer header (passed via default_headers)
+        # Note: ChatOpenAI uses default_headers parameter
+        return ChatOpenAI(
+            model=model,
+            api_key=api_key,
+            base_url=api_base,
+            temperature=temperature,
+            streaming=streaming,
+            default_headers={
+                "HTTP-Referer": config.get("http_referer", "https://dosibridge.com"),
+                "X-Title": config.get("app_name", "DOSIBridge Agent")
+            }
+        )
     
     else:  # Default to DeepSeek
         # DeepSeek API (default fallback)

@@ -122,19 +122,36 @@ class Config:
         return servers
     
     @classmethod
-    def load_llm_config(cls, db: Optional[Session] = None) -> dict:
+    def load_llm_config(cls, db: Optional[Session] = None, user_id: Optional[int] = None) -> dict:
         """
-        Load LLM configuration from database, with fallback to environment variables.
-        Checks database for active config first, then falls back to OpenAI GPT (gpt-4o) from env.
+        Load LLM configuration from database for a specific user, with fallback to default DeepSeek.
+        Checks database for user's active config first, then falls back to default DeepSeek.
+        
         Args:
             db: Optional database session (if None, creates a new one)
+            user_id: Optional user ID to load user-specific config. If None, loads default config.
+        
+        Returns:
+            Dictionary with LLM configuration including type, model, api_key, etc.
         """
-        # Load from database first
+        # Load from database first (user-specific if user_id provided)
         if DB_AVAILABLE:
             try:
                 if db:
                     # Use provided session
-                    llm_config = db.query(LLMConfig).filter(LLMConfig.active == True).first()
+                    if user_id:
+                        # Load user-specific active config
+                        llm_config = db.query(LLMConfig).filter(
+                            LLMConfig.user_id == user_id,
+                            LLMConfig.active == True
+                        ).first()
+                    else:
+                        # Load global default config (no user_id)
+                        llm_config = db.query(LLMConfig).filter(
+                            LLMConfig.user_id.is_(None),
+                            LLMConfig.active == True
+                        ).first()
+                    
                     if llm_config:
                         config = llm_config.to_dict(include_api_key=True)
                         # Ensure API key is loaded from environment if not in database
@@ -148,16 +165,30 @@ class Config:
                                 config['api_key'] = os.getenv("DEEPSEEK_KEY")
                             elif config.get('type', '').lower() == 'groq':
                                 config['api_key'] = os.getenv("GROQ_API_KEY")
+                            elif config.get('type', '').lower() == 'openrouter':
+                                config['api_key'] = os.getenv("OPENROUTER_API_KEY")
                             elif config.get('type', '').lower() == 'ollama':
                                 # Ollama doesn't need API key
                                 pass
                         
-                        print(f"📝 Loaded LLM config from database: {config.get('type', 'unknown')} - {config.get('model', 'unknown')}")
+                        print(f"📝 Loaded LLM config from database (user_id={user_id}): {config.get('type', 'unknown')} - {config.get('model', 'unknown')}")
                         return config
                 else:
                     # Create new session
                     with get_db_context() as session:
-                        llm_config = session.query(LLMConfig).filter(LLMConfig.active == True).first()
+                        if user_id:
+                            # Load user-specific active config
+                            llm_config = session.query(LLMConfig).filter(
+                                LLMConfig.user_id == user_id,
+                                LLMConfig.active == True
+                            ).first()
+                        else:
+                            # Load global default config (no user_id)
+                            llm_config = session.query(LLMConfig).filter(
+                                LLMConfig.user_id.is_(None),
+                                LLMConfig.active == True
+                            ).first()
+                        
                         if llm_config:
                             config = llm_config.to_dict(include_api_key=True)
                             # Ensure API key is loaded from environment if not in database
@@ -171,15 +202,17 @@ class Config:
                                     config['api_key'] = os.getenv("DEEPSEEK_KEY")
                                 elif config.get('type', '').lower() == 'groq':
                                     config['api_key'] = os.getenv("GROQ_API_KEY")
+                                elif config.get('type', '').lower() == 'openrouter':
+                                    config['api_key'] = os.getenv("OPENROUTER_API_KEY")
                                 elif config.get('type', '').lower() == 'ollama':
                                     pass
                             
-                            print(f"📝 Loaded LLM config from database: {config.get('type', 'unknown')} - {config.get('model', 'unknown')}")
+                            print(f"📝 Loaded LLM config from database (user_id={user_id}): {config.get('type', 'unknown')} - {config.get('model', 'unknown')}")
                             return config
             except Exception as e:
                 print(f"⚠️  Failed to load LLM config from database: {e}")
         
-        # Fallback to DeepSeek from environment
+        # Fallback to default DeepSeek from environment
         # Note: OPENAI_API_KEY is ONLY for embeddings, not for LLM responses
         deepseek_api_key = os.getenv("DEEPSEEK_KEY")
         default_config = {
@@ -187,7 +220,8 @@ class Config:
             "model": "deepseek-chat",
             "api_key": deepseek_api_key,  # Get from environment (may be None)
             "api_base": "https://api.deepseek.com",
-            "active": True
+            "active": True,
+            "is_default": True  # Mark as default LLM
         }
         
         # Warn if API key is missing

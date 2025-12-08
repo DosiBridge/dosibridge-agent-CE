@@ -63,16 +63,23 @@ async def chat(
                 "Authentication required for RAG mode. Please log in to upload documents and query them."
             )
         
-        # Check daily rate limit (100 requests per day per user)
-        is_allowed, current_count, remaining = usage_tracker.check_daily_limit(user_id, db)
+        # Load user's LLM config to check if using default LLM
+        llm_config = Config.load_llm_config(db=db, user_id=user_id)
+        is_default_llm = llm_config.get("is_default", False) or (
+            llm_config.get("type", "").lower() == "deepseek" and 
+            not llm_config.get("api_key")  # Using system default DeepSeek
+        )
+        
+        # Check daily rate limit (100 requests per day for default LLM, unlimited for custom API keys)
+        is_allowed, current_count, remaining = usage_tracker.check_daily_limit(user_id, db, is_default_llm=is_default_llm)
         if not is_allowed:
             app_logger.warning(
                 "Daily rate limit exceeded",
-                {"user_id": user_id, "current_count": current_count, "limit": DAILY_REQUEST_LIMIT}
+                {"user_id": user_id, "current_count": current_count, "limit": DAILY_REQUEST_LIMIT, "is_default_llm": is_default_llm}
             )
             raise HTTPException(
                 status_code=429,
-                detail=f"Daily request limit exceeded. You have used {current_count}/{DAILY_REQUEST_LIMIT} requests today. Please try again tomorrow."
+                detail=f"Daily request limit exceeded. You have used {current_count}/{DAILY_REQUEST_LIMIT} requests today with the default LLM. Please add your own API key or try again tomorrow."
             )
         
         app_logger.info(
@@ -117,7 +124,7 @@ async def chat(
             background_tasks.add_task(update_summary_task)
         
         # Record usage (estimate tokens - actual tracking would require LLM response metadata)
-        llm_config = Config.load_llm_config()
+        # llm_config already loaded above
         usage_tracker.record_request(
             user_id=user_id,
             db=db,
@@ -178,14 +185,21 @@ async def chat_stream(
             yield f"data: {json.dumps({'chunk': '', 'done': True, 'error': 'Authentication required for RAG mode. Please log in to upload documents and query them.'})}\n\n"
             return
         
-        # Check daily rate limit (100 requests per day per user)
-        is_allowed, current_count, remaining = usage_tracker.check_daily_limit(user_id, db)
+        # Load user's LLM config to check if using default LLM
+        llm_config = Config.load_llm_config(db=db, user_id=user_id)
+        is_default_llm = llm_config.get("is_default", False) or (
+            llm_config.get("type", "").lower() == "deepseek" and 
+            not llm_config.get("api_key")  # Using system default DeepSeek
+        )
+        
+        # Check daily rate limit (100 requests per day for default LLM, unlimited for custom API keys)
+        is_allowed, current_count, remaining = usage_tracker.check_daily_limit(user_id, db, is_default_llm=is_default_llm)
         if not is_allowed:
             app_logger.warning(
                 "Daily rate limit exceeded (streaming)",
-                {"user_id": user_id, "current_count": current_count, "limit": DAILY_REQUEST_LIMIT}
+                {"user_id": user_id, "current_count": current_count, "limit": DAILY_REQUEST_LIMIT, "is_default_llm": is_default_llm}
             )
-            yield f"data: {json.dumps({'chunk': '', 'done': True, 'error': f'Daily request limit exceeded. You have used {current_count}/{DAILY_REQUEST_LIMIT} requests today. Please try again tomorrow.'})}\n\n"
+            yield f"data: {json.dumps({'chunk': '', 'done': True, 'error': f'Daily request limit exceeded. You have used {current_count}/{DAILY_REQUEST_LIMIT} requests today with the default LLM. Please add your own API key or try again tomorrow.'})}\n\n"
             return
         
         try:
@@ -199,7 +213,7 @@ async def chat_stream(
                 # For RAG mode, we'll stream the response
                 yield f"data: {json.dumps({'chunk': '', 'done': False, 'status': 'thinking'})}\n\n"
                 
-                llm_config = Config.load_llm_config()
+                llm_config = Config.load_llm_config(db=db, user_id=user_id)
                 try:
                     llm = create_llm_from_config(llm_config, streaming=True, temperature=0)
                 except ImportError as e:
@@ -352,7 +366,7 @@ async def chat_stream(
                     session_history.add_ai_message(full_response)
                     
                     # Record usage after successful response
-                    llm_config = Config.load_llm_config()
+                    llm_config = Config.load_llm_config(db=db, user_id=user_id)
                     input_tokens = len(chat_request.message.split()) * 2  # Rough estimate
                     output_tokens = len(full_response.split()) * 2  # Rough estimate
                     usage_tracker.record_request(
@@ -386,7 +400,7 @@ async def chat_stream(
                     all_tools = [retrieve_dosiblog_context, appointment_tool] + custom_rag_tools
                     
                     # Get LLM from config
-                    llm_config = Config.load_llm_config()
+                    llm_config = Config.load_llm_config(db=db, user_id=user_id)
                     
                     try:
                         llm = create_llm_from_config(llm_config, streaming=True, temperature=0)
@@ -616,7 +630,7 @@ async def chat_stream(
                         session_history.add_ai_message(full_response)
                         
                         # Record usage after successful response
-                        llm_config = Config.load_llm_config()
+                        llm_config = Config.load_llm_config(db=db, user_id=user_id)
                         input_tokens = len(chat_request.message.split()) * 2  # Rough estimate
                         output_tokens = len(full_response.split()) * 2  # Rough estimate
                         usage_tracker.record_request(
@@ -643,7 +657,7 @@ async def chat_stream(
                         all_tools = [retrieve_dosiblog_context, appointment_tool] + custom_rag_tools + mcp_tools
                         
                         # Get LLM from config
-                        llm_config = Config.load_llm_config()
+                        llm_config = Config.load_llm_config(db=db, user_id=user_id)
                         
                         try:
                             llm = create_llm_from_config(llm_config, streaming=True, temperature=0)
@@ -808,7 +822,7 @@ async def chat_stream(
                                 session_history.add_ai_message(full_response)
                                 
                                 # Record usage after successful response
-                                llm_config = Config.load_llm_config()
+                                llm_config = Config.load_llm_config(db=db, user_id=user_id)
                                 input_tokens = len(chat_request.message.split()) * 2  # Rough estimate
                                 output_tokens = len(full_response.split()) * 2  # Rough estimate
                                 usage_tracker.record_request(
@@ -1063,7 +1077,7 @@ async def chat_stream(
                                 session_history.add_ai_message(full_response)
                                 
                                 # Record usage after successful response
-                                llm_config = Config.load_llm_config()
+                                llm_config = Config.load_llm_config(db=db, user_id=user_id)
                                 input_tokens = len(chat_request.message.split()) * 2  # Rough estimate
                                 output_tokens = len(full_response.split()) * 2  # Rough estimate
                                 usage_tracker.record_request(
