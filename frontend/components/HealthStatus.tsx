@@ -73,11 +73,12 @@ export default function HealthStatus() {
     if (!isAuthenticated) return;
     
     if (isConnected) {
-      // MCP servers changed - ping for updated health status
-      const timeoutId = setTimeout(() => {
-        healthWebSocket.ping();
-      }, 500);
-      return () => clearTimeout(timeoutId);
+      // MCP servers changed - ping immediately for updated health status
+      // Also trigger a health check directly
+      const loadHealth = useStore.getState().loadHealth;
+      healthWebSocket.ping();
+      // Also load health directly for immediate update
+      loadHealth();
     }
   }, [mcpServers.length, isConnected, isAuthenticated]);
 
@@ -171,8 +172,11 @@ export default function HealthStatus() {
         <XCircle className="w-3 h-3 text-[var(--error)] shrink-0" />
       )}
       {/* Only show MCP count when authenticated */}
+      {/* Use store count if available and more recent, otherwise use health count */}
       <span className="text-xs font-medium text-[var(--text-primary)] whitespace-nowrap">
-        <span className="text-[var(--green)]">{health.mcp_servers}</span>
+        <span className="text-[var(--green)]">
+          {mcpServers.length > 0 ? mcpServers.length : health.mcp_servers}
+        </span>
         <span className="hidden sm:inline"> MCP</span>
       </span>
     </div>

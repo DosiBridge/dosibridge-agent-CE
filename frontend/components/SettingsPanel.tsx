@@ -42,6 +42,7 @@ import {
   uploadDocument,
 } from "@/lib/api";
 import { useStore } from "@/lib/store";
+import { healthWebSocket } from "@/lib/websocket";
 import {
   AlertTriangle,
   Brain,
@@ -717,7 +718,12 @@ export default function SettingsPanel({
       setHeaderJsonMode(false);
       setHeaderVisibility({});
       setConnectionStatus(null);
-      loadMCPServers();
+      await loadMCPServers();
+      // Immediately refresh health status to update MCP count
+      const loadHealth = useStore.getState().loadHealth;
+      loadHealth();
+      // Also ping WebSocket for real-time update
+      healthWebSocket.ping();
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
@@ -785,7 +791,12 @@ export default function SettingsPanel({
       setHeaderJsonMode(false);
       setHeaderVisibility({});
       setConnectionStatus(null);
-      loadMCPServers();
+      await loadMCPServers();
+      // Immediately refresh health status to update MCP count
+      const loadHealth = useStore.getState().loadHealth;
+      loadHealth();
+      // Also ping WebSocket for real-time update
+      healthWebSocket.ping();
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
@@ -809,7 +820,12 @@ export default function SettingsPanel({
       await deleteMCPServer(name);
       toast.success("MCP server deleted");
       setDeletingServer(null);
-      loadMCPServers();
+      await loadMCPServers();
+      // Immediately refresh health status to update MCP count
+      const loadHealth = useStore.getState().loadHealth;
+      loadHealth();
+      // Also ping WebSocket for real-time update
+      healthWebSocket.ping();
     } catch (error) {
       toast.error(
         `Failed to delete server: ${
@@ -2504,7 +2520,13 @@ export default function SettingsPanel({
                                         ? "enabled"
                                         : "disabled";
                                       toast.success(`MCP server ${newStatus}`);
-                                      loadMCPServers();
+                                      await loadMCPServers();
+                                      // Immediately refresh health status to update MCP count
+                                      const loadHealth = useStore.getState().loadHealth;
+                                      loadHealth();
+                                      // Also ping WebSocket for real-time update
+                                      const { healthWebSocket } = await import("@/lib/websocket");
+                                      healthWebSocket.ping();
                                     } catch (error) {
                                       toast.error(
                                         `Failed to toggle server: ${

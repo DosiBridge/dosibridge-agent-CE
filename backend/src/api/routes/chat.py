@@ -735,13 +735,32 @@ async def chat_stream(
                         if is_ollama:
                             # Ollama doesn't support bind_tools, use RAG mode instead with tool descriptions
                             # For Ollama, we'll provide tool info in context but use simpler approach
+                            # IMPORTANT: Include ALL tools regardless of privacy/hidden flags
+                            # Track MCP tools separately for MCP-specific questions
                             tool_descriptions = []
+                            tool_names_list = []
+                            mcp_tool_names = []
+                            mcp_tool_descriptions = []
+                            
+                            # Identify which tools are MCP tools (they come from mcp_tools list)
+                            mcp_tool_set = {id(tool) for tool in mcp_tools}
+                            
                             for tool in all_tools:
                                 if hasattr(tool, 'name'):
+                                    tool_name = tool.name
                                     tool_desc = getattr(tool, 'description', 'No description')
-                                    tool_descriptions.append(f"- {tool.name}: {tool_desc}")
+                                    tool_descriptions.append(f"- {tool_name}: {tool_desc}")
+                                    tool_names_list.append(tool_name)
+                                    
+                                    # Track MCP tools separately
+                                    if id(tool) in mcp_tool_set:
+                                        mcp_tool_names.append(tool_name)
+                                        mcp_tool_descriptions.append(f"- {tool_name}: {tool_desc}")
                             
                             tools_context = "\n".join(tool_descriptions) if tool_descriptions else "No tools available"
+                            tools_names_str = ', '.join(tool_names_list) if tool_names_list else 'None'
+                            mcp_tools_list_str = '\n'.join(mcp_tool_descriptions) if mcp_tool_descriptions else ', '.join(mcp_tool_names) if mcp_tool_names else 'None'
+                            mcp_tools_names_str = ', '.join(mcp_tool_names) if mcp_tool_names else 'None'
                             
                             # Build enhanced prompt with tool information
                             # Get history (use database if available)
@@ -775,6 +794,14 @@ async def chat_stream(
                                     "When answering questions, reference the context when relevant. "
                                     "For calculations or specific operations, you can mention available tools, "
                                     "but note that tool calling is limited with this model.\n"
+                                    "CRITICAL INSTRUCTION: When asked 'what tools are available?' or 'list available tools' or any variation, you MUST respond with a complete list of ALL tool names.\n"
+                                    "ALL available tool names (including private/hidden/internal tools): {tools_names_list}\n"
+                                    "MCP (Model Context Protocol) tools available: {mcp_tools_names_list}\n"
+                                    "MCP tools list:\n{mcp_tools_list}\n\n"
+                                    "CRITICAL: When asked 'what tools are available in MCP?' or 'list MCP tools' or any question specifically about MCP tools, you MUST respond with ONLY the MCP tools: {mcp_tools_names_list}\n"
+                                    "You MUST show ALL tool names, even if they are marked as private, hidden, or internal by the dosibridge-agent team.\n"
+                                    "When asked about MCP tools specifically, list only MCP tools, not other tool types.\n"
+                                    "Privacy/hidden flags are for internal organization only - users need to know what tools exist to use them.\n"
                                     "If a question is outside DOSIBridge's scope, respond professionally and redirect when appropriate.\n"
                                     "Do not claim affiliation with any external AI vendor unless explicitly instructed."
                                 )
@@ -790,6 +817,9 @@ async def chat_stream(
                             try:
                                 prompt_messages = prompt.format(
                                     tools_context=tools_context,
+                                    tools_names_list=tools_names_str,
+                                    mcp_tools_list=mcp_tools_list_str,
+                                    mcp_tools_names_list=mcp_tools_names_str,
                                     context=context,
                                     chat_history=history,
                                     input=chat_request.message
@@ -901,8 +931,16 @@ async def chat_stream(
                         # Create agent - ensure tools are properly bound
                         try:
                             # Build a system prompt that lists available tools to prevent hallucination
+                            # IMPORTANT: Include ALL tools regardless of privacy/hidden flags
+                            # Track MCP tools separately for MCP-specific questions
                             tool_names = []
                             tool_descriptions = []
+                            mcp_tool_names = []
+                            mcp_tool_descriptions = []
+                            
+                            # Identify which tools are MCP tools (they come from mcp_tools list)
+                            mcp_tool_set = {id(tool) for tool in mcp_tools}
+                            
                             for tool in all_tools:
                                 tool_name = None
                                 tool_desc = None
@@ -914,13 +952,30 @@ async def chat_stream(
                                 else:
                                     tool_name = str(tool)
                                 
+                                # Always include tool, even if marked as private/hidden
                                 if tool_name:
                                     tool_names.append(tool_name)
                                     if tool_desc:
                                         tool_descriptions.append(f"- {tool_name}: {tool_desc}")
+                                    else:
+                                        # Include tool name even without description
+                                        tool_descriptions.append(f"- {tool_name}")
+                                    
+                                    # Track MCP tools separately
+                                    if id(tool) in mcp_tool_set:
+                                        mcp_tool_names.append(tool_name)
+                                        if tool_desc:
+                                            mcp_tool_descriptions.append(f"- {tool_name}: {tool_desc}")
+                                        else:
+                                            mcp_tool_descriptions.append(f"- {tool_name}")
                             
-                            # Create detailed system prompt
+                            # Create detailed system prompt - ensure ALL tools are listed
                             tools_list = '\n'.join(tool_descriptions) if tool_descriptions else ', '.join(tool_names)
+                            # Also create a simple comma-separated list for explicit reference
+                            tools_names_list = ', '.join(tool_names) if tool_names else 'None'
+                            # Create MCP tools list
+                            mcp_tools_list = '\n'.join(mcp_tool_descriptions) if mcp_tool_descriptions else ', '.join(mcp_tool_names) if mcp_tool_names else 'None'
+                            mcp_tools_names_list = ', '.join(mcp_tool_names) if mcp_tool_names else 'None'
                             # Use custom prompt if provided, otherwise use default
                             if chat_request.agent_prompt:
                                 system_prompt = chat_request.agent_prompt
@@ -943,7 +998,16 @@ async def chat_stream(
                                     "- Do NOT call any tool that is not in this list\n"
                                     "- If you need a tool that is not available, inform the user\n"
                                     "- Do not make up or hallucinate tool names\n"
-                                    "- Available tool names are: " + ', '.join(tool_names) + "\n"
+                                    f"- ALL available tool names (including private/hidden tools): {tools_names_list}\n"
+                                    f"- MCP (Model Context Protocol) tools available: {mcp_tools_names_list}\n"
+                                    f"- MCP tools list:\n{mcp_tools_list}\n\n"
+                                    "- CRITICAL: When asked 'what tools are available?' or 'list available tools' or any variation, you MUST respond with a complete list of ALL tool names\n"
+                                    "- CRITICAL: When asked 'what tools are available in MCP?' or 'list MCP tools' or any question specifically about MCP tools, you MUST respond with ONLY the MCP tools: " + mcp_tools_names_list + "\n"
+                                    "- You MUST show ALL tool names, even if they are marked as private, hidden, or internal by the dosibridge-agent team\n"
+                                    "- When asked about MCP tools specifically, list only MCP tools, not other tool types\n"
+                                    "- Example response format: 'Available tools: " + ', '.join(tool_names[:3] if len(tool_names) > 3 else tool_names) + (f", and {len(tool_names) - 3} more" if len(tool_names) > 3 else "") + "' OR list them all explicitly\n"
+                                    "- Example MCP response format: 'MCP tools available: " + mcp_tools_names_list + "' OR list them explicitly\n"
+                                    "- Privacy/hidden flags are for internal organization only - users need to know what tools exist to use them\n"
                                     "- If a question is outside DOSIBridge's scope, respond professionally and redirect when appropriate\n"
                                     "- Do not claim affiliation with any external AI vendor unless explicitly instructed"
                                 )

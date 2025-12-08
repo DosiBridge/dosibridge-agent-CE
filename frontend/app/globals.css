@@ -50,10 +50,11 @@
   --message-ai-text: #171717;
   --message-ai-border: transparent;
 
-  /* Code block colors */
-  --code-bg: #f3f4f6;
-  --code-border: #e5e7eb;
-  --code-header-bg: #e5e7eb;
+  /* Code block colors - Light mode */
+  --code-bg: #fafafa;
+  --code-border: #e1e4e8;
+  --code-header-bg: #f6f8fa;
+  --code-text: #24292e;
 
   /* Modal/Overlay */
   --modal-bg: #ffffff;
@@ -124,10 +125,11 @@
   --message-ai-text: #ededed;
   --message-ai-border: transparent;
 
-  /* Code block colors */
+  /* Code block colors - Dark mode */
   --code-bg: #1e1e1e;
-  --code-border: #4b5563;
-  --code-header-bg: #1e1e1e;
+  --code-border: #3e3e3e;
+  --code-header-bg: #252526;
+  --code-text: #d4d4d4;
 
   /* Modal/Overlay */
   --modal-bg: #343541;
@@ -495,18 +497,49 @@ button {
   margin-top: 0.5em;
   margin-bottom: 0.5em;
   padding-left: 1.5em;
+  list-style-position: outside;
+}
+
+.prose ul {
+  list-style-type: disc;
+}
+
+.prose ol {
+  list-style-type: decimal;
 }
 
 .prose li {
   margin-top: 0.25em;
   margin-bottom: 0.25em;
+  padding-left: 0.25em;
+  display: list-item;
+}
+
+/* Ensure nested lists are properly styled */
+.prose ul ul,
+.prose ol ol,
+.prose ul ol,
+.prose ol ul {
+  margin-top: 0.25em;
+  margin-bottom: 0.25em;
+  padding-left: 1.5em;
+}
+
+.prose ul ul {
+  list-style-type: circle;
+}
+
+.prose ul ul ul {
+  list-style-type: square;
 }
 
 .prose code {
   background-color: var(--code-bg);
+  color: var(--code-text);
   padding: 0.125em 0.25em;
   border-radius: 0.25rem;
   font-size: 0.9em;
+  border: 1px solid var(--code-border);
 }
 
 .prose pre {

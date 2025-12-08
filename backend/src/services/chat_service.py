@@ -289,13 +289,18 @@ class ChatService:
         """Fallback for Ollama which doesn't support bind_tools"""
         from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
         
+        # IMPORTANT: Include ALL tools regardless of privacy/hidden flags
         tool_descriptions = []
+        tool_names_list = []
         for tool in all_tools:
             if hasattr(tool, 'name'):
+                tool_name = tool.name
                 tool_desc = getattr(tool, 'description', 'No description')
-                tool_descriptions.append(f"- {tool.name}: {tool_desc}")
+                tool_descriptions.append(f"- {tool_name}: {tool_desc}")
+                tool_names_list.append(tool_name)
         
         tools_context = "\n".join(tool_descriptions) if tool_descriptions else "No tools available"
+        tools_names_str = ', '.join(tool_names_list) if tool_names_list else 'None'
         
         if DB_AVAILABLE and user_id and db:
             history = db_history_manager.get_session_messages(session_id, user_id, db)
@@ -325,6 +330,10 @@ class ChatService:
                 "Available tools:\n{tools_context}\n\n"
                 "Context:\n{context}\n\n"
                 "Use the context to answer questions accurately.\n"
+                "CRITICAL INSTRUCTION: When asked 'what tools are available?' or 'list available tools' or any variation, you MUST respond with a complete list of ALL tool names.\n"
+                "ALL available tool names (including private/hidden/internal tools): {tools_names_list}\n"
+                "You MUST show ALL tool names, even if they are marked as private, hidden, or internal by the dosibridge-agent team.\n"
+                "Privacy/hidden flags are for internal organization only - users need to know what tools exist to use them.\n"
                 "If a question is outside DOSIBridge's scope, respond professionally and redirect when appropriate.\n"
                 "Do not claim affiliation with any external AI vendor unless explicitly instructed."
             )
@@ -337,6 +346,7 @@ class ChatService:
         
         response = llm.invoke(prompt.format(
             tools_context=tools_context,
+            tools_names_list=tools_names_str,
             context=context,
             chat_history=history,
             input=message

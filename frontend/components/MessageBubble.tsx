@@ -19,6 +19,7 @@ import toast from "react-hot-toast";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 interface MessageBubbleProps {
   message: Message;
@@ -34,7 +35,27 @@ export default function MessageBubble({
   const [copiedCodeBlock, setCopiedCodeBlock] = useState<string | null>(null);
   const [showActions, setShowActions] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const abortRef = useRef<(() => void) | null>(null);
+  
+  // Detect current theme for code block styling
+  useEffect(() => {
+    const checkTheme = () => {
+      setIsDarkMode(document.documentElement.classList.contains("dark"));
+    };
+    
+    // Check on mount
+    checkTheme();
+    
+    // Watch for theme changes
+    const observer = new MutationObserver(checkTheme);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    
+    return () => observer.disconnect();
+  }, []);
 
   const isStreaming = useStore((state) => state.isStreaming);
   const isLastMessage = useStore((state) => {
@@ -350,6 +371,24 @@ export default function MessageBubble({
                       </p>
                     ),
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    ul: ({ children, ...props }: any) => (
+                      <ul className="list-disc list-outside ml-6 mb-2 mt-2 space-y-1 text-[var(--message-ai-text)]" {...props}>
+                        {children}
+                      </ul>
+                    ),
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    ol: ({ children, ...props }: any) => (
+                      <ol className="list-decimal list-outside ml-6 mb-2 mt-2 space-y-1 text-[var(--message-ai-text)]" {...props}>
+                        {children}
+                      </ol>
+                    ),
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    li: ({ children, ...props }: any) => (
+                      <li className="pl-1 mb-1 leading-relaxed text-[var(--message-ai-text)]" {...props}>
+                        {children}
+                      </li>
+                    ),
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     a: ({ href, children, ...props }: any) => (
                       <a
                         href={href}
@@ -394,13 +433,15 @@ export default function MessageBubble({
                             </button>
                           </div>
                           <SyntaxHighlighter
-                            style={vscDarkPlus}
+                            style={isDarkMode ? vscDarkPlus : oneLight}
                             language={language}
                             PreTag="div"
                             className="rounded-b-lg text-xs sm:text-sm mt-0"
                             customStyle={{
                               margin: 0,
                               borderRadius: "0 0 0.5rem 0.5rem",
+                              background: isDarkMode ? "#1e1e1e" : "#fafafa",
+                              color: isDarkMode ? "#d4d4d4" : "#24292e",
                             }}
                             {...props}
                           >
@@ -408,7 +449,17 @@ export default function MessageBubble({
                           </SyntaxHighlighter>
                         </div>
                       ) : (
-                        <code className={className} {...props}>
+                        <code 
+                          className={className} 
+                          style={{
+                            backgroundColor: isDarkMode ? "#1e1e1e" : "#f6f8fa",
+                            color: isDarkMode ? "#d4d4d4" : "#24292e",
+                            border: `1px solid ${isDarkMode ? "#3e3e3e" : "#e1e4e8"}`,
+                            padding: "0.125em 0.25em",
+                            borderRadius: "0.25rem",
+                          }}
+                          {...props}
+                        >
                           {children}
                         </code>
                       );
