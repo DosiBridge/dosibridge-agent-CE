@@ -63,16 +63,6 @@ export interface APIKeysInfo {
       purpose: string;
       used_for: string;
     };
-    google: {
-      set: boolean;
-      purpose: string;
-      used_for: string;
-    };
-    groq: {
-      set: boolean;
-      purpose: string;
-      used_for: string;
-    };
   };
   today_usage: {
     provider?: string;

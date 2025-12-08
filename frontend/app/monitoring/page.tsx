@@ -26,6 +26,7 @@ import {
   Activity,
   AlertCircle,
   ArrowLeft,
+  ArrowUp,
   BarChart3,
   Calendar,
   CheckCircle2,
@@ -44,18 +45,25 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import {
-  LineChart,
-  Line,
-  BarChart,
+  Area,
+  AreaChart,
   Bar,
+  BarChart,
+  CartesianGrid,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
   ComposedChart,
+  Line,
+  LineChart,
 } from "recharts";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
 
 export default function MonitoringPage() {
   const router = useRouter();
@@ -728,12 +736,20 @@ export default function MonitoringPage() {
             {/* Charts Section */}
             {usageStats.recent_days.length > 0 && (
               <div className="grid lg:grid-cols-2 gap-6 mb-6">
-                {/* Requests Over Time Chart */}
+                {/* Requests Over Time Chart - Interactive Line Chart */}
                 <div className="bg-[var(--surface)] rounded-lg border border-[var(--border)] p-4">
                   <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-4">
                     Requests Over Time
                   </h3>
-                  <ResponsiveContainer width="100%" height={250}>
+                  <ChartContainer
+                    config={{
+                      requests: {
+                        label: "Requests",
+                        color: "#10b981",
+                      },
+                    }}
+                    className="h-[250px] w-full"
+                  >
                     <LineChart
                       data={usageStats.recent_days.map((day) => ({
                         date: new Date(day.usage_date).toLocaleDateString("en-US", {
@@ -744,40 +760,67 @@ export default function MonitoringPage() {
                       }))}
                       margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
                     >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-[var(--border)] opacity-30" />
                       <XAxis
                         dataKey="date"
-                        stroke="#9ca3af"
-                        style={{ fontSize: "12px" }}
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        className="text-xs fill-[var(--text-secondary)]"
                       />
-                      <YAxis stroke="#9ca3af" style={{ fontSize: "12px" }} />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "#1f2937",
-                          border: "1px solid #374151",
-                          borderRadius: "8px",
-                          color: "#f3f4f6",
-                        }}
+                      <YAxis
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        className="text-xs fill-[var(--text-secondary)]"
                       />
-                      <Legend wrapperStyle={{ color: "#f3f4f6" }} />
+                      <ChartTooltip
+                        cursor={{ strokeDasharray: "3 3" }}
+                        content={<ChartTooltipContent />}
+                      />
                       <Line
                         type="monotone"
                         dataKey="requests"
                         stroke="#10b981"
                         strokeWidth={2}
                         dot={{ fill: "#10b981", r: 4 }}
-                        name="Requests"
+                        activeDot={{ r: 6 }}
                       />
                     </LineChart>
-                  </ResponsiveContainer>
+                  </ChartContainer>
                 </div>
 
-                {/* Tokens Over Time Chart */}
-                <div className="bg-[var(--surface)] rounded-lg border border-[var(--border)] p-4">
-                  <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-4">
-                    Tokens Over Time
-                  </h3>
-                  <ResponsiveContainer width="100%" height={250}>
+                {/* Tokens Over Time Chart - Multiple Line Chart */}
+                <div className="bg-[var(--surface)] rounded-lg border border-[var(--border)] p-6">
+                  <div className="mb-4">
+                    <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-1">
+                      Tokens Over Time
+                    </h3>
+                    <p className="text-xs text-[var(--text-secondary)]">
+                      Token usage breakdown by type
+                    </p>
+                  </div>
+                  <ChartContainer
+                    config={{
+                      input: {
+                        label: "Input Tokens",
+                        color: "#3b82f6",
+                      },
+                      output: {
+                        label: "Output Tokens",
+                        color: "#10b981",
+                      },
+                      embedding: {
+                        label: "Embedding Tokens",
+                        color: "#f59e0b",
+                      },
+                      total: {
+                        label: "Total Tokens",
+                        color: "#8b5cf6",
+                      },
+                    }}
+                    className="h-[250px] w-full"
+                  >
                     <LineChart
                       data={usageStats.recent_days.map((day) => ({
                         date: new Date(day.usage_date).toLocaleDateString("en-US", {
@@ -791,66 +834,86 @@ export default function MonitoringPage() {
                       }))}
                       margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
                     >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-[var(--border)] opacity-30" />
                       <XAxis
                         dataKey="date"
-                        stroke="#9ca3af"
-                        style={{ fontSize: "12px" }}
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        className="text-xs fill-[var(--text-secondary)]"
                       />
-                      <YAxis stroke="#9ca3af" style={{ fontSize: "12px" }} />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "#1f2937",
-                          border: "1px solid #374151",
-                          borderRadius: "8px",
-                          color: "#f3f4f6",
-                        }}
-                        formatter={(value: number) => value.toLocaleString()}
+                      <YAxis
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        className="text-xs fill-[var(--text-secondary)]"
+                        width={40}
                       />
-                      <Legend wrapperStyle={{ color: "#f3f4f6" }} />
+                      <ChartTooltip
+                        cursor={{ strokeDasharray: "3 3" }}
+                        content={<ChartTooltipContent />}
+                      />
+                      <ChartLegend content={<ChartLegendContent />} />
                       <Line
-                        type="monotone"
+                        type="natural"
                         dataKey="input"
                         stroke="#3b82f6"
                         strokeWidth={2}
-                        dot={{ fill: "#3b82f6", r: 3 }}
-                        name="Input Tokens"
+                        dot={false}
+                        activeDot={{ r: 4, stroke: "#3b82f6", strokeWidth: 2 }}
                       />
                       <Line
-                        type="monotone"
+                        type="natural"
                         dataKey="output"
                         stroke="#10b981"
                         strokeWidth={2}
-                        dot={{ fill: "#10b981", r: 3 }}
-                        name="Output Tokens"
+                        dot={false}
+                        activeDot={{ r: 4, stroke: "#10b981", strokeWidth: 2 }}
                       />
                       <Line
-                        type="monotone"
+                        type="natural"
                         dataKey="embedding"
                         stroke="#f59e0b"
                         strokeWidth={2}
-                        dot={{ fill: "#f59e0b", r: 3 }}
-                        name="Embedding Tokens"
+                        dot={false}
+                        activeDot={{ r: 4, stroke: "#f59e0b", strokeWidth: 2 }}
                       />
                       <Line
-                        type="monotone"
+                        type="natural"
                         dataKey="total"
-                        stroke="#10b981"
-                        strokeWidth={2}
-                        dot={{ fill: "#10b981", r: 4 }}
-                        name="Total Tokens"
+                        stroke="#8b5cf6"
+                        strokeWidth={2.5}
+                        dot={false}
+                        activeDot={{ r: 5, stroke: "#8b5cf6", strokeWidth: 2 }}
                       />
                     </LineChart>
-                  </ResponsiveContainer>
+                  </ChartContainer>
                 </div>
 
-                {/* Daily Requests Bar Chart */}
-                <div className="bg-[var(--surface)] rounded-lg border border-[var(--border)] p-4">
-                  <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-4">
-                    Daily Requests Breakdown
-                  </h3>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <BarChart
+                {/* Daily Requests Line Chart - Default */}
+                <div className="bg-[var(--surface)] rounded-lg border border-[var(--border)] p-6">
+                  <div className="mb-4">
+                    <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-1">
+                      Line Chart
+                    </h3>
+                    <p className="text-xs text-[var(--text-secondary)]">
+                      {usageStats.recent_days.length > 0 && (() => {
+                        const firstDate = new Date(usageStats.recent_days[0].usage_date);
+                        const lastDate = new Date(usageStats.recent_days[usageStats.recent_days.length - 1].usage_date);
+                        return `${firstDate.toLocaleDateString("en-US", { month: "long", day: "numeric" })} - ${lastDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`;
+                      })()}
+                    </p>
+                  </div>
+                  <ChartContainer
+                    config={{
+                      requests: {
+                        label: "Requests",
+                        color: "#3b82f6",
+                      },
+                    }}
+                    className="h-[250px] w-full"
+                  >
+                    <LineChart
                       data={usageStats.recent_days.map((day) => ({
                         date: new Date(day.usage_date).toLocaleDateString("en-US", {
                           month: "short",
@@ -860,33 +923,75 @@ export default function MonitoringPage() {
                       }))}
                       margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
                     >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-[var(--border)] opacity-30" />
                       <XAxis
                         dataKey="date"
-                        stroke="#9ca3af"
-                        style={{ fontSize: "12px" }}
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        className="text-xs fill-[var(--text-secondary)]"
                       />
-                      <YAxis stroke="#9ca3af" style={{ fontSize: "12px" }} />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "#1f2937",
-                          border: "1px solid #374151",
-                          borderRadius: "8px",
-                          color: "#f3f4f6",
-                        }}
+                      <YAxis
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        className="text-xs fill-[var(--text-secondary)]"
+                        width={40}
                       />
-                      <Legend wrapperStyle={{ color: "#f3f4f6" }} />
-                      <Bar dataKey="requests" fill="#10b981" name="Requests" />
-                    </BarChart>
-                  </ResponsiveContainer>
+                      <ChartTooltip
+                        cursor={{ strokeDasharray: "3 3" }}
+                        content={<ChartTooltipContent />}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="requests"
+                        stroke="#3b82f6"
+                        strokeWidth={2}
+                        dot={false}
+                        activeDot={{ r: 4, stroke: "#3b82f6", strokeWidth: 2 }}
+                      />
+                    </LineChart>
+                  </ChartContainer>
+                  {usageStats.recent_days.length > 1 && (() => {
+                    const recent = usageStats.recent_days.slice(-2);
+                    const change = recent[1].request_count - recent[0].request_count;
+                    const percentChange = recent[0].request_count > 0 
+                      ? ((change / recent[0].request_count) * 100).toFixed(1)
+                      : "0.0";
+                    return (
+                      <div className="mt-4 flex items-center gap-2 text-xs text-[var(--text-secondary)]">
+                        <ArrowUp className={`w-3 h-3 ${change >= 0 ? 'text-[var(--green)]' : 'text-red-500 rotate-180'}`} />
+                        <span className={change >= 0 ? 'text-[var(--green)]' : 'text-red-500'}>
+                          Trending {change >= 0 ? 'up' : 'down'} by {Math.abs(parseFloat(percentChange))}% {change >= 0 ? 'this' : 'from last'} period
+                        </span>
+                      </div>
+                    );
+                  })()}
                 </div>
 
-                {/* Combined Requests & Tokens Chart */}
-                <div className="bg-[var(--surface)] rounded-lg border border-[var(--border)] p-4">
-                  <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-4">
-                    Requests vs Total Tokens
-                  </h3>
-                  <ResponsiveContainer width="100%" height={250}>
+                {/* Combined Requests & Tokens Chart - Multiple Line Chart */}
+                <div className="bg-[var(--surface)] rounded-lg border border-[var(--border)] p-6">
+                  <div className="mb-4">
+                    <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-1">
+                      Requests vs Total Tokens
+                    </h3>
+                    <p className="text-xs text-[var(--text-secondary)]">
+                      Comparing request volume and token consumption
+                    </p>
+                  </div>
+                  <ChartContainer
+                    config={{
+                      requests: {
+                        label: "Requests",
+                        color: "#10b981",
+                      },
+                      tokens: {
+                        label: "Tokens (K)",
+                        color: "#3b82f6",
+                      },
+                    }}
+                    className="h-[250px] w-full"
+                  >
                     <ComposedChart
                       data={usageStats.recent_days.map((day) => ({
                         date: new Date(day.usage_date).toLocaleDateString("en-US", {
@@ -898,63 +1003,85 @@ export default function MonitoringPage() {
                       }))}
                       margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
                     >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-[var(--border)] opacity-30" />
                       <XAxis
                         dataKey="date"
-                        stroke="#9ca3af"
-                        style={{ fontSize: "12px" }}
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        className="text-xs fill-[var(--text-secondary)]"
                       />
                       <YAxis
                         yAxisId="left"
-                        stroke="#9ca3af"
-                        style={{ fontSize: "12px" }}
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        className="text-xs fill-[var(--text-secondary)]"
+                        width={40}
                       />
                       <YAxis
                         yAxisId="right"
                         orientation="right"
-                        stroke="#9ca3af"
-                        style={{ fontSize: "12px" }}
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        className="text-xs fill-[var(--text-secondary)]"
+                        width={40}
                       />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "#1f2937",
-                          border: "1px solid #374151",
-                          borderRadius: "8px",
-                          color: "#f3f4f6",
-                        }}
-                        formatter={(value: number, name: string) => {
-                          if (name === "tokens") {
-                            return `${value}K tokens`;
-                          }
-                          return value;
-                        }}
+                      <ChartTooltip
+                        cursor={{ strokeDasharray: "3 3" }}
+                        content={<ChartTooltipContent />}
                       />
-                      <Legend wrapperStyle={{ color: "#f3f4f6" }} />
-                      <Bar
+                      <ChartLegend content={<ChartLegendContent />} />
+                      <Line
                         yAxisId="left"
+                        type="natural"
                         dataKey="requests"
-                        fill="#10b981"
-                        name="Requests"
+                        stroke="#10b981"
+                        strokeWidth={2}
+                        dot={false}
+                        activeDot={{ r: 4, stroke: "#10b981", strokeWidth: 2 }}
                       />
                       <Line
                         yAxisId="right"
-                        type="monotone"
+                        type="natural"
                         dataKey="tokens"
                         stroke="#3b82f6"
                         strokeWidth={2}
-                        dot={{ fill: "#3b82f6", r: 4 }}
-                        name="Tokens (K)"
+                        dot={false}
+                        activeDot={{ r: 4, stroke: "#3b82f6", strokeWidth: 2 }}
                       />
                     </ComposedChart>
-                  </ResponsiveContainer>
+                  </ChartContainer>
                 </div>
 
-                {/* Tokens Per Request Chart */}
-                <div className="bg-[var(--surface)] rounded-lg border border-[var(--border)] p-4">
-                  <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-4">
-                    Average Tokens Per Request
-                  </h3>
-                  <ResponsiveContainer width="100%" height={250}>
+                {/* Tokens Per Request Chart - Linear Line Chart */}
+                <div className="bg-[var(--surface)] rounded-lg border border-[var(--border)] p-6">
+                  <div className="mb-4">
+                    <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-1">
+                      Line Chart - Linear
+                    </h3>
+                    <p className="text-xs text-[var(--text-secondary)]">
+                      Average tokens per request over time
+                    </p>
+                  </div>
+                  <ChartContainer
+                    config={{
+                      avgTokensPerRequest: {
+                        label: "Avg Total Tokens/Request",
+                        color: "#3b82f6",
+                      },
+                      inputPerRequest: {
+                        label: "Avg Input Tokens/Request",
+                        color: "#10b981",
+                      },
+                      outputPerRequest: {
+                        label: "Avg Output Tokens/Request",
+                        color: "#f59e0b",
+                      },
+                    }}
+                    className="h-[250px] w-full"
+                  >
                     <LineChart
                       data={usageStats.recent_days.map((day) => ({
                         date: new Date(day.usage_date).toLocaleDateString("en-US", {
@@ -976,58 +1103,103 @@ export default function MonitoringPage() {
                       }))}
                       margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
                     >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-[var(--border)] opacity-30" />
                       <XAxis
                         dataKey="date"
-                        stroke="#9ca3af"
-                        style={{ fontSize: "12px" }}
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        className="text-xs fill-[var(--text-secondary)]"
                       />
-                      <YAxis stroke="#9ca3af" style={{ fontSize: "12px" }} />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "#1f2937",
-                          border: "1px solid #374151",
-                          borderRadius: "8px",
-                          color: "#f3f4f6",
-                        }}
-                        formatter={(value: number) => value.toLocaleString()}
+                      <YAxis
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        className="text-xs fill-[var(--text-secondary)]"
+                        width={40}
                       />
-                      <Legend wrapperStyle={{ color: "#f3f4f6" }} />
+                      <ChartTooltip
+                        cursor={{ strokeDasharray: "3 3" }}
+                        content={<ChartTooltipContent />}
+                      />
+                      <ChartLegend content={<ChartLegendContent />} />
                       <Line
-                        type="monotone"
+                        type="linear"
                         dataKey="avgTokensPerRequest"
-                        stroke="#10b981"
-                        strokeWidth={2}
-                        dot={{ fill: "#10b981", r: 4 }}
-                        name="Avg Total Tokens/Request"
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="inputPerRequest"
                         stroke="#3b82f6"
                         strokeWidth={2}
-                        dot={{ fill: "#3b82f6", r: 3 }}
-                        name="Avg Input Tokens/Request"
+                        dot={false}
+                        activeDot={{ r: 4, stroke: "#3b82f6", strokeWidth: 2 }}
                       />
                       <Line
-                        type="monotone"
+                        type="linear"
+                        dataKey="inputPerRequest"
+                        stroke="#10b981"
+                        strokeWidth={2}
+                        dot={false}
+                        activeDot={{ r: 4, stroke: "#10b981", strokeWidth: 2 }}
+                      />
+                      <Line
+                        type="linear"
                         dataKey="outputPerRequest"
                         stroke="#f59e0b"
                         strokeWidth={2}
-                        dot={{ fill: "#f59e0b", r: 3 }}
-                        name="Avg Output Tokens/Request"
+                        dot={false}
+                        activeDot={{ r: 4, stroke: "#f59e0b", strokeWidth: 2 }}
                       />
                     </LineChart>
-                  </ResponsiveContainer>
+                  </ChartContainer>
+                  {usageStats.recent_days.length > 1 && (() => {
+                    const recent = usageStats.recent_days.slice(-2);
+                    const current = recent[1].request_count > 0 
+                      ? Math.round(recent[1].total_tokens / recent[1].request_count)
+                      : 0;
+                    const previous = recent[0].request_count > 0
+                      ? Math.round(recent[0].total_tokens / recent[0].request_count)
+                      : 0;
+                    const change = current - previous;
+                    const percentChange = previous > 0 
+                      ? ((change / previous) * 100).toFixed(1)
+                      : "0.0";
+                    return (
+                      <div className="mt-4 flex items-center gap-2 text-xs text-[var(--text-secondary)]">
+                        <ArrowUp className={`w-3 h-3 ${change >= 0 ? 'text-[var(--green)]' : 'text-red-500 rotate-180'}`} />
+                        <span className={change >= 0 ? 'text-[var(--green)]' : 'text-red-500'}>
+                          Trending {change >= 0 ? 'up' : 'down'} by {Math.abs(parseFloat(percentChange))}% {change >= 0 ? 'this' : 'from last'} period
+                        </span>
+                      </div>
+                    );
+                  })()}
                 </div>
 
-                {/* Valid Requests Chart */}
-                <div className="bg-[var(--surface)] rounded-lg border border-[var(--border)] p-4">
-                  <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-4">
-                    Valid Requests vs Total Requests
-                  </h3>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <ComposedChart
+                {/* Valid Requests Chart - Multiple Line Chart */}
+                <div className="bg-[var(--surface)] rounded-lg border border-[var(--border)] p-6">
+                  <div className="mb-4">
+                    <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-1">
+                      Line Chart - Multiple
+                    </h3>
+                    <p className="text-xs text-[var(--text-secondary)]">
+                      Valid vs invalid request trends
+                    </p>
+                  </div>
+                  <ChartContainer
+                    config={{
+                      valid: {
+                        label: "Valid Requests",
+                        color: "#10b981",
+                      },
+                      invalid: {
+                        label: "Invalid Requests",
+                        color: "#ef4444",
+                      },
+                      total: {
+                        label: "Total Requests",
+                        color: "#8b5cf6",
+                      },
+                    }}
+                    className="h-[250px] w-full"
+                  >
+                    <LineChart
                       data={usageStats.recent_days.map((day) => {
                         // Valid requests are those that resulted in token usage
                         // If tokens > 0, we consider requests as valid (at least some)
@@ -1047,26 +1219,53 @@ export default function MonitoringPage() {
                       })}
                       margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
                     >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-[var(--border)] opacity-30" />
                       <XAxis
                         dataKey="date"
-                        stroke="#9ca3af"
-                        style={{ fontSize: "12px" }}
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        className="text-xs fill-[var(--text-secondary)]"
                       />
-                      <YAxis stroke="#9ca3af" style={{ fontSize: "12px" }} />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "#1f2937",
-                          border: "1px solid #374151",
-                          borderRadius: "8px",
-                          color: "#f3f4f6",
-                        }}
+                      <YAxis
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        className="text-xs fill-[var(--text-secondary)]"
+                        width={40}
                       />
-                      <Legend wrapperStyle={{ color: "#f3f4f6" }} />
-                      <Bar dataKey="valid" stackId="a" fill="#10b981" name="Valid Requests" />
-                      <Bar dataKey="invalid" stackId="a" fill="#ef4444" name="Invalid Requests" />
-                    </ComposedChart>
-                  </ResponsiveContainer>
+                      <ChartTooltip
+                        cursor={{ strokeDasharray: "3 3" }}
+                        content={<ChartTooltipContent />}
+                      />
+                      <ChartLegend content={<ChartLegendContent />} />
+                      <Line
+                        type="natural"
+                        dataKey="valid"
+                        stroke="#10b981"
+                        strokeWidth={2}
+                        dot={false}
+                        activeDot={{ r: 4, stroke: "#10b981", strokeWidth: 2 }}
+                      />
+                      <Line
+                        type="natural"
+                        dataKey="invalid"
+                        stroke="#ef4444"
+                        strokeWidth={2}
+                        dot={false}
+                        activeDot={{ r: 4, stroke: "#ef4444", strokeWidth: 2 }}
+                      />
+                      <Line
+                        type="natural"
+                        dataKey="total"
+                        stroke="#8b5cf6"
+                        strokeWidth={2}
+                        strokeDasharray="5 5"
+                        dot={false}
+                        activeDot={{ r: 5, stroke: "#8b5cf6", strokeWidth: 2 }}
+                      />
+                    </LineChart>
+                  </ChartContainer>
                 </div>
               </div>
             )}
@@ -1306,7 +1505,31 @@ export default function MonitoringPage() {
               <TrendingUp className="w-5 h-5 text-[var(--green)]" />
               Requests Per {groupBy.charAt(0).toUpperCase() + groupBy.slice(1)}
             </h2>
-            <ResponsiveContainer width="100%" height={400}>
+            <ChartContainer
+              config={{
+                requests: {
+                  label: "Total Requests",
+                  color: "#10b981",
+                },
+                valid: {
+                  label: "Valid Requests",
+                  color: "#10b981",
+                },
+                invalid: {
+                  label: "Invalid Requests",
+                  color: "#ef4444",
+                },
+                tokens: {
+                  label: "Total Tokens (K)",
+                  color: "#3b82f6",
+                },
+                avgTokensPerRequest: {
+                  label: "Avg Tokens/Request",
+                  color: "#f59e0b",
+                },
+              }}
+              className="h-[400px] w-full"
+            >
               <ComposedChart
                 data={perRequestStats.map((stat) => ({
                   timestamp: stat.timestamp,
@@ -1318,83 +1541,86 @@ export default function MonitoringPage() {
                 }))}
                 margin={{ top: 5, right: 20, left: 0, bottom: 60 }}
               >
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
+                <CartesianGrid strokeDasharray="3 3" className="stroke-[var(--border)] opacity-30" />
                 <XAxis
                   dataKey="timestamp"
-                  stroke="#9ca3af"
-                  style={{ fontSize: "11px" }}
+                  tickLine={false}
+                  axisLine={false}
+                  className="text-xs fill-[var(--text-secondary)]"
                   angle={-45}
                   textAnchor="end"
                   height={80}
                 />
                 <YAxis
                   yAxisId="left"
-                  stroke="#9ca3af"
-                  style={{ fontSize: "12px" }}
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  className="text-xs fill-[var(--text-secondary)]"
                   label={{ value: "Requests", angle: -90, position: "insideLeft" }}
                 />
                 <YAxis
                   yAxisId="right"
                   orientation="right"
-                  stroke="#9ca3af"
-                  style={{ fontSize: "12px" }}
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  className="text-xs fill-[var(--text-secondary)]"
                   label={{ value: "Tokens (K)", angle: 90, position: "insideRight" }}
                 />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#1f2937",
-                    border: "1px solid #374151",
-                    borderRadius: "8px",
-                    color: "#f3f4f6",
-                  }}
-                  formatter={(value: number, name: string) => {
-                    if (name === "tokens") {
-                      return `${value}K tokens`;
-                    }
-                    return value;
-                  }}
+                <ChartTooltip
+                  cursor={{ strokeDasharray: "3 3" }}
+                  content={<ChartTooltipContent />}
                 />
-                <Legend wrapperStyle={{ color: "#f3f4f6" }} />
-                <Bar
-                  yAxisId="left"
-                  dataKey="requests"
-                  fill="#10b981"
-                  name="Total Requests"
-                />
-                <Bar
-                  yAxisId="left"
-                  dataKey="valid"
-                  stackId="a"
-                  fill="#10b981"
-                  name="Valid Requests"
-                />
-                <Bar
-                  yAxisId="left"
-                  dataKey="invalid"
-                  stackId="a"
-                  fill="#ef4444"
-                  name="Invalid Requests"
-                />
-                <Line
-                  yAxisId="right"
-                  type="monotone"
-                  dataKey="tokens"
-                  stroke="#3b82f6"
-                  strokeWidth={2}
-                  dot={{ fill: "#3b82f6", r: 3 }}
-                  name="Total Tokens (K)"
-                />
-                <Line
-                  yAxisId="right"
-                  type="monotone"
-                  dataKey="avgTokensPerRequest"
-                  stroke="#f59e0b"
-                  strokeWidth={2}
-                  dot={{ fill: "#f59e0b", r: 3 }}
-                  name="Avg Tokens/Request"
-                />
+                <ChartLegend content={<ChartLegendContent />} />
+                      <Line
+                        yAxisId="left"
+                        type="natural"
+                        dataKey="requests"
+                        stroke="#10b981"
+                        strokeWidth={2}
+                        dot={false}
+                        activeDot={{ r: 4, stroke: "#10b981", strokeWidth: 2 }}
+                      />
+                      <Line
+                        yAxisId="left"
+                        type="natural"
+                        dataKey="valid"
+                        stroke="#10b981"
+                        strokeWidth={2}
+                        strokeDasharray="5 5"
+                        dot={false}
+                        activeDot={{ r: 4, stroke: "#10b981", strokeWidth: 2 }}
+                      />
+                      <Line
+                        yAxisId="left"
+                        type="natural"
+                        dataKey="invalid"
+                        stroke="#ef4444"
+                        strokeWidth={2}
+                        dot={false}
+                        activeDot={{ r: 4, stroke: "#ef4444", strokeWidth: 2 }}
+                      />
+                      <Line
+                        yAxisId="right"
+                        type="natural"
+                        dataKey="tokens"
+                        stroke="#3b82f6"
+                        strokeWidth={2}
+                        dot={false}
+                        activeDot={{ r: 4, stroke: "#3b82f6", strokeWidth: 2 }}
+                      />
+                      <Line
+                        yAxisId="right"
+                        type="natural"
+                        dataKey="avgTokensPerRequest"
+                        stroke="#f59e0b"
+                        strokeWidth={2}
+                        dot={false}
+                        activeDot={{ r: 4, stroke: "#f59e0b", strokeWidth: 2 }}
+                      />
               </ComposedChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </div>
         )}
       </main>

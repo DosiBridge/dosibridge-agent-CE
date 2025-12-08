@@ -136,10 +136,9 @@ async def get_api_keys_info(
         today_stats = stats.get("today", {})
         
         # Check which keys are set
+        # Only show OpenAI (for embeddings, not changeable) and DeepSeek (default LLM)
         openai_key_set = bool(os.getenv("OPENAI_API_KEY"))
         deepseek_key_set = bool(os.getenv("DEEPSEEK_KEY"))
-        google_key_set = bool(os.getenv("GOOGLE_API_KEY"))
-        groq_key_set = bool(os.getenv("GROQ_API_KEY"))
         
         return {
             "status": "success",
@@ -150,22 +149,12 @@ async def get_api_keys_info(
                     "openai": {
                         "set": openai_key_set,
                         "purpose": "Embeddings only (RAG system)",
-                        "used_for": "Document embeddings and vector search"
+                        "used_for": "Document embeddings and vector search (not changeable)"
                     },
                     "deepseek": {
                         "set": deepseek_key_set,
-                        "purpose": "LLM responses (agent and RAG)",
-                        "used_for": "Chat responses and agent interactions"
-                    },
-                    "google": {
-                        "set": google_key_set,
-                        "purpose": "Gemini models (optional)",
-                        "used_for": "Alternative LLM provider"
-                    },
-                    "groq": {
-                        "set": groq_key_set,
-                        "purpose": "Groq models (optional)",
-                        "used_for": "Alternative LLM provider"
+                        "purpose": "Default LLM (agent and RAG)",
+                        "used_for": "Chat responses and agent interactions (users can change/add their own LLM)"
                     }
                 },
                 "today_usage": {
