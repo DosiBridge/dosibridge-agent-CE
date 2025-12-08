@@ -65,7 +65,12 @@ class ReActAgent:
         ])
     
     def create_react_tools(self, user_id: int, collection_id: Optional[int] = None) -> List[BaseTool]:
-        """Create tools for ReAct agent"""
+        """Create tools for ReAct agent
+        
+        NOTE: ReAct agent in RAG mode only uses document retrieval and calculation tools.
+        It does NOT include MCP (Model Context Protocol) tools.
+        MCP tools are only available in Agent mode, not RAG mode.
+        """
         from langchain_core.tools import tool
         
         @tool

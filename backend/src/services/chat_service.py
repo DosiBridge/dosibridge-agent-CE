@@ -59,8 +59,17 @@ class ChatService:
     
     @staticmethod
     async def _process_rag(message: str, session_id: str, user_id: Optional[int], db: Optional["Session"] = None, collection_id: Optional[int] = None, use_react: bool = False, agent_prompt: Optional[str] = None) -> dict:
-        """Process RAG mode with advanced RAG system"""
+        """Process RAG mode with advanced RAG system
+        
+        NOTE: RAG mode does NOT use MCP servers. It only uses:
+        - Document retrieval from RAG system
+        - ReAct agent with document retrieval tools (if use_react=True)
+        - No MCP tools are loaded or used in RAG mode
+        """
         llm_config = Config.load_llm_config(db=db, user_id=user_id)
+        
+        # Explicitly ensure MCP is not used in RAG mode
+        # RAG mode focuses on document retrieval, not MCP tool execution
         
         # Use ReAct agent if requested
         if use_react and user_id:

@@ -239,7 +239,9 @@ async def chat_stream(
             await asyncio.sleep(0.1)
             
             if chat_request.mode == "rag":
-                # For RAG mode, we'll stream the response
+                # RAG mode: Document retrieval only - NO MCP servers or tools
+                # RAG mode focuses on retrieving and using documents from the knowledge base
+                # It does NOT use MCP (Model Context Protocol) tools
                 yield f"data: {json.dumps({'chunk': '', 'done': False, 'status': 'thinking'})}\n\n"
                 
                 llm_config = Config.load_llm_config(db=db, user_id=user_id)
