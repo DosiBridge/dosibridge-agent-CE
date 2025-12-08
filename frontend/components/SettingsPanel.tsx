@@ -30,6 +30,7 @@ import {
   rejectDocument,
   resetLLMConfig,
   setLLMConfig,
+  testLLMConfig,
   testMCPServerConnection,
   toggleCustomRAGTool,
   toggleMCPServer,
@@ -156,12 +157,75 @@ export default function SettingsPanel({
     connected: boolean;
     message: string;
   } | null>(null);
+  const [testingLLM, setTestingLLM] = useState(false);
+  const [llmTestStatus, setLlmTestStatus] = useState<{
+    valid: boolean;
+    message: string;
+  } | null>(null);
   const [llmForm, setLlmForm] = useState<LLMConfig>({
     type: "gemini",
     model: "",
     api_key: "",
     base_url: "",
   });
+  const [customModelInput, setCustomModelInput] = useState(false);
+
+  // Model suggestions for each provider
+  const modelSuggestions: Record<string, string[]> = {
+    openai: [
+      "gpt-4o",
+      "gpt-4o-mini",
+      "gpt-4-turbo",
+      "gpt-4",
+      "gpt-3.5-turbo",
+      "o1-preview",
+      "o1-mini",
+    ],
+    openrouter: [
+      "anthropic/claude-3.7-sonnet",
+      "anthropic/claude-3.5-sonnet",
+      "openai/gpt-4o",
+      "openai/gpt-4-turbo",
+      "google/gemini-2.0-flash-exp",
+      "google/gemini-pro-1.5",
+      "meta-llama/llama-3.1-405b-instruct",
+      "mistralai/mistral-large",
+      "deepseek/deepseek-chat",
+      "qwen/qwen-2.5-72b-instruct",
+    ],
+    groq: [
+      "llama-3.1-70b-versatile",
+      "llama-3.1-8b-instant",
+      "mixtral-8x7b-32768",
+      "gemma2-9b-it",
+      "llama-3.2-11b-vision-preview",
+      "llama-3.2-3b-preview",
+    ],
+    gemini: [
+      "gemini-2.0-flash-exp",
+      "gemini-1.5-pro",
+      "gemini-1.5-flash",
+      "gemini-pro",
+      "gemini-2.5-flash",
+      "gemini-2.5-pro",
+    ],
+    deepseek: [
+      "deepseek-chat",
+      "deepseek-coder",
+      "deepseek-reasoner",
+      "deepseek-v2.5",
+    ],
+    ollama: [
+      "llama3.2",
+      "llama3.1",
+      "mistral",
+      "mixtral",
+      "codellama",
+      "phi3",
+      "gemma2",
+      "qwen2.5",
+    ],
+  };
 
   const loadToolsInfo = useCallback(async () => {
     try {
@@ -475,14 +539,19 @@ export default function SettingsPanel({
         ? (llmConfig.type as LLMConfig["type"])
         : "gemini";
 
+      const suggestions = modelSuggestions[type] || [];
+      const currentModel = llmConfig.model || "";
+      const isCustomModel = currentModel && !suggestions.includes(currentModel);
+
       const t = setTimeout(() => {
         setLlmForm({
           type,
-          model: llmConfig.model || "",
+          model: currentModel,
           api_key: "",
           base_url: llmConfig.base_url || "",
           api_base: llmConfig.api_base || "",
         });
+        setCustomModelInput(isCustomModel);
       }, 0);
 
       return () => clearTimeout(t);
@@ -733,6 +802,48 @@ export default function SettingsPanel({
     }
   };
 
+  const handleTestLLMConfig = async () => {
+    if (!llmForm.model.trim()) {
+      toast.error("Model name is required");
+      return;
+    }
+    if (
+      (llmForm.type === "openai" ||
+        llmForm.type === "deepseek" ||
+        llmForm.type === "groq" ||
+        llmForm.type === "gemini" ||
+        llmForm.type === "openrouter") &&
+      !llmForm.api_key?.trim()
+    ) {
+      toast.error("API key is required for this LLM type");
+      return;
+    }
+    // Validate model name format for OpenRouter
+    if (llmForm.type === "openrouter" && !llmForm.model.includes("/")) {
+      toast.error("OpenRouter model names should be in format 'provider/model' (e.g., 'anthropic/claude-3.7-sonnet')");
+      return;
+    }
+    
+    setTestingLLM(true);
+    setLlmTestStatus(null);
+    try {
+      const result = await testLLMConfig(llmForm);
+      if (result.valid) {
+        setLlmTestStatus({ valid: true, message: result.message });
+        toast.success("LLM configuration test passed!");
+      } else {
+        setLlmTestStatus({ valid: false, message: result.message });
+        toast.error(`Test failed: ${result.message}`);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      setLlmTestStatus({ valid: false, message: errorMessage });
+      toast.error(`Test failed: ${errorMessage}`);
+    } finally {
+      setTestingLLM(false);
+    }
+  };
+
   const handleSaveLLMConfig = async () => {
     if (!llmForm.model.trim()) {
       toast.error("Model name is required");
@@ -749,16 +860,46 @@ export default function SettingsPanel({
       toast.error("API key is required for this LLM type");
       return;
     }
+    // Validate model name format for OpenRouter (should have provider/model format)
+    if (llmForm.type === "openrouter" && !llmForm.model.includes("/")) {
+      toast.error("OpenRouter model names should be in format 'provider/model' (e.g., 'anthropic/claude-3.7-sonnet')");
+      return;
+    }
+    
+    // Test configuration before saving
+    setTestingLLM(true);
+    setLlmTestStatus(null);
     try {
+      // First test the configuration
+      const testResult = await testLLMConfig(llmForm);
+      if (!testResult.valid) {
+        toast.error(`Cannot save: ${testResult.message}. Please fix the configuration and try again.`);
+        setLlmTestStatus({ valid: false, message: testResult.message });
+        setTestingLLM(false);
+        return;
+      }
+      
+      // Test passed, now save to database
       await setLLMConfig(llmForm);
-      toast.success("LLM configuration saved");
+      toast.success("LLM configuration tested and saved successfully");
+      setLlmTestStatus({ valid: true, message: "Configuration saved successfully" });
       loadLLMConfig();
+      // Reset custom input if model is in suggestions
+      const suggestions = modelSuggestions[llmForm.type] || [];
+      if (suggestions.includes(llmForm.model)) {
+        setCustomModelInput(false);
+      }
     } catch (error) {
-      toast.error(
-        `Failed to save config: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      // Check if it's a test failure or save failure
+      if (errorMessage.includes("test failed") || errorMessage.includes("configuration test failed")) {
+        setLlmTestStatus({ valid: false, message: errorMessage });
+        toast.error(`Test failed: ${errorMessage}`);
+      } else {
+        toast.error(`Failed to save config: ${errorMessage}`);
+      }
+    } finally {
+      setTestingLLM(false);
     }
   };
 
@@ -771,6 +912,9 @@ export default function SettingsPanel({
       return;
     }
     try {
+      // Clear test status when switching to default
+      setLlmTestStatus(null);
+      // Switch to default LLM (no testing required)
       await setLLMConfig({
         type: "deepseek",
         model: "deepseek-chat",
@@ -786,6 +930,7 @@ export default function SettingsPanel({
         base_url: "",
         api_base: "https://api.deepseek.com",
       });
+      setCustomModelInput(false);
     } catch (error) {
       toast.error(
         `Failed to switch to default LLM: ${
@@ -1616,15 +1761,28 @@ export default function SettingsPanel({
                       </label>
                       <select
                         value={llmForm.type}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const newType = e.target.value as LLMConfig["type"];
+                          const suggestions = modelSuggestions[newType] || [];
+                          // Set default API base URL based on provider
+                          let defaultApiBase = "";
+                          if (newType === "openrouter") {
+                            defaultApiBase = "https://openrouter.ai/api/v1";
+                          } else if (newType === "deepseek") {
+                            defaultApiBase = "https://api.deepseek.com";
+                          }
+                          
                           setLlmForm({
                             ...llmForm,
-                            type: e.target.value as LLMConfig["type"],
+                            type: newType,
+                            model: suggestions.length > 0 ? suggestions[0] : "",
                             api_key: "",
-                            api_base: "",
-                            base_url: "",
-                          })
-                        }
+                            api_base: defaultApiBase,
+                            base_url: newType === "ollama" ? "http://localhost:11434" : "",
+                          });
+                          setCustomModelInput(false);
+                          setLlmTestStatus(null); // Clear test status when provider changes
+                        }}
                         className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--green)]"
                       >
                         <option value="openai">OpenAI</option>
@@ -1637,30 +1795,82 @@ export default function SettingsPanel({
                     </div>
 
                     <div>
-                      <label className="block text-xs sm:text-sm font-medium text-[var(--text-primary)] mb-2">
-                        Model Name
-                      </label>
-                      <input
-                        type="text"
-                        value={llmForm.model}
-                        onChange={(e) =>
-                          setLlmForm({ ...llmForm, model: e.target.value })
-                        }
-                        placeholder={
-                          llmForm.type === "openai"
-                            ? "gpt-4o, gpt-4-turbo, etc."
-                            : llmForm.type === "openrouter"
-                            ? "anthropic/claude-3.7-sonnet, openai/gpt-4o, etc."
-                            : llmForm.type === "groq"
-                            ? "llama-3.1-70b-versatile, mixtral-8x7b-32768, etc."
-                            : llmForm.type === "gemini"
-                            ? "gemini-1.5-pro, gemini-2.0-flash, etc."
-                            : llmForm.type === "deepseek"
-                            ? "deepseek-chat, deepseek-coder, etc."
-                            : "llama3.2, mistral, etc."
-                        }
-                        className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--green)]"
-                      />
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="block text-xs sm:text-sm font-medium text-[var(--text-primary)]">
+                          Model Name
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCustomModelInput(!customModelInput);
+                            if (!customModelInput) {
+                              // When switching to custom, keep current model if it's not in suggestions
+                              const suggestions = modelSuggestions[llmForm.type] || [];
+                              if (!suggestions.includes(llmForm.model)) {
+                                // Keep current model
+                              } else {
+                                // Clear model when switching to custom input
+                                setLlmForm({ ...llmForm, model: "" });
+                              }
+                            }
+                          }}
+                          className="text-xs text-[var(--green)] hover:underline"
+                        >
+                          {customModelInput ? "Select from list" : "Enter custom model"}
+                        </button>
+                      </div>
+                      {!customModelInput ? (
+                        <select
+                          value={llmForm.model}
+                          onChange={(e) =>
+                            setLlmForm({ ...llmForm, model: e.target.value })
+                          }
+                          className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--green)]"
+                        >
+                          <option value="">Select a model...</option>
+                          {(modelSuggestions[llmForm.type] || []).map((model) => (
+                            <option key={model} value={model}>
+                              {model}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          value={llmForm.model}
+                          onChange={(e) => {
+                            setLlmForm({ ...llmForm, model: e.target.value });
+                            setLlmTestStatus(null); // Clear test status when model changes
+                          }}
+                          placeholder={
+                            llmForm.type === "openai"
+                              ? "e.g., gpt-4o, gpt-4-turbo"
+                              : llmForm.type === "openrouter"
+                              ? "e.g., anthropic/claude-3.7-sonnet"
+                              : llmForm.type === "groq"
+                              ? "e.g., llama-3.1-70b-versatile"
+                              : llmForm.type === "gemini"
+                              ? "e.g., gemini-1.5-pro"
+                              : llmForm.type === "deepseek"
+                              ? "e.g., deepseek-chat"
+                              : "e.g., llama3.2"
+                          }
+                          className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--green)]"
+                        />
+                      )}
+                      {llmForm.type === "openrouter" && (
+                        <p className="text-xs text-[var(--text-secondary)] mt-1">
+                          Browse all models at{" "}
+                          <a
+                            href="https://openrouter.ai/models"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[var(--green)] hover:underline"
+                          >
+                            openrouter.ai/models
+                          </a>
+                        </p>
+                      )}
                     </div>
 
                     {llmForm.type !== "ollama" && (
@@ -1671,9 +1881,10 @@ export default function SettingsPanel({
                         <input
                           type="password"
                           value={llmForm.api_key || ""}
-                          onChange={(e) =>
-                            setLlmForm({ ...llmForm, api_key: e.target.value })
-                          }
+                          onChange={(e) => {
+                            setLlmForm({ ...llmForm, api_key: e.target.value });
+                            setLlmTestStatus(null); // Clear test status when API key changes
+                          }}
                           placeholder={
                             llmForm.type === "openrouter"
                               ? "sk-or-v1-..."
@@ -1738,17 +1949,73 @@ export default function SettingsPanel({
                       </div>
                     )}
 
+                    {/* Test Status Display */}
+                    {llmTestStatus && (
+                      <div
+                        className={`p-3 rounded-lg border ${
+                          llmTestStatus.valid
+                            ? "bg-green-500/10 border-green-500/20 text-green-400"
+                            : "bg-red-500/10 border-red-500/20 text-red-400"
+                        }`}
+                      >
+                        <div className="flex items-start gap-2">
+                          {llmTestStatus.valid ? (
+                            <CheckCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                          ) : (
+                            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                          )}
+                          <div className="flex-1">
+                            <p className="text-xs font-medium">
+                              {llmTestStatus.valid ? "Test Passed" : "Test Failed"}
+                            </p>
+                            <p className="text-xs mt-1 opacity-90">
+                              {llmTestStatus.message}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="flex gap-2 pt-2">
                       <button
-                        onClick={handleSaveLLMConfig}
-                        className="flex-1 px-4 py-2 text-sm font-medium text-white bg-[var(--green)] hover:bg-[var(--green-hover)] rounded-lg transition-colors touch-manipulation"
+                        onClick={handleTestLLMConfig}
+                        disabled={testingLLM || !llmForm.model.trim() || (llmForm.type !== "ollama" && !llmForm.api_key?.trim())}
+                        className="px-4 py-2 text-sm font-medium text-[var(--text-primary)] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors touch-manipulation flex items-center gap-2"
                       >
-                        Save Configuration
+                        {testingLLM ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Testing...
+                          </>
+                        ) : (
+                          <>
+                            <Wifi className="w-4 h-4" />
+                            Test Connection
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={handleSaveLLMConfig}
+                        disabled={testingLLM || !llmForm.model.trim() || (llmForm.type !== "ollama" && !llmForm.api_key?.trim())}
+                        className="flex-1 px-4 py-2 text-sm font-medium text-white bg-[var(--green)] hover:bg-[var(--green-hover)] disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors touch-manipulation flex items-center justify-center gap-2"
+                      >
+                        {testingLLM ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Testing & Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-4 h-4" />
+                            Save Configuration
+                          </>
+                        )}
                       </button>
                       {!llmConfig?.is_default && (
                         <button
                           onClick={handleResetLLMConfig}
-                          className="px-4 py-2 text-sm font-medium text-[var(--text-primary)] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] rounded-lg transition-colors touch-manipulation"
+                          disabled={testingLLM}
+                          className="px-4 py-2 text-sm font-medium text-[var(--text-primary)] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors touch-manipulation"
                         >
                           Reset
                         </button>

@@ -35,6 +35,18 @@ export async function setLLMConfig(
   return handleResponse(response);
 }
 
+export async function testLLMConfig(
+  config: LLMConfig
+): Promise<{ status: string; message: string; valid: boolean }> {
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/llm-config/test`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(config),
+  });
+  return handleResponse(response);
+}
+
 export async function resetLLMConfig(): Promise<{
   message: string;
   config: LLMConfigResponse;
