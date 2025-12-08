@@ -17,9 +17,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import ReactMarkdown from "react-markdown";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
-import { oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
+import CodeBlock from "./CodeBlock";
 
 interface MessageBubbleProps {
   message: Message;
@@ -408,46 +406,11 @@ export default function MessageBubble({
                       const inline = !match; // If no language match, it's inline code
 
                       return !inline && match ? (
-                        <div className="relative my-3 group/codeblock">
-                          {/* Code block header with language and copy button */}
-                          <div className="flex items-center justify-between px-4 py-2 bg-[var(--code-header-bg)] border-b border-[var(--code-border)] rounded-t-lg">
-                            <span className="text-xs font-medium text-[var(--text-secondary)] uppercase">
-                              {language}
-                            </span>
-                            <button
-                              onClick={() => handleCopyCode(codeString)}
-                              className="flex items-center gap-1.5 px-2 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] rounded transition-colors"
-                              title="Copy code"
-                            >
-                              {copiedCodeBlock === codeString ? (
-                                <>
-                                  <Check className="w-3 h-3" />
-                                  <span>Copied</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Copy className="w-3 h-3" />
-                                  <span>Copy code</span>
-                                </>
-                              )}
-                            </button>
-                          </div>
-                          <SyntaxHighlighter
-                            style={isDarkMode ? vscDarkPlus : oneLight}
-                            language={language}
-                            PreTag="div"
-                            className="rounded-b-lg text-xs sm:text-sm mt-0"
-                            customStyle={{
-                              margin: 0,
-                              borderRadius: "0 0 0.5rem 0.5rem",
-                              background: isDarkMode ? "#1e1e1e" : "#fafafa",
-                              color: isDarkMode ? "#d4d4d4" : "#24292e",
-                            }}
-                            {...props}
-                          >
-                            {codeString}
-                          </SyntaxHighlighter>
-                        </div>
+                        <CodeBlock
+                          code={codeString}
+                          language={language}
+                          isDarkMode={isDarkMode}
+                        />
                       ) : (
                         <code 
                           className={className} 

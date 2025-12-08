@@ -577,6 +577,69 @@ button {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
+/* Shiki code block styling */
+.shiki-code-block {
+  border-radius: 0 0 0.5rem 0.5rem;
+  background: var(--code-bg);
+}
+
+.shiki-code-block pre {
+  margin: 0 !important;
+  padding: 1rem !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  overflow-x: auto;
+  font-family: var(--font-mono), 'Courier New', monospace !important;
+  line-height: 1.6 !important;
+}
+
+.shiki-code-block code {
+  font-family: var(--font-mono), 'Courier New', monospace !important;
+  font-size: inherit !important;
+  background: transparent !important;
+  padding: 0 !important;
+  border: none !important;
+  color: inherit !important;
+}
+
+/* Ensure Shiki output is properly styled */
+.shiki-code-block .shiki {
+  margin: 0 !important;
+  padding: 1rem !important;
+  background: transparent !important;
+  overflow-x: auto;
+  border-radius: 0 0 0.5rem 0.5rem;
+}
+
+.shiki-code-block .shiki code {
+  display: block;
+  width: 100%;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  font-family: var(--font-mono), 'Courier New', monospace !important;
+  font-size: inherit !important;
+  line-height: 1.6 !important;
+  color: inherit !important;
+}
+
+/* Shiki syntax highlighting colors - ensure proper contrast */
+.shiki-code-block .shiki span {
+  color: inherit;
+}
+
+/* Dark mode adjustments for Shiki */
+.dark .shiki-code-block .shiki {
+  background: #0d1117 !important;
+}
+
+/* Light mode adjustments for Shiki */
+:not(.dark) .shiki-code-block .shiki {
+  background: #ffffff !important;
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 8px;
