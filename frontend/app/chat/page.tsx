@@ -10,12 +10,14 @@ import HealthStatus from "@/components/HealthStatus";
 import OnlineStatus from "@/components/OnlineStatus";
 import SessionSidebar from "@/components/SessionSidebar";
 import SettingsPanel from "@/components/SettingsPanel";
+import UsageIndicator from "@/components/UsageIndicator";
 import CommandPalette from "@/components/ui/CommandPalette";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import { useStore } from "@/lib/store";
 import { healthWebSocket } from "@/lib/websocket";
 import {
   ArrowLeft,
+  BarChart3,
   ChevronDown,
   FileText,
   LogOut,
@@ -375,9 +377,25 @@ export default function ChatPage() {
             <div className="hidden sm:block">
               <HealthStatus />
             </div>
+            {isAuthenticated && (
+              <div className="hidden sm:block">
+                <UsageIndicator />
+              </div>
+            )}
             <ThemeToggle />
             {isAuthenticated && (
               <>
+                <Link
+                  href="/monitoring"
+                  className="p-1.5 bg-[var(--surface-elevated)]/80 hover:bg-[var(--surface-hover)] backdrop-blur-sm rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--green)] active:scale-95 touch-manipulation flex items-center justify-center"
+                  aria-label="View monitoring"
+                  title="API Usage Monitoring"
+                >
+                  <BarChart3
+                    className="w-4 h-4 text-[var(--text-primary)]"
+                    aria-hidden="true"
+                  />
+                </Link>
                 <button
                   onClick={() => {
                     setSettingsOpen(true);

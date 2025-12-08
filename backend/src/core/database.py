@@ -369,6 +369,37 @@ def init_db():
                     conn.execute(text("CREATE INDEX idx_document_chunks_document_id ON document_chunks(document_id)"))
                     conn.commit()
                     print("✓ Created document_chunks table")
+                
+                # Check if api_usage table exists
+                result = conn.execute(
+                    text("SELECT table_name FROM information_schema.tables "
+                         "WHERE table_name='api_usage'")
+                )
+                if not result.fetchone():
+                    print("📝 Creating api_usage table...")
+                    conn.execute(
+                        text("""
+                            CREATE TABLE api_usage (
+                                id SERIAL PRIMARY KEY,
+                                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                                usage_date TIMESTAMP WITH TIME ZONE NOT NULL,
+                                request_count INTEGER DEFAULT 0 NOT NULL,
+                                llm_provider VARCHAR(50),
+                                llm_model VARCHAR(100),
+                                input_tokens INTEGER DEFAULT 0 NOT NULL,
+                                output_tokens INTEGER DEFAULT 0 NOT NULL,
+                                embedding_tokens INTEGER DEFAULT 0 NOT NULL,
+                                mode VARCHAR(20),
+                                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                                updated_at TIMESTAMP WITH TIME ZONE,
+                                UNIQUE(user_id, usage_date)
+                            )
+                        """)
+                    )
+                    conn.execute(text("CREATE INDEX idx_api_usage_user_id ON api_usage(user_id)"))
+                    conn.execute(text("CREATE INDEX idx_api_usage_date ON api_usage(usage_date)"))
+                    conn.commit()
+                    print("✓ Created api_usage table")
         except Exception as e:
             print(f"⚠️  Migration check failed (this is okay if columns already exist): {e}")
     except Exception as e:

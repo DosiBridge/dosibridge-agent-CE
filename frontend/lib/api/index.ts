@@ -15,6 +15,7 @@ export * from "./documents";
 export * from "./health";
 export * from "./llm";
 export * from "./mcp";
+export * from "./monitoring";
 export * from "./sessions";
 export * from "./tools";
 

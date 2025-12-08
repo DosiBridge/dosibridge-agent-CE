@@ -411,6 +411,49 @@ if Base is not None:
                 "created_at": self.created_at.isoformat() if self.created_at else None,
                 "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             }
+
+    class APIUsage(Base):
+        """API usage tracking model for monitoring and rate limiting"""
+        __tablename__ = "api_usage"
+        
+        id = Column(Integer, primary_key=True, index=True)
+        user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)  # Nullable for anonymous users
+        usage_date = Column(DateTime(timezone=True), nullable=False, index=True)  # Date of usage (normalized to start of day)
+        request_count = Column(Integer, default=0, nullable=False)  # Number of requests today
+        llm_provider = Column(String(50), nullable=True)  # Which LLM provider was used (deepseek, openai, gemini, etc.)
+        llm_model = Column(String(100), nullable=True)  # Which model was used
+        input_tokens = Column(Integer, default=0, nullable=False)  # Total input tokens used
+        output_tokens = Column(Integer, default=0, nullable=False)  # Total output tokens used
+        embedding_tokens = Column(Integer, default=0, nullable=False)  # Embedding tokens (OpenAI)
+        mode = Column(String(20), nullable=True)  # "agent" or "rag"
+        created_at = Column(DateTime(timezone=True), server_default=func.now())
+        updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+        
+        # Relationship
+        user = relationship("User", backref="api_usage")
+        
+        # Unique constraint on user_id + usage_date
+        __table_args__ = (
+            UniqueConstraint('user_id', 'usage_date', name='uq_api_usage_user_date'),
+        )
+        
+        def to_dict(self) -> dict:
+            """Convert model to dictionary"""
+            return {
+                "id": self.id,
+                "user_id": self.user_id,
+                "usage_date": self.usage_date.isoformat() if self.usage_date else None,
+                "request_count": self.request_count,
+                "llm_provider": self.llm_provider,
+                "llm_model": self.llm_model,
+                "input_tokens": self.input_tokens,
+                "output_tokens": self.output_tokens,
+                "embedding_tokens": self.embedding_tokens,
+                "total_tokens": self.input_tokens + self.output_tokens + self.embedding_tokens,
+                "mode": self.mode,
+                "created_at": self.created_at.isoformat() if self.created_at else None,
+                "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            }
 else:
     # Dummy classes when database is not available
     LLMConfig = None  # type: ignore
@@ -423,3 +466,4 @@ else:
     DocumentChunk = None  # type: ignore
     CustomRAGTool = None  # type: ignore
     AppointmentRequest = None  # type: ignore
+    APIUsage = None  # type: ignore

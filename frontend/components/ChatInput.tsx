@@ -11,6 +11,7 @@ import { useInputHistory } from "@/hooks/useInputHistory";
 import { createStreamReader, StreamChunk } from "@/lib/api";
 import { getUserFriendlyError, logError } from "@/lib/errors";
 import { useStore } from "@/lib/store";
+import { getTodayUsage } from "@/lib/api/monitoring";
 import {
   Loader2,
   Mic,
@@ -239,6 +240,29 @@ export default function ChatInput() {
         "Please log in to use RAG mode. RAG mode requires authentication."
       );
       return;
+    }
+
+    // Check daily limit for authenticated users
+    if (isAuthenticated) {
+      try {
+        const todayUsage = await getTodayUsage();
+        if (!todayUsage.is_allowed) {
+          toast.error(
+            `Daily limit reached! You have used ${todayUsage.request_count}/${todayUsage.limit} requests today. Please try again tomorrow.`,
+            { duration: 6000 }
+          );
+          return;
+        }
+        if (todayUsage.remaining <= 10) {
+          toast(
+            `Warning: Only ${todayUsage.remaining} requests remaining today (${todayUsage.request_count}/${todayUsage.limit} used)`,
+            { duration: 4000, icon: "⚠️" }
+          );
+        }
+      } catch (error) {
+        // If usage check fails, allow the request (don't block on error)
+        console.warn("Failed to check daily limit:", error);
+      }
     }
 
     const message = input.trim();

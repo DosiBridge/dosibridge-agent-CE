@@ -17,12 +17,14 @@ from src.core.auth import get_current_active_user, get_current_user
 from src.services import history_manager, MCPClientManager, create_llm_from_config, rag_system
 from src.services.chat_service import ChatService
 from src.services.tools import retrieve_dosiblog_context, load_custom_rag_tools, create_appointment_tool
+from src.services.usage_tracker import usage_tracker
 from typing import Optional
 from sqlalchemy.orm import Session
 from ..models import ChatRequest, ChatResponse
 from ..exceptions import APIException, ValidationError, UnauthorizedError
 from src.utils import sanitize_tools_for_gemini
 from src.utils.logger import app_logger
+from src.core.constants import DAILY_REQUEST_LIMIT
 
 router = APIRouter()
 
@@ -61,13 +63,27 @@ async def chat(
                 "Authentication required for RAG mode. Please log in to upload documents and query them."
             )
         
+        # Check daily rate limit (100 requests per day per user)
+        is_allowed, current_count, remaining = usage_tracker.check_daily_limit(user_id, db)
+        if not is_allowed:
+            app_logger.warning(
+                "Daily rate limit exceeded",
+                {"user_id": user_id, "current_count": current_count, "limit": DAILY_REQUEST_LIMIT}
+            )
+            raise HTTPException(
+                status_code=429,
+                detail=f"Daily request limit exceeded. You have used {current_count}/{DAILY_REQUEST_LIMIT} requests today. Please try again tomorrow."
+            )
+        
         app_logger.info(
             "Processing chat request",
             {
                 "user_id": user_id,
                 "session_id": chat_request.session_id,
                 "mode": chat_request.mode,
-                "message_length": len(chat_request.message)
+                "message_length": len(chat_request.message),
+                "daily_usage": f"{current_count}/{DAILY_REQUEST_LIMIT}",
+                "remaining": remaining
             }
         )
         
@@ -99,6 +115,18 @@ async def chat(
                     )
             
             background_tasks.add_task(update_summary_task)
+        
+        # Record usage (estimate tokens - actual tracking would require LLM response metadata)
+        llm_config = Config.load_llm_config()
+        usage_tracker.record_request(
+            user_id=user_id,
+            db=db,
+            llm_provider=llm_config.get("type"),
+            llm_model=llm_config.get("model"),
+            input_tokens=len(chat_request.message.split()) * 2,  # Rough estimate
+            output_tokens=len(result.get("response", "").split()) * 2,  # Rough estimate
+            mode=chat_request.mode
+        )
         
         app_logger.info(
             "Chat request processed successfully",
@@ -146,6 +174,16 @@ async def chat_stream(
         # RAG mode requires authentication (Agent mode works without login)
         if chat_request.mode == "rag" and not current_user:
             yield f"data: {json.dumps({'chunk': '', 'done': True, 'error': 'Authentication required for RAG mode. Please log in to upload documents and query them.'})}\n\n"
+            return
+        
+        # Check daily rate limit (100 requests per day per user)
+        is_allowed, current_count, remaining = usage_tracker.check_daily_limit(user_id, db)
+        if not is_allowed:
+            app_logger.warning(
+                "Daily rate limit exceeded (streaming)",
+                {"user_id": user_id, "current_count": current_count, "limit": DAILY_REQUEST_LIMIT}
+            )
+            yield f"data: {json.dumps({'chunk': '', 'done': True, 'error': f'Daily request limit exceeded. You have used {current_count}/{DAILY_REQUEST_LIMIT} requests today. Please try again tomorrow.'})}\n\n"
             return
         
         try:
@@ -310,6 +348,20 @@ async def chat_stream(
                     
                     session_history.add_user_message(chat_request.message)
                     session_history.add_ai_message(full_response)
+                    
+                    # Record usage after successful response
+                    llm_config = Config.load_llm_config()
+                    input_tokens = len(chat_request.message.split()) * 2  # Rough estimate
+                    output_tokens = len(full_response.split()) * 2  # Rough estimate
+                    usage_tracker.record_request(
+                        user_id=user_id,
+                        db=db,
+                        llm_provider=llm_config.get("type"),
+                        llm_model=llm_config.get("model"),
+                        input_tokens=input_tokens,
+                        output_tokens=output_tokens,
+                        mode=chat_request.mode
+                    )
                 
                 yield f"data: {json.dumps({'chunk': '', 'done': True})}\n\n"
                 stream_completed = True
@@ -558,6 +610,20 @@ async def chat_stream(
                         
                         session_history.add_user_message(chat_request.message)
                         session_history.add_ai_message(full_response)
+                        
+                        # Record usage after successful response
+                        llm_config = Config.load_llm_config()
+                        input_tokens = len(chat_request.message.split()) * 2  # Rough estimate
+                        output_tokens = len(full_response.split()) * 2  # Rough estimate
+                        usage_tracker.record_request(
+                            user_id=user_id,
+                            db=db,
+                            llm_provider=llm_config.get("type"),
+                            llm_model=llm_config.get("model"),
+                            input_tokens=input_tokens,
+                            output_tokens=output_tokens,
+                            mode=chat_request.mode
+                        )
                     
                     yield f"data: {json.dumps({'chunk': '', 'done': True, 'tools_used': tool_calls_made})}\n\n"
                     stream_completed = True
@@ -736,6 +802,20 @@ async def chat_stream(
                                 
                                 session_history.add_user_message(chat_request.message)
                                 session_history.add_ai_message(full_response)
+                                
+                                # Record usage after successful response
+                                llm_config = Config.load_llm_config()
+                                input_tokens = len(chat_request.message.split()) * 2  # Rough estimate
+                                output_tokens = len(full_response.split()) * 2  # Rough estimate
+                                usage_tracker.record_request(
+                                    user_id=user_id,
+                                    db=db,
+                                    llm_provider=llm_config.get("type"),
+                                    llm_model=llm_config.get("model"),
+                                    input_tokens=input_tokens,
+                                    output_tokens=output_tokens,
+                                    mode=chat_request.mode
+                                )
                             
                             yield f"data: {json.dumps({'chunk': '', 'done': True})}\n\n"
                             stream_completed = True
@@ -977,6 +1057,20 @@ async def chat_stream(
                                 
                                 session_history.add_user_message(chat_request.message)
                                 session_history.add_ai_message(full_response)
+                                
+                                # Record usage after successful response
+                                llm_config = Config.load_llm_config()
+                                input_tokens = len(chat_request.message.split()) * 2  # Rough estimate
+                                output_tokens = len(full_response.split()) * 2  # Rough estimate
+                                usage_tracker.record_request(
+                                    user_id=user_id,
+                                    db=db,
+                                    llm_provider=llm_config.get("type"),
+                                    llm_model=llm_config.get("model"),
+                                    input_tokens=input_tokens,
+                                    output_tokens=output_tokens,
+                                    mode=chat_request.mode
+                                )
                         
                         yield f"data: {json.dumps({'chunk': '', 'done': True, 'tools_used': tool_calls_made})}\n\n"
                         stream_completed = True
