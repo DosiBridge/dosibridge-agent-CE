@@ -15,8 +15,8 @@ export default function ThinkingIndicator() {
   const isStreaming = useStore((state) => state.isStreaming);
   const streamingStartTime = useStore((state) => state.streamingStartTime);
 
-  const [displayText, setDisplayText] = useState("");
   const [elapsedTime, setElapsedTime] = useState<number | null>(null);
+  const [isExpanded, setIsExpanded] = useState(true);
 
   // Update elapsed time
   useEffect(() => {
@@ -33,90 +33,75 @@ export default function ThinkingIndicator() {
     return () => clearInterval(interval);
   }, [isStreaming, streamingStartTime]);
 
+  // Collapse automatically when answering starts
   useEffect(() => {
-    if (!isStreaming || !streamingStatus) {
-      setDisplayText("");
-      return;
+    if (streamingStatus === "answering") {
+      setIsExpanded(false);
     }
-
-    switch (streamingStatus) {
-      case "thinking":
-        setDisplayText("Thinking...");
-        break;
-      case "tool_calling":
-        if (activeTools.length > 0) {
-          setDisplayText(`Using ${activeTools[activeTools.length - 1]}...`);
-        } else {
-          setDisplayText("Using tools...");
-        }
-        break;
-      case "answering":
-        setDisplayText("Answering...");
-        break;
-      default:
-        setDisplayText("");
-    }
-  }, [streamingStatus, activeTools, isStreaming]);
+  }, [streamingStatus]);
 
   if (!isStreaming || !streamingStatus) {
     return null;
   }
 
-  const getIcon = () => {
-    switch (streamingStatus) {
-      case "thinking":
-        return <Sparkles className="w-4 h-4 text-[var(--green)] animate-pulse" />;
-      case "tool_calling":
-        return <Wrench className="w-4 h-4 text-[var(--green)] animate-pulse" />;
-      case "answering":
-        return <MessageSquare className="w-4 h-4 text-[var(--green)]" />;
-      default:
-        return <Loader2 className="w-4 h-4 text-[var(--green)] animate-spin" />;
-    }
-  };
-
   return (
     <div className="max-w-4xl mx-auto w-full px-1 sm:px-2 mb-3 sm:mb-4">
-      <div className="flex items-center gap-3 px-4 py-3 bg-[var(--surface-elevated)]/80 backdrop-blur-md rounded-xl border border-[var(--border)] shadow-sm animate-fade-in">
-        <div className="shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-[var(--green)]/10">
-          {getIcon()}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <div className="text-sm font-medium text-[var(--text-primary)] truncate">
-              {displayText}
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)]/50 backdrop-blur-sm overflow-hidden animate-fade-in shadow-sm">
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-[var(--surface-hover)] transition-colors"
+        >
+          <div className="flex items-center gap-2 text-[var(--text-primary)] font-medium">
+            <div className="relative flex h-2 w-2">
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${streamingStatus === 'answering' ? 'bg-[var(--green)]' : 'bg-amber-500'}`}></span>
+              <span className={`relative inline-flex rounded-full h-2 w-2 ${streamingStatus === 'answering' ? 'bg-[var(--green)]' : 'bg-amber-500'}`}></span>
             </div>
+            {streamingStatus === "answering" ? "Finished Thinking" : "Reasoning"}
             {elapsedTime !== null && elapsedTime > 0 && (
-              <span className="text-xs text-[var(--text-secondary)] whitespace-nowrap">
+              <span className="text-xs text-[var(--text-secondary)] font-normal ml-1">
                 ({elapsedTime}s)
               </span>
             )}
           </div>
-          {streamingStatus === "tool_calling" && activeTools.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {activeTools.map((tool, index) => (
-                <span
-                  key={`${tool}-${index}`}
-                  className="text-xs px-2 py-1 bg-[var(--green)]/10 text-[var(--green)] rounded-full border border-[var(--green)]/20 font-medium"
-                >
-                  {tool}
-                </span>
-              ))}
+          <div className={`text-[var(--text-secondary)] transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-down"><path d="m6 9 6 6 6-6" /></svg>
+          </div>
+        </button>
+
+        {isExpanded && (
+          <div className="px-4 pb-4 animate-in slide-in-from-top-2 duration-200">
+            <div className="h-px w-full bg-[var(--border)] mb-3" />
+            <div className="space-y-2.5">
+              {activeTools.length > 0 ? (
+                <>
+                  <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)] uppercase tracking-wider font-semibold">
+                    <Wrench className="w-3 h-3" />
+                    Tools Used
+                  </div>
+                  <div className="grid gap-2">
+                    {activeTools.map((tool, index) => (
+                      <div key={`${tool}-${index}`} className="flex items-center gap-2 text-sm text-[var(--text-primary)] bg-[var(--surface)] px-3 py-2 rounded-md border border-[var(--border)]">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[var(--green)]" />
+                        {tool}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)] italic">
+                  <Sparkles className="w-4 h-4" />
+                  Analyzing request...
+                </div>
+              )}
+              {streamingStatus === "thinking" && (
+                <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)] animate-pulse mt-2">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Thinking process active...
+                </div>
+              )}
             </div>
-          )}
-        </div>
-        {/* Progress indicator */}
-        <div className="shrink-0 w-16 h-1 bg-[var(--border)]/50 rounded-full overflow-hidden">
-          <div
-            className={`h-full bg-[var(--green)] transition-all duration-300 ${
-              streamingStatus === "answering" ? "w-full" : "w-1/3"
-            } ${
-              streamingStatus === "thinking" || streamingStatus === "tool_calling"
-                ? "animate-pulse"
-                : ""
-            }`}
-          />
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

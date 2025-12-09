@@ -54,7 +54,7 @@ export default function ChatWindow() {
       }, 150);
 
       // Show/hide scroll button logic
-      const threshold = 300;
+      const threshold = 100;
       const scrollTop = container.scrollTop;
       const scrollHeight = container.scrollHeight;
       const clientHeight = container.clientHeight;
@@ -268,7 +268,7 @@ export default function ChatWindow() {
       {showScrollButton && (
         <button
           onClick={scrollToBottom}
-          className="absolute bottom-4 left-1/2 -translate-x-1/2 p-2 rounded-full bg-[var(--surface-elevated)] border border-[var(--border)] shadow-lg hover:bg-[var(--surface-hover)] transition-all duration-200 animate-in fade-in zoom-in cursor-pointer z-30 group"
+          className="absolute bottom-20 left-1/2 -translate-x-1/2 p-2 rounded-full bg-[var(--surface-elevated)] border border-[var(--border)] shadow-lg hover:bg-[var(--surface-hover)] transition-all duration-200 animate-in fade-in zoom-in cursor-pointer z-30 group"
           aria-label="Scroll to bottom"
         >
           <ArrowDown className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]" />

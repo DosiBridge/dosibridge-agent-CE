@@ -18,6 +18,7 @@ import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import ReactMarkdown from "react-markdown";
 import CodeBlock from "./CodeBlock";
+import Sources from "./Sources";
 
 interface MessageBubbleProps {
   message: Message;
@@ -402,6 +403,16 @@ export default function MessageBubble({
                       const codeString = String(children).replace(/\n$/, "");
                       const inline = !match; // If no language match, it's inline code
 
+                      // Check if it's a citation like [1], [2], etc.
+                      const citationMatch = /^\[(\d+)\]$/.exec(String(children));
+                      if (inline && citationMatch) {
+                        return (
+                          <span className="inline-flex items-center justify-center w-5 h-5 ml-0.5 text-[10px] font-medium text-[var(--primary)] bg-[var(--surface-elevated)] border border-[var(--border)] rounded-full -translate-y-0.5 select-none hover:bg-[var(--surface-hover)] cursor-default">
+                            {citationMatch[1]}
+                          </span>
+                        );
+                      }
+
                       return !inline && match ? (
                         <CodeBlock
                           code={codeString}
@@ -433,6 +444,11 @@ export default function MessageBubble({
           </div>
           {/* Old Action Buttons Removed */}
         </div>
+
+        {/* Sources - Rendered below the message for AI */}
+        {!isUser && message.sources && message.sources.length > 0 && (
+          <Sources sources={message.sources} />
+        )}
 
         {message.tools_used && message.tools_used.length > 0 && (
           <div className="mt-1 sm:mt-1.5 md:mt-2 flex items-center gap-1 sm:gap-1.5 md:gap-2 flex-wrap">

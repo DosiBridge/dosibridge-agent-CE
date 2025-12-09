@@ -18,6 +18,7 @@ export interface StoredMessage {
   content: string;
   timestamp: number;
   tools_used?: string[];
+  sources?: { title: string; url?: string }[];
 }
 
 const SESSIONS_KEY = "chat_sessions";

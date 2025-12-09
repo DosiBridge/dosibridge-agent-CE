@@ -39,6 +39,7 @@ export interface Message {
   content: string;
   timestamp: Date;
   tools_used?: string[];
+  sources?: { title: string; url?: string }[];
 }
 
 interface AppState {
@@ -313,6 +314,7 @@ export const useStore = create<AppState>((set, get) => ({
         content: msg.content,
         timestamp: msg.timestamp.getTime(),
         tools_used: msg.tools_used,
+        sources: msg.sources,
       }));
       saveStoredMessages(state.currentSessionId, storedMessages);
     }
@@ -335,6 +337,7 @@ export const useStore = create<AppState>((set, get) => ({
         content: msg.content,
         timestamp: msg.timestamp.getTime(),
         tools_used: msg.tools_used,
+        sources: msg.sources,
       }));
       saveStoredMessages(state.currentSessionId, storedMessages);
 
@@ -371,6 +374,7 @@ export const useStore = create<AppState>((set, get) => ({
         content: msg.content,
         timestamp: msg.timestamp.getTime(),
         tools_used: msg.tools_used,
+        sources: msg.sources,
       }));
       saveStoredMessages(state.currentSessionId, storedMessages);
 
@@ -534,6 +538,7 @@ export const useStore = create<AppState>((set, get) => ({
           content: msg.content,
           timestamp: new Date(msg.timestamp),
           tools_used: msg.tools_used,
+          sources: msg.sources,
         }));
         set({ messages, isLoading: false });
       } else {
@@ -572,6 +577,7 @@ export const useStore = create<AppState>((set, get) => ({
               content: msg.content,
               timestamp: msg.timestamp.getTime(),
               tools_used: msg.tools_used,
+              sources: msg.sources,
             }));
             saveStoredMessages(sessionId, storedMessages);
 
