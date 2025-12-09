@@ -10,11 +10,16 @@
   },
   "dependencies": {
     "@ai-sdk/ui-utils": "^1.2.11",
+    "@tabler/icons-react": "^3.35.0",
+    "@tsparticles/react": "^3.0.0",
+    "@tsparticles/slim": "^3.9.1",
     "@types/react-syntax-highlighter": "^15.5.13",
     "ai": "^5.0.87",
     "axios": "^1.13.2",
     "clsx": "^2.1.1",
+    "framer-motion": "^12.23.25",
     "lucide-react": "^0.552.0",
+    "mini-svg-data-uri": "^1.4.4",
     "next": "16.0.1",
     "react": "19.2.0",
     "react-dom": "19.2.0",
@@ -23,7 +28,8 @@
     "react-syntax-highlighter": "^16.1.0",
     "recharts": "^3.5.1",
     "shiki": "^3.19.0",
-    "tailwind-merge": "^2.5.4",
+    "simplex-noise": "^4.0.3",
+    "tailwind-merge": "^2.6.0",
     "zustand": "^5.0.8"
   },
   "devDependencies": {

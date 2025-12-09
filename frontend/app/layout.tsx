@@ -1,6 +1,7 @@
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import RuntimeConfigLoader from "@/components/RuntimeConfigLoader";
 import ThemeProvider from "@/components/ThemeProvider";
+import StarBackground from "@/components/StarBackground";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
@@ -38,9 +39,11 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#030014] text-white min-h-screen relative`}
         suppressHydrationWarning
       >
+        <StarBackground />
+
         {/* Initialize theme before React hydration to prevent flash */}
         <Script
           id="theme-init"
@@ -50,23 +53,10 @@ export default function RootLayout({
               (function() {
                 try {
                   const stored = localStorage.getItem('theme');
-                  let themePreference = stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'system';
-                  let actualTheme = 'dark';
-                  
-                  if (themePreference === 'system') {
-                    actualTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-                  } else {
-                    actualTheme = themePreference;
-                  }
-                  
-                  const root = document.documentElement;
-                  if (actualTheme === 'dark') {
-                    root.classList.add('dark');
-                  } else {
-                    root.classList.remove('dark');
-                  }
+                  // Force dark mode for space theme if needed, or stick to system
+                  // For this UI overhaul, we prefer dark/space theme.
+                  document.documentElement.classList.add('dark');
                 } catch (e) {
-                  // Fallback to dark if there's an error
                   document.documentElement.classList.add('dark');
                 }
               })();
