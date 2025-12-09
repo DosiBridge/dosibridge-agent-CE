@@ -14,7 +14,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useStore } from "@/lib/store";
-import { Session } from "@/lib/types";
+import { type Session } from "@/lib/api";
 import { formatDistanceToNow } from "date-fns";
 
 interface SessionSidebarProps {
@@ -98,7 +98,7 @@ export default function SessionSidebar({
               </motion.span>
 
               {sessions.slice(0, 10).map((session, idx) => (
-                <div key={session.id} className="group relative" onClick={() => loadSession(session.id)}>
+                <div key={session.id || idx} className="group relative" onClick={() => loadSession(session.id)}>
                   <SidebarLink
                     link={{
                       label: session.title || "New Conversation",

@@ -4,6 +4,7 @@
 
 import { create } from "zustand";
 import {
+  deleteSession as deleteSessionApi,
   getCurrentUser,
   getHealth,
   getLLMConfig,
@@ -23,6 +24,7 @@ import {
 } from "./api";
 import {
   createStoredSession,
+  deleteStoredSession,
   getOrCreateDefaultSession,
   getStoredMessages,
   getStoredSessions,
@@ -102,6 +104,7 @@ interface AppState {
   // Session actions
   loadSessions: () => Promise<void>;
   loadSession: (sessionId: string) => Promise<void>;
+  deleteSession: (sessionId: string) => Promise<void>;
   createNewSession: () => void;
   updateSessionTitle: (sessionId: string, title: string) => void;
   saveCurrentSessionMessages: () => void;
@@ -263,6 +266,37 @@ export const useStore = create<AppState>((set, get) => ({
       messages: [],
     });
     get().loadSessions();
+  },
+
+  deleteSession: async (sessionId: string) => {
+    // 1. Delete from local storage (always works)
+    deleteStoredSession(sessionId);
+
+    // 2. Update state to remove session
+    set((state) => ({
+      sessions: state.sessions.filter((s) => s.session_id !== sessionId),
+    }));
+
+    // 3. If current session was deleted, switch to another
+    if (get().currentSessionId === sessionId) {
+      const sessions = get().sessions;
+      if (sessions.length > 0) {
+        get().setCurrentSession(sessions[0].session_id);
+      } else {
+        get().createNewSession();
+      }
+    }
+
+    // 4. Delete from backend if authenticated
+    const isAuthenticated = get().isAuthenticated;
+    if (isAuthenticated) {
+      try {
+        await deleteSessionApi(sessionId);
+      } catch (error) {
+        console.error("Failed to delete session from backend:", error);
+        // Continue anyway since we deleted locally
+      }
+    }
   },
 
   updateSessionTitle: (sessionId: string, title: string) => {
