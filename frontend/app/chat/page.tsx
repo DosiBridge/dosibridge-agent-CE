@@ -143,6 +143,7 @@ export default function ChatPage() {
     const handleKeyPress = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "k") {
         e.preventDefault();
+        console.log("Ctrl+K pressed"); // Debugging
         setCommandPaletteOpen((prev) => !prev);
       }
       if ((e.ctrlKey || e.metaKey) && e.key === "n") {

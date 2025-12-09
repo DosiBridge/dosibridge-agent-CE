@@ -13,7 +13,8 @@ import {
   Info as InfoIcon,
   Brain,
   FileText,
-  Loader2
+  Loader2,
+  Power
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import {
@@ -30,6 +31,9 @@ import toast from "react-hot-toast";
 import * as api from "@/lib/api";
 import {
   listLLMConfigs,
+  switchLLMConfig,
+  deleteLLMConfig,
+  type LLMConfigListItem,
 } from "@/lib/api/llm";
 import RAGUploadModal from "@/components/rag/RAGUploadModal";
 import { Document } from "@/types/api";
@@ -97,6 +101,10 @@ export default function SettingsPanel() {
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [refreshingStats, setRefreshingStats] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
+
+  // LLM Configs List
+  const [llmConfigs, setLlmConfigs] = useState<LLMConfigListItem[]>([]);
+  const [loadingConfigs, setLoadingConfigs] = useState(false);
 
   // Load existing LLM config into form
   useEffect(() => {
@@ -203,9 +211,48 @@ export default function SettingsPanel() {
     try {
       await api.setLLMConfig(llmForm as any);
       await loadLLMConfig();
+      await loadLLMConfigsList();
       toast.success("LLM Configuration saved");
     } catch (error) {
       toast.error("Failed to save LLM configuration");
+    }
+  };
+
+  const loadLLMConfigsList = async () => {
+    if (!isAuthenticated) return;
+    setLoadingConfigs(true);
+    try {
+      const { configs } = await listLLMConfigs();
+      setLlmConfigs(configs);
+    } catch (error) {
+      console.error("Failed to load LLM configs:", error);
+      setLlmConfigs([]);
+    } finally {
+      setLoadingConfigs(false);
+    }
+  };
+
+  const handleSwitchConfig = async (configId: number) => {
+    try {
+      await switchLLMConfig(configId);
+      toast.success("Switched LLM configuration successfully");
+      await loadLLMConfigsList();
+      await loadLLMConfig();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to switch LLM configuration");
+    }
+  };
+
+  const handleDeleteConfig = async (configId: number) => {
+    if (!confirm("Are you sure you want to delete this LLM configuration?")) {
+      return;
+    }
+    try {
+      await deleteLLMConfig(configId);
+      toast.success("LLM configuration deleted successfully");
+      await loadLLMConfigsList();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete LLM configuration");
     }
   };
 
@@ -263,6 +310,13 @@ export default function SettingsPanel() {
         // simple approach: just reload both
       }, 5000);
       return () => clearInterval(interval);
+    }
+  }, [activeTab, isAuthenticated]);
+
+  // Load LLM configs when LLM tab is active
+  useEffect(() => {
+    if (activeTab === "llm" && isAuthenticated) {
+      loadLLMConfigsList();
     }
   }, [activeTab, isAuthenticated]);
 
@@ -340,79 +394,182 @@ export default function SettingsPanel() {
 
             {/* LLM Settings */}
             {activeTab === 'llm' && (
-              <div className="max-w-xl mx-auto space-y-6">
-                <div>
-                  <h3 className="text-lg font-semibold text-white mb-1">LLM Configuration</h3>
-                  <p className="text-sm text-zinc-400">Configure the AI model provider settings.</p>
-                </div>
-
-                <div className="space-y-4">
+              <div className="space-y-6">
+                {/* Add New Configuration Form */}
+                <div className="max-w-xl mx-auto space-y-6">
                   <div>
-                    <label className="block text-sm font-medium text-zinc-300 mb-1">Provider</label>
-                    <select
-                      value={llmForm.type}
-                      onChange={(e) => setLlmForm({ ...llmForm, type: e.target.value })}
-                      className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
-                    >
-                      <option value="openai">OpenAI</option>
-                      <option value="anthropic">Anthropic</option>
-                      <option value="gemini">Google Gemini</option>
-                      <option value="ollama">Ollama (Local)</option>
-                    </select>
+                    <h3 className="text-lg font-semibold text-white mb-1">Add New LLM Configuration</h3>
+                    <p className="text-sm text-zinc-400">Configure a new AI model provider.</p>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-300 mb-1">Model Name</label>
-                    <input
-                      type="text"
-                      value={llmForm.model}
-                      onChange={(e) => setLlmForm({ ...llmForm, model: e.target.value })}
-                      className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
-                      placeholder="e.g. gpt-4o"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-300 mb-1">API Key</label>
-                    <div className="relative">
-                      <input
-                        type={showApiKey ? "text" : "password"}
-                        value={llmForm.api_key}
-                        onChange={(e) => setLlmForm({ ...llmForm, api_key: e.target.value })}
-                        className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none pr-10"
-                        placeholder="sk-..."
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowApiKey(!showApiKey)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-white"
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-zinc-300 mb-1">Provider</label>
+                      <select
+                        value={llmForm.type}
+                        onChange={(e) => setLlmForm({ ...llmForm, type: e.target.value })}
+                        className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
                       >
-                        <Key className="w-4 h-4" />
+                        <option value="openai">OpenAI</option>
+                        <option value="deepseek">DeepSeek</option>
+                        <option value="groq">Groq</option>
+                        <option value="gemini">Google Gemini</option>
+                        <option value="ollama">Ollama (Local)</option>
+                        <option value="openrouter">OpenRouter</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-zinc-300 mb-1">Model Name</label>
+                      <input
+                        type="text"
+                        value={llmForm.model}
+                        onChange={(e) => setLlmForm({ ...llmForm, model: e.target.value })}
+                        className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                        placeholder="e.g. gpt-4o, deepseek-chat, gemini-1.5-flash"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-zinc-300 mb-1">API Key</label>
+                      <div className="relative">
+                        <input
+                          type={showApiKey ? "text" : "password"}
+                          value={llmForm.api_key}
+                          onChange={(e) => setLlmForm({ ...llmForm, api_key: e.target.value })}
+                          className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none pr-10"
+                          placeholder="sk-..."
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowApiKey(!showApiKey)}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-white"
+                        >
+                          <Key className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-zinc-300 mb-1">API Base URL (Optional)</label>
+                      <input
+                        type="text"
+                        value={llmForm.api_base}
+                        onChange={(e) => setLlmForm({ ...llmForm, api_base: e.target.value })}
+                        className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                        placeholder="https://api.openai.com/v1"
+                      />
+                    </div>
+
+                    <div className="pt-4">
+                      <button
+                        onClick={handleSaveLLMConfig}
+                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Check className="w-4 h-4" />
+                        Save Configuration
                       </button>
                     </div>
                   </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-300 mb-1">API Base URL (Optional)</label>
-                    <input
-                      type="text"
-                      value={llmForm.api_base}
-                      onChange={(e) => setLlmForm({ ...llmForm, api_base: e.target.value })}
-                      className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
-                      placeholder="https://api.openai.com/v1"
-                    />
-                  </div>
-
-                  <div className="pt-4">
-                    <button
-                      onClick={handleSaveLLMConfig}
-                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
-                    >
-                      <Check className="w-4 h-4" />
-                      Save Configuration
-                    </button>
-                  </div>
                 </div>
+
+                {/* Saved Configurations List */}
+                {isAuthenticated && (
+                  <div className="max-w-xl mx-auto space-y-4 mt-8">
+                    <div>
+                      <h3 className="text-lg font-semibold text-white mb-1">Saved LLM Configurations</h3>
+                      <p className="text-sm text-zinc-400">Switch between or manage your saved LLM configurations.</p>
+                    </div>
+
+                    {loadingConfigs ? (
+                      <div className="flex items-center justify-center p-8 bg-zinc-900/30 rounded-xl border border-zinc-800">
+                        <Loader2 className="w-6 h-6 animate-spin text-zinc-500" />
+                      </div>
+                    ) : llmConfigs.length > 0 ? (
+                      <div className="space-y-3">
+                        {llmConfigs.map((config) => (
+                          <div
+                            key={config.id}
+                            className={cn(
+                              "p-4 rounded-lg border",
+                              config.active
+                                ? "bg-indigo-500/10 border-indigo-500"
+                                : "bg-zinc-900/30 border-zinc-800"
+                            )}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <span className="text-sm font-semibold text-white capitalize">
+                                    {config.type}
+                                  </span>
+                                  {config.active && (
+                                    <span className="px-2 py-0.5 bg-indigo-500 text-white text-xs rounded-full flex items-center gap-1">
+                                      <Power className="w-3 h-3" />
+                                      Active
+                                    </span>
+                                  )}
+                                  {config.is_default && (
+                                    <span className="px-2 py-0.5 bg-amber-500/20 text-amber-500 text-xs rounded-full">
+                                      Default
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-sm text-zinc-300 mb-1">
+                                  Model: <span className="font-medium">{config.model}</span>
+                                </div>
+                                <div className="flex items-center gap-4 text-xs text-zinc-500">
+                                  <span>
+                                    API Key:{" "}
+                                    {config.has_api_key ? (
+                                      <span className="text-green-400">✓ Set</span>
+                                    ) : (
+                                      <span className="text-red-500">✗ Not set</span>
+                                    )}
+                                  </span>
+                                  {config.api_base && (
+                                    <span>API Base: {config.api_base}</span>
+                                  )}
+                                  {config.created_at && (
+                                    <span>
+                                      Created:{" "}
+                                      {new Date(config.created_at).toLocaleDateString()}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 ml-4">
+                                {!config.active && (
+                                  <button
+                                    onClick={() => handleSwitchConfig(config.id)}
+                                    className="p-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg transition-colors"
+                                    title="Switch to this LLM"
+                                  >
+                                    <Power className="w-4 h-4 text-indigo-400" />
+                                  </button>
+                                )}
+                                {!config.active && (
+                                  <button
+                                    onClick={() => handleDeleteConfig(config.id)}
+                                    className="p-2 bg-zinc-800 hover:bg-red-500/10 border border-zinc-700 rounded-lg transition-colors"
+                                    title="Delete this LLM configuration"
+                                  >
+                                    <Trash2 className="w-4 h-4 text-red-500" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-zinc-500 border border-dashed border-zinc-800 rounded-xl">
+                        <Brain className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                        <p>No LLM configurations found. Add one above.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 

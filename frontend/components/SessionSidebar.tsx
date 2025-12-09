@@ -139,8 +139,8 @@ export default function SessionSidebar({
                     label: user?.name || "User",
                     href: "#",
                     icon: (
-                      <div className="h-7 w-7 flex-shrink-0 rounded-full bg-black/50 flex items-center justify-center">
-                        <span className="text-xs font-bold">{user?.name?.[0]?.toUpperCase() || "U"}</span>
+                      <div className="h-5 w-5 flex-shrink-0 rounded-full bg-black/50 flex items-center justify-center border border-white/10">
+                        <span className="text-[10px] font-bold text-neutral-200">{user?.name?.[0]?.toUpperCase() || "U"}</span>
                       </div>
                     ),
                   }}
@@ -157,24 +157,20 @@ export default function SessionSidebar({
               </div>
             ) : (
               <div className="flex flex-col gap-1">
-                <Link href="/login">
-                  <SidebarLink
-                    link={{
-                      label: "Login",
-                      href: "#",
-                      icon: <IconLogin className="text-neutral-200 h-5 w-5 flex-shrink-0" />,
-                    }}
-                  />
-                </Link>
-                <Link href="/register">
-                  <SidebarLink
-                    link={{
-                      label: "Create Account",
-                      href: "#",
-                      icon: <IconUserPlus className="text-neutral-200 h-5 w-5 flex-shrink-0" />,
-                    }}
-                  />
-                </Link>
+                <SidebarLink
+                  link={{
+                    label: "Login",
+                    href: "/login",
+                    icon: <IconLogin className="text-neutral-200 h-5 w-5 flex-shrink-0" />,
+                  }}
+                />
+                <SidebarLink
+                  link={{
+                    label: "Create Account",
+                    href: "/register",
+                    icon: <IconUserPlus className="text-neutral-200 h-5 w-5 flex-shrink-0" />,
+                  }}
+                />
               </div>
             )}
           </div>
