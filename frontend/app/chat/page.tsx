@@ -12,7 +12,6 @@ import SessionSidebar from "@/components/SessionSidebar";
 import SettingsPanel from "@/components/SettingsPanel";
 import UsageIndicator from "@/components/UsageIndicator";
 import CommandPalette from "@/components/ui/CommandPalette";
-import ThemeToggle from "@/components/ui/ThemeToggle";
 import { useStore } from "@/lib/store";
 import { healthWebSocket } from "@/lib/websocket";
 import {
@@ -351,7 +350,6 @@ export default function ChatPage() {
               <div className="hidden sm:block">
                 <UsageIndicator />
               </div>
-              <ThemeToggle />
               {isAuthenticated && (
                 <>
                   <Link

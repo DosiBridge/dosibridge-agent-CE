@@ -1,6 +1,6 @@
 /**
  * Chat input component with send button and mode toggle
- * Uses Aceternity UI PlaceholdersAndVanishInput
+ * Refactored to "Thick Box" style (Shadcn AI look)
  */
 
 "use client";
@@ -14,17 +14,16 @@ import { getTodayUsage } from "@/lib/api/monitoring";
 import {
   Loader2,
   Mic,
-  Plus,
   Settings,
   Sparkles,
   Square,
   Paperclip,
+  ArrowUp,
 } from "lucide-react";
-import type { KeyboardEvent } from "react";
+import type { KeyboardEvent, ChangeEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import RAGEnablePopup from "@/components/RAGEnablePopup";
-import { PlaceholdersAndVanishInput } from "./ui/placeholders-and-vanish-input";
 import { cn } from "@/lib/utils";
 
 export default function ChatInput() {
@@ -37,6 +36,7 @@ export default function ChatInput() {
   const suggestionsRef = useRef<HTMLDivElement>(null);
   const modelDropdownRef = useRef<HTMLDivElement>(null);
   const prevAuthRef = useRef<boolean | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Input history
   const { addToHistory, navigateHistory, saveCurrentInput } = useInputHistory();
@@ -65,6 +65,19 @@ export default function ChatInput() {
   const clearActiveTools = useStore((state) => state.clearActiveTools);
   const setLoading = useStore((state) => state.setLoading);
 
+  // Auto-resize textarea
+  const adjustTextareaHeight = () => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = "auto";
+      textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
+    }
+  };
+
+  useEffect(() => {
+    adjustTextareaHeight();
+  }, [input]);
+
   // Cancel ongoing requests only when user explicitly logs out
   useEffect(() => {
     if (prevAuthRef.current === null) {
@@ -89,17 +102,6 @@ export default function ChatInput() {
   const charCount = input.length;
   const exceedMax = charCount > MAX_CHARS;
   const sendDisabled = inputDisabled || !input.trim() || exceedMax;
-
-  // Placeholder prompts for the Vanish Input
-  const placeholders = [
-    "Ask anything...",
-    "What is the capital of France?",
-    "Explain quantum computing",
-    "Write a Python script to parse CSV",
-    "Help me debug this code",
-    "Generate a creative story",
-    "Summarize this article",
-  ];
 
   // Generate autocomplete suggestions based on input
   useEffect(() => {
@@ -216,12 +218,12 @@ export default function ChatInput() {
 
     addToHistory(message);
     setShowSuggestions(false);
-
-    // Note: setInput("") is handled by VanishInput component visually upon submit, 
-    // but we need to ensure our state reflects it if we are controlling it. 
-    // The VanishInput animation clears its internal value, and if we pass `value` prop, 
-    // we should also clear it.
     setInput("");
+
+    // Reset textarea height
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+    }
 
     setLoading(true);
     setStreaming(true);
@@ -326,8 +328,11 @@ export default function ChatInput() {
   };
 
   const handleSuggestionClick = (suggestion: string) => {
-    setInput(suggestion); // Will update VanishInput value via prop
+    setInput(suggestion);
     setShowSuggestions(false);
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+    }
   };
 
   const handleStop = () => {
@@ -354,6 +359,30 @@ export default function ChatInput() {
     return mode === "agent" ? "Agent" : "RAG";
   };
 
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+      return;
+    }
+
+    // History navigation logic
+    if (e.key === "ArrowUp" && input.trim() === "" && textareaRef.current?.selectionStart === 0) {
+      e.preventDefault();
+      const prev = navigateHistory(-1);
+      if (prev !== null) setInput(prev);
+    } else if (e.key === "ArrowDown" && input.trim() === "") {
+      e.preventDefault();
+      const next = navigateHistory(1);
+      if (next !== null) setInput(next);
+    }
+  };
+
+  const handleChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value);
+    saveCurrentInput(e.target.value);
+  };
+
   return (
     <div className="shrink-0 sticky bottom-0 z-40 w-full bg-gradient-to-t from-black via-black/80 to-transparent pb-6 pt-4">
       <div className="max-w-4xl mx-auto w-full px-2 sm:px-4 flex flex-col gap-2">
@@ -378,98 +407,120 @@ export default function ChatInput() {
           </div>
         )}
 
-        {/* Input Component */}
-        <div className="relative z-10">
-          <PlaceholdersAndVanishInput
-            placeholders={placeholders}
-            onChange={(e) => {
-              setInput(e.target.value);
-              saveCurrentInput(e.target.value); // Sync to history
-            }}
-            onSubmit={(e) => {
-              handleSend();
-            }}
+        {/* Input Component - "Thick Box" Style */}
+        <div className={cn(
+          "relative z-10 flex flex-col bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl transition-all duration-200",
+          "focus-within:ring-1 focus-within:ring-zinc-700/50 focus-within:border-zinc-700",
+          isLoading && "opacity-50 cursor-not-allowed"
+        )}>
+
+          <textarea
+            ref={textareaRef}
             value={input}
-            setValue={setInput}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+            disabled={inputDisabled}
+            placeholder="How can I help you today?"
+            className="w-full bg-transparent border-none text-zinc-100 placeholder:text-zinc-500 text-base py-3 px-4 min-h-[60px] max-h-[200px] resize-none focus:ring-0 focus:outline-none scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent rounded-t-2xl"
+            rows={1}
           />
-        </div>
 
-        {/* Toolbar */}
-        <div className="flex justify-center items-center gap-4 mt-2">
-          {/* Attachment */}
-          <button
-            onClick={handleAttachmentClick}
-            disabled={inputDisabled}
-            className="p-2 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-full transition-colors disabled:opacity-50"
-            title="Attach File"
-          >
-            <Paperclip className="w-5 h-5" />
-          </button>
+          {/* Toolbar */}
+          <div className="flex justify-between items-center p-2 pt-0">
+            {/* Left Tools */}
+            <div className="flex items-center gap-1.5">
+              {/* Attachment */}
+              <button
+                onClick={handleAttachmentClick}
+                disabled={inputDisabled}
+                className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors disabled:opacity-50"
+                title="Attach File"
+              >
+                <Paperclip className="w-4 h-4" />
+              </button>
 
-          {/* Voice */}
-          <button
-            onClick={handleVoiceClick}
-            disabled={inputDisabled}
-            className="p-2 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-full transition-colors disabled:opacity-50"
-            title="Voice Input"
-          >
-            <Mic className="w-5 h-5" />
-          </button>
+              {/* Voice */}
+              <button
+                onClick={handleVoiceClick}
+                disabled={inputDisabled}
+                className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors disabled:opacity-50"
+                title="Voice Input"
+              >
+                <Mic className="w-4 h-4" />
+              </button>
 
-          {/* Mode Selector */}
-          <div className="relative" ref={modelDropdownRef}>
-            <button
-              onClick={() => setShowModelDropdown(!showModelDropdown)}
-              disabled={inputDisabled}
-              className={cn(
-                "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-colors border border-zinc-800",
-                mode === 'rag' ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20" : "bg-zinc-900 text-zinc-400 hover:text-white hover:bg-zinc-800"
-              )}
-            >
-              <Settings className="w-3.5 h-3.5" />
-              <span>{getModeDisplayName()}</span>
-            </button>
-
-            {showModelDropdown && (
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl overflow-hidden min-w-[120px]">
+              {/* Mode Selector */}
+              <div className="relative" ref={modelDropdownRef}>
                 <button
-                  onClick={() => { setMode('agent'); setShowModelDropdown(false); }}
-                  className="w-full text-left px-4 py-2 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                  onClick={() => setShowModelDropdown(!showModelDropdown)}
+                  disabled={inputDisabled}
+                  className={cn(
+                    "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors hover:bg-zinc-800",
+                    mode === 'rag' ? "text-indigo-400" : "text-zinc-400"
+                  )}
                 >
-                  Agent Mode
+                  <Settings className="w-4 h-4" />
+                  <span>{getModeDisplayName()}</span>
                 </button>
-                <button
-                  onClick={() => { setMode('rag'); setShowModelDropdown(false); }}
-                  className="w-full text-left px-4 py-2 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white"
-                >
-                  RAG Mode
-                </button>
-                {mode === 'rag' && (
-                  <button
-                    onClick={() => { setRagSettingsOpen(true); setSettingsOpen(true); setShowModelDropdown(false); }}
-                    className="w-full text-left px-4 py-2 text-xs text-indigo-400 hover:bg-zinc-800 border-t border-zinc-800"
-                  >
-                    Settings
-                  </button>
+
+                {showModelDropdown && (
+                  <div className="absolute bottom-full left-0 mb-2 bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl overflow-hidden min-w-[140px] z-50">
+                    <button
+                      onClick={() => { setMode('agent'); setShowModelDropdown(false); }}
+                      className="w-full text-left px-4 py-2.5 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors"
+                    >
+                      Agent Mode
+                    </button>
+                    <button
+                      onClick={() => { setMode('rag'); setShowModelDropdown(false); }}
+                      className="w-full text-left px-4 py-2.5 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors"
+                    >
+                      RAG Mode
+                    </button>
+                    {mode === 'rag' && (
+                      <button
+                        onClick={() => { setRagSettingsOpen(true); setSettingsOpen(true); setShowModelDropdown(false); }}
+                        className="w-full text-left px-4 py-2.5 text-xs text-indigo-400 hover:bg-zinc-800 border-t border-zinc-800 transition-colors"
+                      >
+                        Settings
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
-          </div>
+            </div>
 
-          {/* Stop Button (only if streaming) */}
-          {isStreaming && (
-            <button
-              onClick={handleStop}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors"
-            >
-              <Square className="w-3.5 h-3.5 fill-red-400" />
-              Stop
-            </button>
-          )}
+            {/* Right Tools - Send Button */}
+            <div className="flex items-center gap-2">
+              {/* Char Count */}
+              <div className={cn("text-[10px]", exceedMax ? "text-red-500" : "text-zinc-600")}>
+                {charCount}/{MAX_CHARS}
+              </div>
 
-          {/* Char Count */}
-          <div className={cn("text-xs", exceedMax ? "text-red-500" : "text-zinc-600")}>
-            {charCount}/{MAX_CHARS}
+              {isStreaming ? (
+                <button
+                  onClick={handleStop}
+                  className="p-2 rounded-full bg-zinc-100 hover:bg-zinc-300 transition-colors group"
+                  title="Stop generation"
+                >
+                  <Square className="w-4 h-4 text-black fill-black" />
+                </button>
+              ) : (
+                <button
+                  onClick={handleSend}
+                  disabled={sendDisabled}
+                  className={cn(
+                    "p-2 rounded-full transition-all duration-200",
+                    sendDisabled
+                      ? "bg-zinc-800 text-zinc-600 cursor-not-allowed"
+                      : "bg-white text-black hover:bg-zinc-200 shadow-md hover:shadow-lg"
+                  )}
+                  title="Send message"
+                >
+                  <ArrowUp className="w-5 h-5" strokeWidth={2.5} />
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>

@@ -32,7 +32,7 @@ export default function SessionSidebar({
 
   const sessions = useStore((state) => state.sessions);
   const currentSessionId = useStore((state) => state.currentSessionId);
-  const loadSession = useStore((state) => state.loadSession);
+  const setCurrentSession = useStore((state) => state.setCurrentSession);
   const createNewSession = useStore((state) => state.createNewSession);
   const deleteSession = useStore((state) => state.deleteSession);
   const setSettingsOpen = useStore((state) => state.setSettingsOpen);
@@ -98,20 +98,20 @@ export default function SessionSidebar({
               </motion.span>
 
               {sessions.slice(0, 10).map((session, idx) => (
-                <div key={session.id || idx} className="group relative" onClick={() => loadSession(session.id)}>
+                <div key={session.session_id || idx} className="group relative" onClick={() => setCurrentSession(session.session_id)}>
                   <SidebarLink
                     link={{
                       label: session.title || "New Conversation",
                       href: "#",
                       icon: <IconMessage2 className="text-neutral-200 h-5 w-5 flex-shrink-0" />,
                     }}
-                    className={cn(currentSessionId === session.id && "bg-white/10 rounded-md")}
+                    className={cn(currentSessionId === session.session_id && "bg-white/10 rounded-md")}
                   />
                   {open && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        deleteSession(session.id);
+                        deleteSession(session.session_id);
                       }}
                       className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-white/10 rounded"
                     >
