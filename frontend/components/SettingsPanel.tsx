@@ -33,6 +33,7 @@ import {
   listLLMConfigs,
   switchLLMConfig,
   deleteLLMConfig,
+  updateLLMConfig,
   type LLMConfigListItem,
 } from "@/lib/api/llm";
 import RAGUploadModal from "@/components/rag/RAGUploadModal";
@@ -105,6 +106,7 @@ export default function SettingsPanel() {
   // LLM Configs List
   const [llmConfigs, setLlmConfigs] = useState<LLMConfigListItem[]>([]);
   const [loadingConfigs, setLoadingConfigs] = useState(false);
+  const [editingLLMConfig, setEditingLLMConfig] = useState<number | null>(null);
 
   // Load existing LLM config into form
   useEffect(() => {
@@ -213,9 +215,59 @@ export default function SettingsPanel() {
       await loadLLMConfig();
       await loadLLMConfigsList();
       toast.success("LLM Configuration saved");
+      // Reset form
+      setLlmForm({
+        type: "openai",
+        model: "gpt-4o",
+        api_key: "",
+        api_base: "",
+      });
+      setEditingLLMConfig(null);
     } catch (error) {
       toast.error("Failed to save LLM configuration");
     }
+  };
+
+  const handleUpdateLLMConfig = async () => {
+    if (!editingLLMConfig) return;
+    try {
+      await updateLLMConfig(editingLLMConfig, llmForm as any);
+      await loadLLMConfig();
+      await loadLLMConfigsList();
+      toast.success("LLM Configuration updated successfully");
+      // Reset form
+      setLlmForm({
+        type: "openai",
+        model: "gpt-4o",
+        api_key: "",
+        api_base: "",
+      });
+      setEditingLLMConfig(null);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update LLM configuration");
+    }
+  };
+
+  const startEditingLLMConfig = (config: LLMConfigListItem) => {
+    setEditingLLMConfig(config.id);
+    setLlmForm({
+      type: config.type,
+      model: config.model,
+      api_key: "", // Security: Don't populate API key back
+      api_base: config.api_base || "",
+    });
+    // Scroll to form
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const cancelEditingLLMConfig = () => {
+    setEditingLLMConfig(null);
+    setLlmForm({
+      type: "openai",
+      model: "gpt-4o",
+      api_key: "",
+      api_base: "",
+    });
   };
 
   const loadLLMConfigsList = async () => {
@@ -395,11 +447,17 @@ export default function SettingsPanel() {
             {/* LLM Settings */}
             {activeTab === 'llm' && (
               <div className="space-y-6">
-                {/* Add New Configuration Form */}
+                {/* Add/Edit Configuration Form */}
                 <div className="max-w-xl mx-auto space-y-6">
                   <div>
-                    <h3 className="text-lg font-semibold text-white mb-1">Add New LLM Configuration</h3>
-                    <p className="text-sm text-zinc-400">Configure a new AI model provider.</p>
+                    <h3 className="text-lg font-semibold text-white mb-1">
+                      {editingLLMConfig ? "Edit LLM Configuration" : "Add New LLM Configuration"}
+                    </h3>
+                    <p className="text-sm text-zinc-400">
+                      {editingLLMConfig 
+                        ? "Update your AI model provider configuration. Leave API key empty to keep existing key."
+                        : "Configure a new AI model provider."}
+                    </p>
                   </div>
 
                   <div className="space-y-4">
@@ -461,13 +519,21 @@ export default function SettingsPanel() {
                       />
                     </div>
 
-                    <div className="pt-4">
+                    <div className={`pt-4 flex gap-2 ${editingLLMConfig ? "" : "flex-col"}`}>
+                      {editingLLMConfig && (
+                        <button
+                          onClick={cancelEditingLLMConfig}
+                          className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white font-medium py-2 rounded-lg transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      )}
                       <button
-                        onClick={handleSaveLLMConfig}
-                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
+                        onClick={editingLLMConfig ? handleUpdateLLMConfig : handleSaveLLMConfig}
+                        className={`${editingLLMConfig ? "flex-1" : "w-full"} bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 rounded-lg transition-colors flex items-center justify-center gap-2`}
                       >
                         <Check className="w-4 h-4" />
-                        Save Configuration
+                        {editingLLMConfig ? "Update Configuration" : "Save Configuration"}
                       </button>
                     </div>
                   </div>
@@ -539,6 +605,15 @@ export default function SettingsPanel() {
                                 </div>
                               </div>
                               <div className="flex items-center gap-2 ml-4">
+                                {!config.is_default && (
+                                  <button
+                                    onClick={() => startEditingLLMConfig(config)}
+                                    className="p-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg transition-colors"
+                                    title="Edit this LLM configuration"
+                                  >
+                                    <Edit2 className="w-4 h-4 text-indigo-400" />
+                                  </button>
+                                )}
                                 {!config.active && (
                                   <button
                                     onClick={() => handleSwitchConfig(config.id)}
@@ -548,7 +623,7 @@ export default function SettingsPanel() {
                                     <Power className="w-4 h-4 text-indigo-400" />
                                   </button>
                                 )}
-                                {!config.active && (
+                                {!config.active && !config.is_default && (
                                   <button
                                     onClick={() => handleDeleteConfig(config.id)}
                                     className="p-2 bg-zinc-800 hover:bg-red-500/10 border border-zinc-700 rounded-lg transition-colors"

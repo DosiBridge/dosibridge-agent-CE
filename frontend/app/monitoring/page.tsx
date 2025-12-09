@@ -20,6 +20,7 @@ import {
   listLLMConfigs,
   deleteLLMConfig,
   switchLLMConfig,
+  updateLLMConfig,
   type LLMConfigListItem,
 } from "@/lib/api/llm";
 import {
@@ -41,6 +42,8 @@ import {
   Edit2,
   ChevronLeft,
   ChevronRight,
+  Check,
+  X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -92,6 +95,21 @@ export default function MonitoringPage() {
   // Requests Pagination
   const [requestsPage, setRequestsPage] = useState(1);
   const requestsLimit = 20;
+
+  // LLM Config Edit State
+  const [editingLLMConfig, setEditingLLMConfig] = useState<LLMConfigListItem | null>(null);
+  const [llmEditForm, setLlmEditForm] = useState<{
+    type: string;
+    model: string;
+    api_key: string;
+    api_base: string;
+  }>({
+    type: "openai",
+    model: "gpt-4o",
+    api_key: "",
+    api_base: "",
+  });
+  const [showApiKey, setShowApiKey] = useState(false);
 
   useEffect(() => {
     // Allow both authenticated and unauthenticated users to view monitoring
@@ -177,6 +195,41 @@ export default function MonitoringPage() {
     } catch (error: any) {
       toast.error(error.message || "Failed to switch LLM configuration");
     }
+  };
+
+  const handleEditConfig = (config: LLMConfigListItem) => {
+    setEditingLLMConfig(config);
+    setLlmEditForm({
+      type: config.type,
+      model: config.model,
+      api_key: "", // Security: Don't populate API key back
+      api_base: config.api_base || "",
+    });
+    setShowApiKey(false);
+  };
+
+  const handleUpdateLLMConfig = async () => {
+    if (!editingLLMConfig) return;
+    try {
+      await updateLLMConfig(editingLLMConfig.id, llmEditForm as any);
+      toast.success("LLM configuration updated successfully");
+      setEditingLLMConfig(null);
+      loadMonitoringData();
+      // Reload LLM config in store
+      useStore.getState().loadLLMConfig();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update LLM configuration");
+    }
+  };
+
+  const cancelEditConfig = () => {
+    setEditingLLMConfig(null);
+    setLlmEditForm({
+      type: "openai",
+      model: "gpt-4o",
+      api_key: "",
+      api_base: "",
+    });
   };
 
   const handleRequestsPageChange = async (newPage: number) => {
@@ -464,6 +517,15 @@ export default function MonitoringPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2 ml-4">
+                        {!config.is_default && (
+                          <button
+                            onClick={() => handleEditConfig(config)}
+                            className="p-2 bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border)] rounded-lg transition-colors"
+                            title="Edit this LLM configuration"
+                          >
+                            <Edit2 className="w-4 h-4 text-[var(--green)]" />
+                          </button>
+                        )}
                         {!config.active && (
                           <button
                             onClick={() => handleSwitchConfig(config.id)}
@@ -473,7 +535,7 @@ export default function MonitoringPage() {
                             <Power className="w-4 h-4 text-[var(--green)]" />
                           </button>
                         )}
-                        {!config.active && (
+                        {!config.active && !config.is_default && (
                           <button
                             onClick={() => handleDeleteConfig(config.id)}
                             className="p-2 bg-[var(--surface)] hover:bg-red-500/10 border border-[var(--border)] rounded-lg transition-colors"
@@ -1699,6 +1761,113 @@ export default function MonitoringPage() {
           </div>
         )}
       </main>
+
+      {/* Edit LLM Config Modal */}
+      {editingLLMConfig && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-[var(--surface-elevated)] border border-[var(--border)] rounded-xl w-full max-w-lg p-6 space-y-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                <Edit2 className="w-5 h-5 text-[var(--green)]" />
+                Edit LLM Configuration
+              </h2>
+              <button
+                onClick={cancelEditConfig}
+                className="p-2 hover:bg-[var(--surface-hover)] rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-[var(--text-secondary)]" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
+                  Provider
+                </label>
+                <select
+                  value={llmEditForm.type}
+                  onChange={(e) => setLlmEditForm({ ...llmEditForm, type: e.target.value })}
+                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--green)] outline-none"
+                >
+                  <option value="openai">OpenAI</option>
+                  <option value="deepseek">DeepSeek</option>
+                  <option value="groq">Groq</option>
+                  <option value="gemini">Google Gemini</option>
+                  <option value="ollama">Ollama (Local)</option>
+                  <option value="openrouter">OpenRouter</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
+                  Model Name
+                </label>
+                <input
+                  type="text"
+                  value={llmEditForm.model}
+                  onChange={(e) => setLlmEditForm({ ...llmEditForm, model: e.target.value })}
+                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--green)] outline-none"
+                  placeholder="e.g. gpt-4o, deepseek-chat, gemini-1.5-flash"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
+                  API Key
+                </label>
+                <div className="relative">
+                  <input
+                    type={showApiKey ? "text" : "password"}
+                    value={llmEditForm.api_key}
+                    onChange={(e) => setLlmEditForm({ ...llmEditForm, api_key: e.target.value })}
+                    className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--green)] outline-none pr-10"
+                    placeholder="Leave empty to keep existing key"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowApiKey(!showApiKey)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                  >
+                    <Key className="w-4 h-4" />
+                  </button>
+                </div>
+                <p className="text-xs text-[var(--text-secondary)] mt-1">
+                  Leave empty to keep the existing API key unchanged
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
+                  API Base URL (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={llmEditForm.api_base}
+                  onChange={(e) => setLlmEditForm({ ...llmEditForm, api_base: e.target.value })}
+                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--green)] outline-none"
+                  placeholder="https://api.openai.com/v1"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <button
+                  onClick={cancelEditConfig}
+                  className="flex-1 bg-[var(--surface)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] font-medium py-2 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUpdateLLMConfig}
+                  className="flex-1 bg-[var(--green)] hover:bg-[var(--green-hover)] text-white font-medium py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
+                >
+                  <Check className="w-4 h-4" />
+                  Update Configuration
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

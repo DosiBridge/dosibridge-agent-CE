@@ -538,6 +538,13 @@ async def update_llm_config(
         if not llm_config:
             raise HTTPException(status_code=404, detail="LLM configuration not found")
         
+        # Prevent editing default LLM configurations
+        if llm_config.is_default:
+            raise HTTPException(
+                status_code=403,
+                detail="Cannot edit default LLM configuration. Default configurations are read-only."
+            )
+        
         # Use existing config values as defaults if not provided
         update_type = (config.type or llm_config.type).lower()
         update_model = config.model or llm_config.model
