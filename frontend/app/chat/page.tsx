@@ -28,6 +28,7 @@ import {
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Toaster } from "react-hot-toast";
+import { BackgroundBeams } from "@/components/ui/background-beams";
 
 export default function ChatPage() {
   // Initialize sidebar state: open on desktop (>= 1024px), closed on mobile
@@ -206,227 +207,189 @@ export default function ChatPage() {
   }, [messages, currentSessionId]);
 
   return (
-    <div className="flex h-screen bg-[var(--background)] overflow-hidden">
+    <div className="flex h-screen bg-neutral-950 overflow-hidden relative w-full">
+      <BackgroundBeams className="opacity-40" />
       <OnlineStatus />
       <Toaster
         position="top-center"
         toastOptions={{
           duration: 4000,
           style: {
-            background: "var(--background)",
-            color: "var(--foreground)",
+            background: "#18181b",
+            color: "#fff",
             borderRadius: "12px",
             boxShadow: "0 10px 25px rgba(0, 0, 0, 0.1)",
             maxWidth: "90vw",
             fontSize: "14px",
+            borderColor: "#27272a",
+            borderWidth: "1px",
           },
         }}
       />
 
-      <SessionSidebar
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        onToggle={() => setSidebarOpen((prev) => !prev)}
-      />
+      <div className="relative z-10 flex h-full w-full">
+        <SessionSidebar
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          onToggle={() => setSidebarOpen((prev) => !prev)}
+        />
 
-      <div className="flex-1 flex flex-col min-w-0 w-full">
-        <header className="border-none bg-[var(--background)]/80 backdrop-blur-md px-2 sm:px-3 py-1.5 flex items-center justify-between shrink-0 sticky top-0 z-40">
-          <div className="flex items-center gap-1.5 min-w-0 flex-1">
-            {/* Back to Home Button */}
-            <Link
-              href="/"
-              className="p-1.5 bg-[var(--surface-elevated)]/80 hover:bg-[var(--surface-hover)] rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--green)] active:bg-[var(--surface-hover)] touch-manipulation backdrop-blur-sm flex items-center justify-center"
-              aria-label="Back to home"
-              title="Back to home"
-            >
-              <ArrowLeft className="w-4 h-4 text-[var(--text-primary)]" />
-            </Link>
-
-            <button
-              onClick={() => setSidebarOpen((prev) => !prev)}
-              className="p-1.5 bg-[var(--surface-elevated)]/80 hover:bg-[var(--surface-hover)] rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--green)] active:bg-[var(--surface-hover)] touch-manipulation backdrop-blur-sm flex items-center justify-center"
-              aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
-            >
-              <Menu className="w-4 h-4 text-[var(--text-primary)]" />
-            </button>
-
-            {/* Mode Dropdown */}
-            <div className="relative" ref={modeDropdownRef}>
-              <button
-                onClick={() => setModeDropdownOpen((prev) => !prev)}
-                className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-[var(--surface-elevated)]/80 hover:bg-[var(--surface-hover)] transition-colors group backdrop-blur-sm"
+        <div className="flex-1 flex flex-col min-w-0 w-full bg-transparent">
+          <header className="border-b border-white/[0.1] bg-black/20 backdrop-blur-md px-2 sm:px-3 py-1.5 flex items-center justify-between shrink-0 sticky top-0 z-40">
+            <div className="flex items-center gap-1.5 min-w-0 flex-1">
+              {/* Back to Home Button */}
+              <Link
+                href="/"
+                className="p-1.5 bg-white/5 hover:bg-white/10 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 active:bg-white/10 touch-manipulation backdrop-blur-sm flex items-center justify-center group"
+                aria-label="Back to home"
+                title="Back to home"
               >
-                <h1 className="text-sm font-semibold truncate bg-gradient-to-r from-[var(--green)] to-[var(--green-hover)] bg-clip-text text-transparent">
-                  {mode === "rag" ? "RAG" : "DosiBridge Agent"}
-                </h1>
-                <ChevronDown
-                  className={`w-4 h-4 text-[var(--text-secondary)] transition-transform duration-200 ${
-                    modeDropdownOpen ? "rotate-180" : ""
-                  }`}
-                />
+                <ArrowLeft className="w-4 h-4 text-white group-hover:-translate-x-0.5 transition-transform" />
+              </Link>
+
+              <button
+                onClick={() => setSidebarOpen((prev) => !prev)}
+                className="p-1.5 bg-white/5 hover:bg-white/10 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 active:bg-white/10 touch-manipulation backdrop-blur-sm flex items-center justify-center"
+                aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
+              >
+                <Menu className="w-4 h-4 text-white" />
               </button>
 
-              {/* Dropdown Menu */}
-              {modeDropdownOpen && (
-                <div className="absolute top-full left-0 mt-2 w-64 bg-[var(--surface)]/95 backdrop-blur-lg border border-[var(--border)] rounded-lg shadow-xl z-50 overflow-hidden">
-                  {/* Agent Mode Option */}
-                  <button
-                    onClick={() => {
-                      setMode("agent");
-                      setModeDropdownOpen(false);
-                    }}
-                    className={`w-full flex items-start gap-3 p-3 hover:bg-[var(--surface-hover)] backdrop-blur-sm transition-colors ${
-                      mode === "agent" ? "bg-[var(--surface-hover)]" : ""
-                    }`}
-                  >
-                    <div className="mt-0.5">
-                      <Sparkles className="w-5 h-5 text-[var(--text-secondary)]" />
-                    </div>
-                    <div className="flex-1 text-left min-w-0">
-                      <div className="flex items-center justify-between">
-                        <div className="font-medium text-[var(--text-primary)]">
-                          Agent Mode
-                        </div>
-                        {mode === "agent" && (
-                          <div className="w-5 h-5 rounded-full bg-[var(--green)] flex items-center justify-center">
-                            <svg
-                              className="w-3 h-3 text-[var(--text-inverse)]"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M5 13l4 4L19 7"
-                              />
-                            </svg>
-                          </div>
-                        )}
-                      </div>
-                      <div className="text-sm text-[var(--text-secondary)] mt-0.5">
-                        AI agent with tool integration
-                      </div>
-                    </div>
-                  </button>
-
-                  {/* RAG Mode Option */}
-                  <button
-                    onClick={() => {
-                      if (!isAuthenticated) {
-                        setAuthModalMode("login");
-                        setAuthModalOpen(true);
-                        setModeDropdownOpen(false);
-                        return;
-                      }
-                      setMode("rag");
-                      setModeDropdownOpen(false);
-                    }}
-                    disabled={!isAuthenticated}
-                    className={`w-full flex items-start gap-3 p-3 hover:bg-[var(--surface-hover)] backdrop-blur-sm transition-colors ${
-                      mode === "rag" ? "bg-[var(--surface-hover)]" : ""
-                    } ${
-                      !isAuthenticated ? "opacity-50 cursor-not-allowed" : ""
-                    }`}
-                  >
-                    <div className="mt-0.5">
-                      <FileText className="w-5 h-5 text-[var(--text-secondary)]" />
-                    </div>
-                    <div className="flex-1 text-left min-w-0">
-                      <div className="flex items-center justify-between">
-                        <div className="font-medium text-[var(--text-primary)]">
-                          RAG Mode
-                        </div>
-                        {mode === "rag" && (
-                          <div className="w-5 h-5 rounded-full bg-[var(--green)] flex items-center justify-center">
-                            <svg
-                              className="w-3 h-3 text-[var(--text-inverse)]"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M5 13l4 4L19 7"
-                              />
-                            </svg>
-                          </div>
-                        )}
-                      </div>
-                      <div className="text-sm text-[var(--text-secondary)] mt-0.5">
-                        Document analysis & retrieval
-                      </div>
-                      {!isAuthenticated && (
-                        <div className="text-xs text-[var(--green)] mt-1">
-                          Requires login
-                        </div>
-                      )}
-                    </div>
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1.5 shrink-0">
-            <div className="hidden sm:block">
-              <HealthStatus />
-            </div>
-            <div className="hidden sm:block">
-              <UsageIndicator />
-            </div>
-            <ThemeToggle />
-            {isAuthenticated && (
-              <>
-                <Link
-                  href="/monitoring"
-                  className="p-1.5 bg-[var(--surface-elevated)]/80 hover:bg-[var(--surface-hover)] backdrop-blur-sm rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--green)] active:scale-95 touch-manipulation flex items-center justify-center"
-                  aria-label="View monitoring"
-                  title="API Usage Monitoring"
-                >
-                  <BarChart3
-                    className="w-4 h-4 text-[var(--text-primary)]"
-                    aria-hidden="true"
-                  />
-                </Link>
+              {/* Mode Dropdown */}
+              <div className="relative" ref={modeDropdownRef}>
                 <button
-                  onClick={() => {
-                    setSettingsOpen(true);
-                  }}
-                  className="p-1.5 bg-[var(--surface-elevated)]/80 hover:bg-[var(--surface-hover)] backdrop-blur-sm rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--green)] active:scale-95 touch-manipulation flex items-center justify-center"
-                  aria-label="Open settings"
-                  title="Settings (MCP & Model Configuration)"
+                  onClick={() => setModeDropdownOpen((prev) => !prev)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors group backdrop-blur-sm border border-white/5"
                 >
-                  <Settings
-                    className="w-4 h-4 text-[var(--text-primary)]"
-                    aria-hidden="true"
+                  <h1 className="text-sm font-bold truncate bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent shadow-sm">
+                    {mode === "rag" ? "RAG" : "DosiBridge Agent"}
+                  </h1>
+                  <ChevronDown
+                    className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${modeDropdownOpen ? "rotate-180" : ""
+                      }`}
                   />
                 </button>
-              </>
-            )}
-          </div>
-        </header>
 
-        <ChatWindow />
+                {/* Dropdown Menu */}
+                {modeDropdownOpen && (
+                  <div className="absolute top-full left-0 mt-2 w-64 bg-zinc-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden ring-1 ring-black/5">
+                    {/* Agent Mode Option */}
+                    <button
+                      onClick={() => {
+                        setMode("agent");
+                        setModeDropdownOpen(false);
+                      }}
+                      className={`w-full flex items-start gap-3 p-3 hover:bg-white/5 transition-colors ${mode === "agent" ? "bg-white/5 border-l-2 border-indigo-500" : ""
+                        }`}
+                    >
+                      <div className="mt-0.5 p-1.5 rounded-md bg-indigo-500/20">
+                        <Sparkles className="w-4 h-4 text-indigo-400" />
+                      </div>
+                      <div className="flex-1 text-left min-w-0">
+                        <div className="flex items-center justify-between">
+                          <div className="font-semibold text-white text-sm">
+                            Agent Mode
+                          </div>
+                          {mode === "agent" && (
+                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.5)]"></div>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-400 mt-0.5">
+                          AI agent with tool integration
+                        </div>
+                      </div>
+                    </button>
 
-        <ChatInput />
+                    {/* RAG Mode Option */}
+                    <button
+                      onClick={() => {
+                        if (!isAuthenticated) {
+                          setAuthModalMode("login");
+                          setAuthModalOpen(true);
+                          setModeDropdownOpen(false);
+                          return;
+                        }
+                        setMode("rag");
+                        setModeDropdownOpen(false);
+                      }}
+                      disabled={!isAuthenticated}
+                      className={`w-full flex items-start gap-3 p-3 hover:bg-white/5 transition-colors ${mode === "rag" ? "bg-white/5 border-l-2 border-pink-500" : ""
+                        } ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""
+                        }`}
+                    >
+                      <div className="mt-0.5 p-1.5 rounded-md bg-pink-500/20">
+                        <FileText className="w-4 h-4 text-pink-400" />
+                      </div>
+                      <div className="flex-1 text-left min-w-0">
+                        <div className="flex items-center justify-between">
+                          <div className="font-semibold text-white text-sm">
+                            RAG Mode
+                          </div>
+                          {mode === "rag" && (
+                            <div className="w-1.5 h-1.5 rounded-full bg-pink-500 shadow-[0_0_10px_rgba(236,72,153,0.5)]"></div>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-400 mt-0.5">
+                          Document analysis & retrieval
+                        </div>
+                        {!isAuthenticated && (
+                          <div className="text-[10px] text-pink-400 mt-1 font-medium px-1.5 py-0.5 rounded bg-pink-400/10 w-fit">
+                            Login Required
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="hidden sm:block">
+                <HealthStatus />
+              </div>
+              <div className="hidden sm:block">
+                <UsageIndicator />
+              </div>
+              <ThemeToggle />
+              {isAuthenticated && (
+                <>
+                  <Link
+                    href="/monitoring"
+                    className="p-1.5 bg-white/5 hover:bg-white/10 backdrop-blur-sm rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 active:scale-95 touch-manipulation flex items-center justify-center"
+                    aria-label="View monitoring"
+                    title="API Usage Monitoring"
+                  >
+                    <BarChart3
+                      className="w-4 h-4 text-white"
+                      aria-hidden="true"
+                    />
+                  </Link>
+                  <button
+                    onClick={() => {
+                      setSettingsOpen(true);
+                    }}
+                    className="p-1.5 bg-white/5 hover:bg-white/10 backdrop-blur-sm rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 active:scale-95 touch-manipulation flex items-center justify-center"
+                    aria-label="Open settings"
+                    title="Settings (MCP & Model Configuration)"
+                  >
+                    <Settings
+                      className="w-4 h-4 text-white"
+                      aria-hidden="true"
+                    />
+                  </button>
+                </>
+              )}
+            </div>
+          </header>
+
+          <ChatWindow />
+
+          <ChatInput />
+        </div>
       </div>
 
-      <SettingsPanel
-        isOpen={settingsOpen}
-        onClose={() => {
-          setSettingsOpen(false);
-          setRagSettingsOpen(false);
-        }}
-        initialTab={ragSettingsOpen ? "rag" : undefined}
-        selectedCollectionId={selectedCollectionId}
-        onCollectionSelect={setSelectedCollectionId}
-        useReact={useReact}
-        onUseReactChange={setUseReact}
-      />
+      <SettingsPanel />
 
       <AuthModal
         isOpen={authModalOpen}

@@ -1,61 +1,59 @@
 @import "tailwindcss";
 
 :root {
-  /* Base colors - Light mode */
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Base colors - Dark Mode Default */
+  --background: #030014;
+  --foreground: #ededed;
 
-  /* Primary colors - Space Palette */
+  /* Primary colors */
   --primary: #6366f1;
-  /* Indigo */
   --primary-hover: #4f46e5;
   --secondary: #ec4899;
-  /* Pink */
 
-  /* Original Green (kept for legacy support if needed, or remapped) */
+  /* Green */
   --green: #10a37f;
   --green-hover: #0d8f6e;
 
   /* Surface colors */
-  --surface: #ffffff;
-  --surface-elevated: #f9fafb;
-  --surface-hover: #f3f4f6;
+  --surface: #111228;
+  --surface-elevated: #1a1b38;
+  --surface-hover: #1e1f40;
 
   /* Sidebar */
-  --sidebar-bg: #ffffff;
-  --sidebar-border: #e5e7eb;
+  --sidebar-bg: #0b0c1f;
+  --sidebar-border: #2a2b4a;
 
   /* Text colors */
-  --text-primary: #171717;
-  --text-secondary: #6b7280;
-  --text-tertiary: #9ca3af;
+  --text-primary: #ededed;
+  --text-secondary: #a1a1aa;
+  --text-tertiary: #71717a;
   --text-inverse: #ffffff;
 
   /* Border colors */
-  --border: #e5e7eb;
-  --border-hover: #d1d5db;
+  --border: #2a2b4a;
+  --border-hover: #3f4066;
 
   /* Input colors */
-  --input-bg: #ffffff;
-  --input-border: #d1d5db;
+  --input-bg: #1a1b38;
+  --input-border: #2a2b4a;
   --input-focus: #6366f1;
 
   /* Message colors */
   --message-user-bg: #6366f1;
   --message-user-hover: #4f46e5;
   --message-ai-bg: transparent;
-  --message-ai-text: #171717;
+  --message-ai-text: #ededed;
   --message-ai-border: transparent;
 
-  /* Code block colors - Light mode */
-  --code-bg: #fafafa;
-  --code-border: #e1e4e8;
-  --code-header-bg: #f6f8fa;
-  --code-text: #24292e;
+  /* Code block colors */
+  --code-bg: #0b0c1f;
+  --code-border: #2a2b4a;
+  --code-header-bg: #111228;
+  --code-text: #d4d4d4;
 
   /* Modal/Overlay */
-  --modal-bg: #ffffff;
-  --modal-overlay: rgba(0, 0, 0, 0.5);
+  --modal-bg: #111228;
+  --modal-overlay: rgba(0, 0, 0, 0.8);
 
   /* Status colors */
   --success: #10b981;

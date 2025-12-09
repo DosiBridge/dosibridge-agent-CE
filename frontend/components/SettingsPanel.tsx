@@ -1,3346 +1,545 @@
-/**
- * Settings panel component for MCP servers and LLM config
- * ChatGPT-like dark theme design
- */
-
-"use client";
-
+import React, { useState, useEffect } from "react";
 import {
-  CustomRAGTool,
-  CustomRAGToolRequest,
-  Document,
-  DocumentCollection,
-  LLMConfig,
-  MCPServerRequest,
-  ToolsInfo,
-  addMCPServer,
-  approveDocument,
-  createCollection,
-  createCustomRAGTool,
-  deleteCollection,
-  deleteCustomRAGTool,
-  deleteDocument,
-  deleteLLMConfig,
-  deleteMCPServer,
-  getDocumentsNeedingReview,
-  getReviewStatistics,
-  getToolsInfo,
-  listCollections,
-  listCustomRAGTools,
-  listDocuments,
-  listLLMConfigs,
-  rejectDocument,
-  resetLLMConfig,
-  setLLMConfig,
-  switchLLMConfig,
-  testLLMConfig,
-  testMCPServerConnection,
-  toggleCustomRAGTool,
-  toggleMCPServer,
-  updateCustomRAGTool,
-  updateMCPServer,
-  uploadDocument,
-} from "@/lib/api";
-import { useStore } from "@/lib/store";
-import { healthWebSocket } from "@/lib/websocket";
-import {
-  AlertTriangle,
-  Brain,
-  CheckCircle,
-  Edit2,
-  Eye,
-  EyeOff,
-  File,
-  FileJson,
-  Folder,
-  Loader2,
-  Lock,
-  Plus,
-  Power,
-  Save,
-  Server,
-  Settings,
-  Trash2,
-  Upload,
-  Wifi,
-  WifiOff,
-  Wrench,
   X,
-  Info,
-  ExternalLink,
+  Settings,
+  Server,
+  Database,
+  Key,
+  Plus,
+  Trash2,
+  Check,
+  RefreshCw,
+  Edit2,
+  Info as InfoIcon,
+  Brain
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useStore } from "@/lib/store";
+import {
+  listMCPServers,
+  testMCPServerConnection,
+  addMCPServer,
+  updateMCPServer,
+  deleteMCPServer,
+  toggleMCPServer,
+} from "@/lib/api/mcp";
+import { type MCPServer } from "@/types/api/mcp";
+import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
+import * as api from "@/lib/api";
+import {
+  listLLMConfigs,
+} from "@/lib/api/llm";
 
-interface SettingsPanelProps {
-  isOpen: boolean;
-  onClose: () => void;
-  initialTab?: "mcp" | "llm" | "tools" | "rag";
-  selectedCollectionId?: number | null;
-  onCollectionSelect?: (collectionId: number | null) => void;
-  useReact?: boolean;
-  onUseReactChange?: (useReact: boolean) => void;
-}
+export default function SettingsPanel() {
+  const {
+    settingsOpen,
+    setSettingsOpen,
+    mcpServers,
+    loadMCPServers,
+    llmConfig,
+    loadLLMConfig,
+    isAuthenticated,
+  } = useStore();
 
-export default function SettingsPanel({
-  isOpen,
-  onClose,
-  initialTab = "mcp",
-  selectedCollectionId: propSelectedCollectionId,
-  onCollectionSelect: propOnCollectionSelect,
-  useReact: propUseReact,
-  onUseReactChange: propOnUseReactChange,
-}: SettingsPanelProps) {
-  const isAuthenticated = useStore((state) => state.isAuthenticated);
-  const mcpServers = useStore((state) => state.mcpServers);
-  const llmConfig = useStore((state) => state.llmConfig);
-  const loadMCPServers = useStore((state) => state.loadMCPServers);
-  const loadLLMConfig = useStore((state) => state.loadLLMConfig);
-  const selectedCollectionId = useStore((state) => state.selectedCollectionId);
-  const setSelectedCollectionId = useStore(
-    (state) => state.setSelectedCollectionId
-  );
-  const useReact = useStore((state) => state.useReact);
-  const setUseReact = useStore((state) => state.setUseReact);
-
-  const [toolsInfo, setToolsInfo] = useState<ToolsInfo | null>(null);
-  const [activeTab, setActiveTab] = useState<"mcp" | "llm" | "tools" | "rag">(
-    initialTab
-  );
+  const [activeTab, setActiveTab] = useState<"general" | "llm" | "mcp" | "rag">("llm");
+  const [isAddingServer, setIsAddingServer] = useState(false);
   const [editingServer, setEditingServer] = useState<string | null>(null);
-  const [deletingServer, setDeletingServer] = useState<string | null>(null);
-  const [customRAGTools, setCustomRAGTools] = useState<CustomRAGTool[]>([]);
-  const [collections, setCollections] = useState<DocumentCollection[]>([]);
-  const [editingTool, setEditingTool] = useState<number | null>(null);
-  const [deletingTool, setDeletingTool] = useState<number | null>(null);
-  const [toolForm, setToolForm] = useState<CustomRAGToolRequest>({
-    name: "",
-    description: "",
-    collection_id: null,
-    enabled: true,
-  });
-  const [showToolForm, setShowToolForm] = useState(false);
 
-  // RAG Settings state
-  const [ragActiveTab, setRagActiveTab] = useState<
-    "documents" | "collections" | "review" | "mcp"
-  >("documents");
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [ragCollections, setRagCollections] = useState<DocumentCollection[]>(
-    []
-  );
-  const [reviewDocuments, setReviewDocuments] = useState<Document[]>([]);
-  const [stats, setStats] = useState({
+  // LLM Config Form State
+  const [llmForm, setLlmForm] = useState<{
+    type: string;
+    model: string;
+    api_key: string;
+    api_base: string;
+  }>({
+    type: "openai",
+    model: "gpt-4o",
+    api_key: "",
+    api_base: "",
+  });
+
+  const [serverForm, setServerForm] = useState<{
+    name: string;
+    url: string;
+    api_key?: string;
+    connection_type: "stdio" | "http" | "sse";
+    headers: Record<string, string>;
+  }>({
+    name: "",
+    url: "",
+    connection_type: "sse",
+    headers: {},
+  });
+
+  const [isValidating, setIsValidating] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
+
+  // RAG Stats
+  const [stats, setStats] = useState<{
+    pending: number;
+    needs_review: number;
+    ready: number;
+    error: number;
+    total: number;
+  }>({
     pending: 0,
     needs_review: 0,
     ready: 0,
     error: 0,
     total: 0,
   });
-  const [isUploading, setIsUploading] = useState(false);
-  const [llmConfigs, setLlmConfigs] = useState<any[]>([]);
-  const [isDragging, setIsDragging] = useState(false);
-  const [newCollectionName, setNewCollectionName] = useState("");
-  const [newCollectionDesc, setNewCollectionDesc] = useState("");
 
-  const [serverForm, setServerForm] = useState<MCPServerRequest>({
-    name: "",
-    url: "",
-    connection_type: "http",
-    api_key: "",
-    headers: {},
-  });
-  const [headerPairs, setHeaderPairs] = useState<
-    Array<{ key: string; value: string; enabled: boolean }>
-  >([]);
-  const [headerJsonMode, setHeaderJsonMode] = useState(false);
-  const [headerJsonText, setHeaderJsonText] = useState("{}");
-  const [headerVisibility, setHeaderVisibility] = useState<
-    Record<number, boolean>
-  >({});
-  const [testingConnection, setTestingConnection] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState<{
-    connected: boolean;
-    message: string;
-  } | null>(null);
-  const [testingLLM, setTestingLLM] = useState(false);
-  const [llmTestStatus, setLlmTestStatus] = useState<{
-    valid: boolean;
-    message: string;
-  } | null>(null);
-  const [llmForm, setLlmForm] = useState<LLMConfig>({
-    type: "gemini",
-    model: "",
-    api_key: "",
-    base_url: "",
-  });
-  const [customModelInput, setCustomModelInput] = useState(false);
+  const [refreshingStats, setRefreshingStats] = useState(false);
 
-  // Model suggestions for each provider
-  const modelSuggestions: Record<string, string[]> = {
-    openai: [
-      "gpt-4o",
-      "gpt-4o-mini",
-      "gpt-4-turbo",
-      "gpt-4",
-      "gpt-3.5-turbo",
-      "o1-preview",
-      "o1-mini",
-    ],
-    openrouter: [
-      "anthropic/claude-3.7-sonnet",
-      "anthropic/claude-3.5-sonnet",
-      "openai/gpt-4o",
-      "openai/gpt-4-turbo",
-      "google/gemini-2.0-flash-exp",
-      "google/gemini-pro-1.5",
-      "meta-llama/llama-3.1-405b-instruct",
-      "mistralai/mistral-large",
-      "deepseek/deepseek-chat",
-      "qwen/qwen-2.5-72b-instruct",
-    ],
-    groq: [
-      "llama-3.1-70b-versatile",
-      "llama-3.1-8b-instant",
-      "mixtral-8x7b-32768",
-      "gemma2-9b-it",
-      "llama-3.2-11b-vision-preview",
-      "llama-3.2-3b-preview",
-    ],
-    gemini: [
-      "gemini-1.5-pro",
-      "gemini-pro",
-      "gemini-1.5-flash",
-      "gemini-2.0-flash-exp",
-      "gemini-2.5-flash",
-      "gemini-2.5-pro",
-    ],
-    deepseek: [
-      "deepseek-chat",
-      "deepseek-coder",
-      "deepseek-reasoner",
-      "deepseek-v2.5",
-    ],
-    ollama: [
-      "llama3.2",
-      "llama3.1",
-      "mistral",
-      "mixtral",
-      "codellama",
-      "phi3",
-      "gemma2",
-      "qwen2.5",
-    ],
-  };
-
-  const loadToolsInfo = useCallback(async () => {
-    try {
-      const info = await getToolsInfo();
-      setToolsInfo(info);
-    } catch (error) {
-      console.error("Failed to load tools info:", error);
-    }
-  }, []);
-
-  const loadCustomRAGTools = useCallback(async () => {
-    if (!isAuthenticated) return;
-    try {
-      const tools = await listCustomRAGTools();
-      setCustomRAGTools(tools);
-    } catch (error) {
-      console.error("Failed to load custom RAG tools:", error);
-    }
-  }, [isAuthenticated]);
-
-  const loadCollections = useCallback(async () => {
-    if (!isAuthenticated) return;
-    try {
-      const result = await listCollections();
-      setCollections(result.collections);
-      setRagCollections(result.collections);
-    } catch (error) {
-      console.error("Failed to load collections:", error);
-    }
-  }, [isAuthenticated]);
-
-  // RAG Settings load functions
-  const loadRAGDocuments = useCallback(async () => {
-    if (!isAuthenticated) return;
-    try {
-      const collectionId = propSelectedCollectionId ?? selectedCollectionId;
-      const result = await listDocuments(collectionId || undefined);
-      setDocuments(result.documents);
-    } catch (err) {
-      console.error("Failed to load documents:", err);
-    }
-  }, [isAuthenticated, propSelectedCollectionId, selectedCollectionId]);
-
-  const loadReviewDocuments = useCallback(async () => {
-    if (!isAuthenticated) return;
-    try {
-      const result = await getDocumentsNeedingReview();
-      setReviewDocuments(result.documents);
-    } catch (err) {
-      console.error("Failed to load review documents:", err);
-    }
-  }, [isAuthenticated]);
-
-  const loadStats = useCallback(async () => {
-    if (!isAuthenticated) return;
-    try {
-      const stats = await getReviewStatistics();
-      setStats(stats);
-    } catch (err) {
-      console.error("Failed to load stats:", err);
-    }
-  }, [isAuthenticated]);
-
-  const loadLLMConfigsList = useCallback(async () => {
-    if (!isAuthenticated) return;
-    try {
-      const result = await listLLMConfigs();
-      setLlmConfigs(result.configs);
-    } catch (err) {
-      console.error("Failed to load LLM configs:", err);
-      setLlmConfigs([]);
-    }
-  }, [isAuthenticated]);
-
-  // Compute currentCollectionId early
-  const currentCollectionId = propSelectedCollectionId ?? selectedCollectionId;
-  const currentUseReact = propUseReact ?? useReact;
-
-  useEffect(() => {
-    if (isOpen) {
-      (async () => {
-        try {
-          await loadMCPServers();
-          await loadLLMConfig();
-          await loadLLMConfigsList();
-          await loadToolsInfo();
-          await loadCustomRAGTools();
-          await loadCollections();
-        } catch (error) {
-          console.error("Failed to load settings:", error);
-        }
-      })();
-    }
-  }, [
-    isOpen,
-    loadMCPServers,
-    loadLLMConfig,
-    loadLLMConfigsList,
-    loadToolsInfo,
-    loadCustomRAGTools,
-    loadCollections,
-  ]);
-
-  // Load RAG data when RAG tab is active
-  useEffect(() => {
-    if (isOpen && activeTab === "rag" && isAuthenticated) {
-      (async () => {
-        try {
-          await loadRAGDocuments();
-          await loadReviewDocuments();
-          await loadStats();
-        } catch (error) {
-          console.error("Failed to load RAG data:", error);
-        }
-      })();
-    }
-  }, [
-    isOpen,
-    activeTab,
-    isAuthenticated,
-    loadRAGDocuments,
-    loadReviewDocuments,
-    loadStats,
-    currentCollectionId,
-  ]);
-
-  // Update activeTab when initialTab changes
-  useEffect(() => {
-    if (isOpen && initialTab) {
-      setActiveTab(initialTab);
-    }
-  }, [isOpen, initialTab]);
-
-  // RAG Settings handlers
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
-
-  const handleDrop = async (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const files = Array.from(e.dataTransfer.files);
-    await handleFiles(files);
-  };
-
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const files = Array.from(e.target.files);
-      await handleFiles(files);
-    }
-  };
-
-  const handleFiles = async (files: File[]) => {
-    setIsUploading(true);
-    try {
-      const collectionId = propSelectedCollectionId ?? selectedCollectionId;
-      for (const file of files) {
-        await uploadDocument(file, collectionId || undefined);
-      }
-      toast.success(`Uploaded ${files.length} file(s)`);
-      await loadRAGDocuments();
-      await loadStats();
-      await loadCollections();
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to upload document"
-      );
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const handleDeleteDocument = async (documentId: number) => {
-    if (!confirm("Are you sure you want to delete this document?")) return;
-    try {
-      await deleteDocument(documentId);
-      toast.success("Document deleted");
-      await loadRAGDocuments();
-      await loadStats();
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to delete document"
-      );
-    }
-  };
-
-  const handleApprove = async (documentId: number) => {
-    try {
-      await approveDocument(documentId);
-      toast.success("Document approved");
-      await loadRAGDocuments();
-      await loadReviewDocuments();
-      await loadStats();
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to approve document"
-      );
-    }
-  };
-
-  const handleReject = async (documentId: number) => {
-    const reason = prompt("Rejection reason (optional):");
-    try {
-      await rejectDocument(documentId, reason || undefined);
-      toast.success("Document rejected");
-      await loadRAGDocuments();
-      await loadReviewDocuments();
-      await loadStats();
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to reject document"
-      );
-    }
-  };
-
-  const handleCreateCollection = async () => {
-    if (!newCollectionName.trim()) {
-      toast.error("Collection name is required");
-      return;
-    }
-    try {
-      await createCollection(newCollectionName, newCollectionDesc || undefined);
-      toast.success("Collection created");
-      setNewCollectionName("");
-      setNewCollectionDesc("");
-      await loadCollections();
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to create collection"
-      );
-    }
-  };
-
-  const handleDeleteCollection = async (collectionId: number) => {
-    if (!confirm("Are you sure you want to delete this collection?")) return;
-    try {
-      await deleteCollection(collectionId);
-      toast.success("Collection deleted");
-      const currentCollectionId =
-        propSelectedCollectionId ?? selectedCollectionId;
-      if (currentCollectionId === collectionId) {
-        if (propOnCollectionSelect) {
-          propOnCollectionSelect(null);
-        } else {
-          setSelectedCollectionId(null);
-        }
-      }
-      await loadCollections();
-      await loadRAGDocuments();
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to delete collection"
-      );
-    }
-  };
-
-  const getStatusIcon = (status: Document["status"]) => {
-    switch (status) {
-      case "ready":
-        return <CheckCircle className="w-4 h-4 text-green-500" />;
-      case "processing":
-        return <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />;
-      case "error":
-        return <AlertTriangle className="w-4 h-4 text-red-500" />;
-      case "needs_review":
-        return <AlertTriangle className="w-4 h-4 text-yellow-500" />;
-      default:
-        return <File className="w-4 h-4 text-[var(--text-secondary)]" />;
-    }
-  };
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes < 1024) return bytes + " B";
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
-    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
-  };
-
-  const handleUseReactChange = (value: boolean) => {
-    if (propOnUseReactChange) {
-      propOnUseReactChange(value);
-    } else {
-      setUseReact(value);
-    }
-  };
-
-  const handleCollectionSelect = (collectionId: number | null) => {
-    if (propOnCollectionSelect) {
-      propOnCollectionSelect(collectionId);
-    } else {
-      setSelectedCollectionId(collectionId);
-    }
-  };
-
-  // Close on Escape key
-  useEffect(() => {
-    const handleEscape = (e: globalThis.KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen) {
-        onClose();
-      }
-    };
-    if (isOpen) {
-      window.addEventListener("keydown", handleEscape);
-      return () => window.removeEventListener("keydown", handleEscape);
-    }
-  }, [isOpen, onClose]);
-
+  // Load existing LLM config into form
   useEffect(() => {
     if (llmConfig) {
-      const allowedTypes = [
-        "openai",
-        "deepseek",
-        "groq",
-        "ollama",
-        "gemini",
-        "openrouter",
-      ] as LLMConfig["type"][];
-      const type = allowedTypes.includes(llmConfig.type as LLMConfig["type"])
-        ? (llmConfig.type as LLMConfig["type"])
-        : "gemini";
-
-      const suggestions = modelSuggestions[type] || [];
-      const currentModel = llmConfig.model || "";
-      const isCustomModel = Boolean(currentModel && !suggestions.includes(currentModel));
-
-      const t = setTimeout(() => {
-        setLlmForm({
-          type,
-          model: currentModel,
-          api_key: "",
-          base_url: llmConfig.base_url || "",
-          api_base: llmConfig.api_base || "",
-        });
-        setCustomModelInput(isCustomModel);
-      }, 0);
-
-      return () => clearTimeout(t);
+      setLlmForm({
+        type: llmConfig.type,
+        model: llmConfig.model,
+        api_key: "", // API key is not returned for security, user must re-enter if changing
+        api_base: llmConfig.api_base || "",
+      });
     }
   }, [llmConfig]);
 
-  const handleTestConnection = async () => {
-    // Sync headers before testing
-    updateHeadersFromPairs();
-    if (!serverForm.url.trim()) {
-      toast.error("URL is required to test connection");
-      return;
-    }
-    setTestingConnection(true);
-    setConnectionStatus(null);
+  // MCP Server Actions
+  const handleValidateServer = async () => {
+    setIsValidating(true);
     try {
-      const serverToTest: MCPServerRequest = {
-        ...serverForm,
-        headers: buildHeadersFromPairs(),
-        enabled: true,
-      };
-      const result = await testMCPServerConnection(serverToTest);
-      setConnectionStatus({
-        connected: result.connected,
-        message: result.message,
+      const { connected, message } = await api.testMCPServerConnection({
+        name: serverForm.name,
+        url: serverForm.url,
+        connection_type: serverForm.connection_type,
+        api_key: serverForm.api_key,
+        headers: serverForm.headers
       });
-      if (result.connected) {
-        toast.success("Connection successful!");
+
+      if (connected) {
+        toast.success(message || "Connection successful");
       } else {
-        toast.error(`Connection failed: ${result.message}`);
+        toast.error(message || "Connection failed");
       }
     } catch (error) {
-      setConnectionStatus({
-        connected: false,
-        message:
-          error instanceof Error ? error.message : "Connection test failed",
-      });
-      toast.error(
-        `Connection test failed: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
+      toast.error("Validation failed");
     } finally {
-      setTestingConnection(false);
+      setIsValidating(false);
     }
-  };
-
-  // Build headers object from headerPairs (only enabled ones with both key and value)
-  const buildHeadersFromPairs = (): Record<string, string> | undefined => {
-    const headers: Record<string, string> = {};
-    headerPairs.forEach((pair) => {
-      if (pair.enabled && pair.key.trim() && pair.value.trim()) {
-        headers[pair.key.trim()] = pair.value;
-      }
-    });
-    return Object.keys(headers).length > 0 ? headers : undefined;
-  };
-
-  // Sync JSON text to headerPairs
-  const syncJsonToPairs = () => {
-    try {
-      const parsed = JSON.parse(headerJsonText);
-      if (
-        typeof parsed === "object" &&
-        parsed !== null &&
-        !Array.isArray(parsed)
-      ) {
-        const pairs = Object.entries(parsed).map(([key, value]) => ({
-          key,
-          value: String(value),
-          enabled: true,
-        }));
-        setHeaderPairs(
-          pairs.length > 0 ? pairs : [{ key: "", value: "", enabled: true }]
-        );
-      }
-    } catch (e) {
-      toast.error("Invalid JSON format");
-    }
-  };
-
-  // Sync headerPairs to JSON text
-  const syncPairsToJson = () => {
-    const headers = buildHeadersFromPairs() || {};
-    setHeaderJsonText(JSON.stringify(headers, null, 2));
-  };
-
-  // Sync headerPairs to serverForm.headers
-  const updateHeadersFromPairs = () => {
-    // If in JSON mode, sync JSON to pairs first
-    if (headerJsonMode) {
-      syncJsonToPairs();
-      setHeaderJsonMode(false);
-    }
-    const headers = buildHeadersFromPairs();
-    setServerForm({ ...serverForm, headers });
   };
 
   const handleAddServer = async () => {
-    if (!serverForm.name.trim() || !serverForm.url.trim()) {
-      toast.error("Name and URL are required");
-      return;
-    }
-
-    // Sync headers before testing
-    updateHeadersFromPairs();
-
-    // Test connection before adding
-    setTestingConnection(true);
     try {
-      const serverToTest: MCPServerRequest = {
-        ...serverForm,
-        headers: buildHeadersFromPairs(),
-        enabled: true,
-      };
-      const testResult = await testMCPServerConnection(serverToTest);
-
-      if (!testResult.connected) {
-        toast.error(`Cannot add server: ${testResult.message}`);
-        setConnectionStatus({
-          connected: false,
-          message: testResult.message,
-        });
-        setTestingConnection(false);
-        return;
-      }
-
-      // Connection successful, proceed to add
-      const serverToAdd: MCPServerRequest = {
-        ...serverForm,
-        headers: buildHeadersFromPairs(),
-        enabled: true, // New servers are enabled by default
-      };
-      await addMCPServer(serverToAdd);
-      toast.success("MCP server added successfully");
+      await api.addMCPServer({
+        name: serverForm.name,
+        url: serverForm.url,
+        connection_type: serverForm.connection_type,
+        api_key: serverForm.api_key,
+        headers: serverForm.headers
+      });
+      await loadMCPServers();
+      toast.success("Server added successfully");
+      setIsAddingServer(false);
       setServerForm({
         name: "",
         url: "",
-        connection_type: "http",
-        api_key: "",
+        connection_type: "sse",
         headers: {},
       });
-      setHeaderPairs([]);
-      setHeaderJsonText("{}");
-      setHeaderJsonMode(false);
-      setHeaderVisibility({});
-      setConnectionStatus(null);
-      await loadMCPServers();
-      // Immediately refresh health status to update MCP count
-      const loadHealth = useStore.getState().loadHealth;
-      loadHealth();
-      // Also ping WebSocket for real-time update
-      healthWebSocket.ping();
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      if (errorMessage.includes("Connection test failed")) {
-        toast.error(`Cannot add server: ${errorMessage}`);
-      } else {
-        toast.error(`Failed to add server: ${errorMessage}`);
-      }
-    } finally {
-      setTestingConnection(false);
+      toast.error(error instanceof Error ? error.message : "Failed to add server");
     }
   };
 
-  const handleUpdateServer = async (name: string) => {
-    if (!name || !name.trim()) {
-      toast.error("Server name is required");
-      return;
-    }
-    if (!serverForm.name.trim() || !serverForm.url.trim()) {
-      toast.error("Name and URL are required");
-      return;
-    }
-
-    // Sync headers before testing
-    updateHeadersFromPairs();
-
-    // Test connection before updating (if URL or API key changed)
-    setTestingConnection(true);
+  const handleUpdateServer = async () => {
+    if (!editingServer) return;
     try {
-      const serverToTest: MCPServerRequest = {
-        ...serverForm,
-        headers: buildHeadersFromPairs(),
-        enabled: serverForm.enabled !== false,
-      };
-      const testResult = await testMCPServerConnection(serverToTest);
-
-      if (!testResult.connected) {
-        toast.error(`Cannot update server: ${testResult.message}`);
-        setConnectionStatus({
-          connected: false,
-          message: testResult.message,
-        });
-        setTestingConnection(false);
-        return;
-      }
-
-      // Connection successful, proceed to update
-      const serverToUpdate: MCPServerRequest = {
-        ...serverForm,
-        headers: buildHeadersFromPairs(),
-        enabled: serverForm.enabled !== false, // Ensure enabled is set
-      };
-      await updateMCPServer(name, serverToUpdate);
-      toast.success("MCP server updated successfully");
-      setEditingServer(null);
-      setServerForm({
-        name: "",
-        url: "",
-        connection_type: "http",
-        api_key: "",
-        headers: {},
+      await api.updateMCPServer(editingServer, {
+        name: serverForm.name,
+        url: serverForm.url,
+        connection_type: serverForm.connection_type,
+        api_key: serverForm.api_key,
+        headers: serverForm.headers
       });
-      setHeaderPairs([]);
-      setHeaderJsonText("{}");
-      setHeaderJsonMode(false);
-      setHeaderVisibility({});
-      setConnectionStatus(null);
       await loadMCPServers();
-      // Immediately refresh health status to update MCP count
-      const loadHealth = useStore.getState().loadHealth;
-      loadHealth();
-      // Also ping WebSocket for real-time update
-      healthWebSocket.ping();
+      toast.success("Server updated successfully");
+      setEditingServer(null);
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      if (errorMessage.includes("Connection test failed")) {
-        toast.error(`Cannot update server: ${errorMessage}`);
-      } else {
-        toast.error(`Failed to update server: ${errorMessage}`);
-      }
-    } finally {
-      setTestingConnection(false);
+      toast.error("Failed to update server");
     }
   };
 
   const handleDeleteServer = async (name: string) => {
-    if (!name || !name.trim()) {
-      toast.error("Server name is required");
-      setDeletingServer(null);
-      return;
-    }
+    if (!confirm("Are you sure you want to remove this server?")) return;
     try {
-      await deleteMCPServer(name);
-      toast.success("MCP server deleted");
-      setDeletingServer(null);
+      await api.deleteMCPServer(name);
       await loadMCPServers();
-      // Immediately refresh health status to update MCP count
-      const loadHealth = useStore.getState().loadHealth;
-      loadHealth();
-      // Also ping WebSocket for real-time update
-      healthWebSocket.ping();
+      toast.success("Server removed");
     } catch (error) {
-      toast.error(
-        `Failed to delete server: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
-      setDeletingServer(null);
+      toast.error("Failed to remove server");
     }
   };
 
-  const handleTestLLMConfig = async () => {
-    if (!llmForm.model.trim()) {
-      toast.error("Model name is required");
-      return;
-    }
-    if (
-      (llmForm.type === "openai" ||
-        llmForm.type === "deepseek" ||
-        llmForm.type === "groq" ||
-        llmForm.type === "gemini" ||
-        llmForm.type === "openrouter") &&
-      !llmForm.api_key?.trim()
-    ) {
-      toast.error("API key is required for this LLM type");
-      return;
-    }
-    // Validate model name format for OpenRouter
-    if (llmForm.type === "openrouter" && !llmForm.model.includes("/")) {
-      toast.error("OpenRouter model names should be in format 'provider/model' (e.g., 'anthropic/claude-3.7-sonnet')");
-      return;
-    }
-    
-    setTestingLLM(true);
-    setLlmTestStatus(null);
-    try {
-      const result = await testLLMConfig(llmForm);
-      if (result.valid) {
-        setLlmTestStatus({ valid: true, message: result.message });
-        toast.success("LLM configuration test passed!");
-      } else {
-        setLlmTestStatus({ valid: false, message: result.message });
-        toast.error(`Test failed: ${result.message}`);
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      setLlmTestStatus({ valid: false, message: errorMessage });
-      toast.error(`Test failed: ${errorMessage}`);
-    } finally {
-      setTestingLLM(false);
-    }
-  };
-
-  const handleSaveLLMConfig = async () => {
-    if (!llmForm.model.trim()) {
-      toast.error("Model name is required");
-      return;
-    }
-    if (
-      (llmForm.type === "openai" ||
-        llmForm.type === "deepseek" ||
-        llmForm.type === "groq" ||
-        llmForm.type === "gemini" ||
-        llmForm.type === "openrouter") &&
-      !llmForm.api_key?.trim()
-    ) {
-      toast.error("API key is required for this LLM type");
-      return;
-    }
-    // Validate model name format for OpenRouter (should have provider/model format)
-    if (llmForm.type === "openrouter" && !llmForm.model.includes("/")) {
-      toast.error("OpenRouter model names should be in format 'provider/model' (e.g., 'anthropic/claude-3.7-sonnet')");
-      return;
-    }
-    
-    // Test configuration before saving
-    setTestingLLM(true);
-    setLlmTestStatus(null);
-    try {
-      // First test the configuration
-      const testResult = await testLLMConfig(llmForm);
-      if (!testResult.valid) {
-        toast.error(`Cannot save: ${testResult.message}. Please fix the configuration and try again.`);
-        setLlmTestStatus({ valid: false, message: testResult.message });
-        setTestingLLM(false);
-        return;
-      }
-      
-      // Test passed (or passed with rate limit warning), now save to database
-      // If there's a warning about rate limits, show it but allow saving
-      if (testResult.message && testResult.message.includes("rate limit") || testResult.message.includes("quota")) {
-        toast(testResult.message, { icon: "⚠️" });
-      } else {
-        toast.success("LLM configuration tested successfully");
-      }
-      
-      await setLLMConfig(llmForm);
-      toast.success("LLM configuration saved successfully");
-      setLlmTestStatus({ valid: true, message: testResult.message || "Configuration saved successfully" });
-      loadLLMConfig();
-      // Reset custom input if model is in suggestions
-      const suggestions = modelSuggestions[llmForm.type] || [];
-      if (suggestions.includes(llmForm.model)) {
-        setCustomModelInput(false);
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      // Check if it's a test failure or save failure
-      if (errorMessage.includes("test failed") || errorMessage.includes("configuration test failed")) {
-        setLlmTestStatus({ valid: false, message: errorMessage });
-        toast.error(`Test failed: ${errorMessage}`);
-      } else {
-        toast.error(`Failed to save config: ${errorMessage}`);
-      }
-    } finally {
-      setTestingLLM(false);
-    }
-  };
-
-  const handleUseDefaultLLM = async () => {
-    if (
-      !confirm(
-        "Switch to default DeepSeek LLM? You'll have 100 requests per day. Add your own API key for unlimited requests."
-      )
-    ) {
-      return;
-    }
-    try {
-      // Clear test status when switching to default
-      setLlmTestStatus(null);
-      // Switch to default LLM (no testing required)
-      await setLLMConfig({
-        type: "deepseek",
-        model: "deepseek-chat",
-        use_default: true,
-      });
-      toast.success("Switched to default DeepSeek LLM (100 requests/day)");
-      loadLLMConfig();
-      // Update form to show default values
-      setLlmForm({
-        type: "deepseek",
-        model: "deepseek-chat",
-        api_key: "",
-        base_url: "",
-        api_base: "https://api.deepseek.com",
-      });
-      setCustomModelInput(false);
-    } catch (error) {
-      toast.error(
-        `Failed to switch to default LLM: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
-    }
-  };
-
-  const handleResetLLMConfig = async () => {
-    if (
-      !confirm(
-        "Reset LLM configuration to default DeepSeek settings? This will replace your current configuration."
-      )
-    ) {
-      return;
-    }
-    try {
-      await resetLLMConfig();
-      toast.success("LLM configuration reset to default DeepSeek");
-      loadLLMConfig();
-      // Update form to show default values
-      setLlmForm({
-        type: "deepseek",
-        model: "deepseek-chat",
-        api_key: "",
-        base_url: "",
-        api_base: "https://api.deepseek.com",
-      });
-    } catch (error) {
-      toast.error(
-        `Failed to reset config: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
-    }
-  };
-
-  const startEditServer = (server: (typeof mcpServers)[0]) => {
+  const startEditing = (server: MCPServer) => {
     setEditingServer(server.name);
-    const headers = server.headers || {};
-    const pairs = Object.entries(headers).map(([key, value]) => ({
-      key,
-      value: String(value),
-      enabled: true,
-    }));
-    setHeaderPairs(
-      pairs.length > 0 ? pairs : [{ key: "", value: "", enabled: true }]
-    );
-    setHeaderJsonText(JSON.stringify(headers, null, 2));
-    setHeaderJsonMode(false);
-    setHeaderVisibility({});
+    setIsAddingServer(false);
     setServerForm({
       name: server.name,
       url: server.url,
-      connection_type: server.connection_type || "http",
-      api_key: "",
-      headers: headers,
-      enabled: server.enabled !== false, // Preserve enabled status
+      connection_type: server.connection_type || "sse",
+      headers: server.headers || {},
+      api_key: "", // Security: Don't populate API key back
     });
   };
 
-  if (!isOpen) return null;
+  // LLM Config Actions
+  const handleSaveLLMConfig = async () => {
+    try {
+      await api.setLLMConfig(llmForm as any);
+      await loadLLMConfig();
+      toast.success("LLM Configuration saved");
+    } catch (error) {
+      toast.error("Failed to save LLM configuration");
+    }
+  };
 
-  // Show login prompt if not authenticated
-  if (!isAuthenticated) {
-    return (
-      <>
-        <div
-          className="fixed inset-0 bg-[var(--modal-overlay)] z-50 flex items-center justify-center p-2 sm:p-3 md:p-4"
-          onClick={onClose}
-        >
-          <div
-            className="bg-[var(--modal-bg)] rounded-xl shadow-2xl w-full max-w-md flex flex-col border border-[var(--border)]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-6 sm:p-8 text-center">
-              <div className="mb-6 flex justify-center">
-                <div className="p-4 bg-[var(--surface-elevated)] rounded-full">
-                  <Lock className="w-12 h-12 text-[var(--green)]" />
-                </div>
-              </div>
-              <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-3">
-                Authentication Required
-              </h2>
-              <p className="text-[var(--text-secondary)] mb-6">
-                Please log in or create an account to access MCP server
-                configuration and model settings.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <button
-                  onClick={() => {
-                    onClose();
-                    const event = new CustomEvent("open-auth", {
-                      detail: { mode: "login" },
-                    });
-                    window.dispatchEvent(event);
-                  }}
-                  className="px-6 py-2.5 bg-[var(--green)] hover:bg-[var(--green-hover)] text-white font-medium rounded-lg transition-colors"
-                >
-                  Log in
-                </button>
-                <button
-                  onClick={() => {
-                    onClose();
-                    const event = new CustomEvent("open-auth", {
-                      detail: { mode: "register" },
-                    });
-                    window.dispatchEvent(event);
-                  }}
-                  className="px-6 py-2.5 bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] font-medium rounded-lg transition-colors border border-[var(--border)]"
-                >
-                  Create account
-                </button>
-              </div>
-              <button
-                onClick={onClose}
-                className="mt-4 text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-sm transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      </>
-    );
-  }
+  /**
+   * Refreshes RAG statistics from the backend
+   */
+  const refreshStats = async () => {
+    if (!isAuthenticated) return;
+
+    setRefreshingStats(true);
+    try {
+      const newStats = await api.getReviewStatistics();
+      setStats(newStats);
+    } catch (error) {
+      console.error("Failed to refresh stats:", error);
+    } finally {
+      setRefreshingStats(false);
+    }
+  };
+
+  // Initial stats load
+  useEffect(() => {
+    if (activeTab === "rag" && isAuthenticated) {
+      refreshStats();
+      const interval = setInterval(refreshStats, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [activeTab, isAuthenticated]);
+
+  if (!settingsOpen) return null;
 
   return (
-    <>
-      <div
-        className="fixed inset-0 bg-[var(--modal-overlay)] z-50 flex items-center justify-center p-2 sm:p-3 md:p-4"
-        onClick={onClose}
-      >
-        <div
-          className="bg-[var(--modal-bg)] rounded-xl shadow-2xl w-full max-w-3xl max-h-[95vh] sm:max-h-[90vh] flex flex-col border border-[var(--border)]"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between p-4 sm:p-5 md:p-6 border-b border-[var(--border)] shrink-0 bg-gradient-to-r from-[var(--surface)] to-[var(--surface-hover)]">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-[var(--green)]/10 rounded-lg">
-                <Settings className="w-5 h-5 sm:w-6 sm:h-6 text-[var(--green)]" />
-              </div>
-              <div>
-                <h2 className="text-lg sm:text-xl font-semibold text-[var(--text-primary)]">
-                  Settings
-                </h2>
-                <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                  Configure MCP servers and model settings
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-[var(--surface-hover)] rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 touch-manipulation group"
-              aria-label="Close settings"
-            >
-              <X className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors" />
-            </button>
-          </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+      <div className="bg-zinc-950 border border-zinc-800 w-full max-w-4xl h-[85vh] rounded-2xl shadow-2xl flex overflow-hidden flex-col md:flex-row">
 
-          {/* Tabs */}
-          <div className="flex border-b border-[var(--border)] bg-[var(--surface-hover)] shrink-0 overflow-x-auto">
-            <button
-              onClick={() => setActiveTab("mcp")}
-              className={`flex-1 min-w-0 px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 font-medium text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-1.5 sm:gap-2 touch-manipulation relative ${
-                activeTab === "mcp"
-                  ? "text-[var(--green)] bg-[var(--surface-elevated)]"
-                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-elevated)]/50"
-              }`}
-            >
-              {activeTab === "mcp" && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--green)] rounded-t-full" />
-              )}
-              <Server
-                className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 transition-transform ${
-                  activeTab === "mcp" ? "scale-110" : ""
-                }`}
-              />
-              <span className="truncate">MCP Servers</span>
-            </button>
+        {/* Sidebar */}
+        <div className="w-full md:w-64 bg-zinc-900 border-b md:border-b-0 md:border-r border-zinc-800 p-4 flex flex-col">
+          <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+            <Settings className="w-5 h-5" />
+            Settings
+          </h2>
+
+          <nav className="space-y-1 flex-1">
             <button
               onClick={() => setActiveTab("llm")}
-              className={`flex-1 min-w-0 px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 font-medium text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-1.5 sm:gap-2 touch-manipulation relative ${
+              className={cn(
+                "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
                 activeTab === "llm"
-                  ? "text-[var(--green)] bg-[var(--surface-elevated)]"
-                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-elevated)]/50"
-              }`}
-            >
-              {activeTab === "llm" && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--green)] rounded-t-full" />
+                  ? "bg-indigo-500/10 text-indigo-400"
+                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
               )}
-              <Brain
-                className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 transition-transform ${
-                  activeTab === "llm" ? "scale-110" : ""
-                }`}
-              />
-              <span className="truncate">LLM Config</span>
+            >
+              <Brain className="w-4 h-4" />
+              LLM Provider
             </button>
+
             <button
-              onClick={() => setActiveTab("tools")}
-              className={`flex-1 min-w-0 px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 font-medium text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-1.5 sm:gap-2 touch-manipulation relative ${
-                activeTab === "tools"
-                  ? "text-[var(--green)] bg-[var(--surface-elevated)]"
-                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-elevated)]/50"
-              }`}
-            >
-              {activeTab === "tools" && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--green)] rounded-t-full" />
+              onClick={() => setActiveTab("mcp")}
+              className={cn(
+                "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                activeTab === "mcp"
+                  ? "bg-indigo-500/10 text-indigo-400"
+                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
               )}
-              <Wrench
-                className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 transition-transform ${
-                  activeTab === "tools" ? "scale-110" : ""
-                }`}
-              />
-              <span className="truncate">Tools</span>
+            >
+              <Server className="w-4 h-4" />
+              MCP Servers
             </button>
-            {isAuthenticated && (
-              <button
-                onClick={() => setActiveTab("rag")}
-                className={`flex-1 min-w-0 px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 font-medium text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-1.5 sm:gap-2 touch-manipulation relative ${
-                  activeTab === "rag"
-                    ? "text-[var(--green)] bg-[var(--surface-elevated)]"
-                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-elevated)]/50"
-                }`}
-              >
-                {activeTab === "rag" && (
-                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--green)] rounded-t-full" />
-                )}
-                <File
-                  className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 transition-transform ${
-                    activeTab === "rag" ? "scale-110" : ""
-                  }`}
-                />
-                <span className="truncate">RAG</span>
-                {stats.needs_review > 0 && (
-                  <span className="ml-1 px-1.5 py-0.5 text-xs bg-yellow-500 text-white rounded-full">
-                    {stats.needs_review}
-                  </span>
-                )}
-              </button>
-            )}
+
+            <button
+              onClick={() => setActiveTab("rag")}
+              className={cn(
+                "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                activeTab === "rag"
+                  ? "bg-indigo-500/10 text-indigo-400"
+                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
+              )}
+            >
+              <Database className="w-4 h-4" />
+              RAG & Knowledge
+            </button>
+          </nav>
+
+          <div className="pt-4 border-t border-zinc-800 text-xs text-zinc-500">
+            DosiBridge Agent v0.1.0
+          </div>
+        </div>
+
+        {/* Content Area */}
+        <div className="flex-1 flex flex-col bg-zinc-950 max-h-full overflow-hidden">
+          <div className="flex items-center justify-end p-4 border-b border-zinc-800">
+            <button
+              onClick={() => setSettingsOpen(false)}
+              className="p-2 hover:bg-zinc-800 rounded-full text-zinc-400 hover:text-white transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
-          {/* Content */}
-          <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6">
-            {activeTab === "mcp" && (
-              <div className="space-y-4 sm:space-y-5 md:space-y-6">
-                {/* Add/Edit Server Form */}
-                <div className="bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] rounded-xl p-4 sm:p-5 md:p-6 border border-[var(--border)] shadow-lg">
-                  <div className="flex items-center gap-3 mb-4 sm:mb-5">
-                    <div
-                      className={`p-2 rounded-lg ${
-                        editingServer
-                          ? "bg-blue-500/10"
-                          : "bg-[var(--green)]/10"
-                      }`}
-                    >
-                      {editingServer ? (
-                        <Edit2 className="w-5 h-5 text-blue-400" />
-                      ) : (
-                        <Plus className="w-5 h-5 text-[var(--green)]" />
-                      )}
-                    </div>
-                    <div>
-                      <h3 className="text-base sm:text-lg font-semibold text-[var(--text-primary)]">
-                        {editingServer ? "Edit MCP Server" : "Add MCP Server"}
-                      </h3>
-                      <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                        {editingServer
-                          ? "Update server configuration"
-                          : "Connect a new MCP server"}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="space-y-3 sm:space-y-4">
-                    <div>
-                      <label className="block text-xs sm:text-sm font-medium mb-1.5 sm:mb-2 text-[var(--text-primary)]">
-                        <span className="flex items-center gap-2">
-                          <span>Name</span>
-                          <span className="text-red-400">*</span>
-                        </span>
-                      </label>
-                      <input
-                        type="text"
-                        value={serverForm.name}
-                        onChange={(e) =>
-                          setServerForm({ ...serverForm, name: e.target.value })
-                        }
-                        className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base border border-[var(--input-border)] rounded-lg bg-[var(--surface-hover)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--green)] focus:border-[var(--green)] transition-all duration-200 hover:border-[var(--border-hover)]"
-                        placeholder="e.g., My MCP Server"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs sm:text-sm font-medium mb-1.5 sm:mb-2 text-[var(--text-primary)]">
-                        Connection Type
-                      </label>
-                      <select
-                        value={serverForm.connection_type || "http"}
-                        onChange={(e) => {
-                          setServerForm({
-                            ...serverForm,
-                            connection_type: e.target.value as
-                              | "stdio"
-                              | "http"
-                              | "sse",
-                          });
-                          setConnectionStatus(null); // Clear status when connection type changes
-                        }}
-                        className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base border border-[var(--input-border)] rounded-lg bg-[var(--surface-hover)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--green)] focus:border-[var(--green)] transition-all duration-200 hover:border-[var(--border-hover)] cursor-pointer"
-                      >
-                        <option value="http">HTTP</option>
-                        <option value="sse">SSE (Server-Sent Events)</option>
-                        <option value="stdio">STDIO (Command)</option>
-                      </select>
-                      <div className="mt-2 p-2.5 bg-[var(--surface-hover)] rounded-lg border border-[var(--border)]">
-                        <p className="text-xs text-[var(--text-secondary)] flex items-start gap-2">
-                          <span className="text-[var(--green)] mt-0.5">ℹ️</span>
-                          <span>
-                            {serverForm.connection_type === "stdio"
-                              ? "Enter the command to run (e.g., 'npx @modelcontextprotocol/server-filesystem /path')"
-                              : serverForm.connection_type === "sse"
-                              ? "URL will be automatically normalized to /sse endpoint"
-                              : "URL will be automatically normalized to /mcp endpoint"}
-                          </span>
-                        </p>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs sm:text-sm font-medium mb-1.5 sm:mb-2 text-[var(--text-primary)]">
-                        <span className="flex items-center gap-2">
-                          <span>
-                            {serverForm.connection_type === "stdio"
-                              ? "Command"
-                              : "URL"}
-                          </span>
-                          <span className="text-red-400">*</span>
-                        </span>
-                      </label>
-                      <input
-                        type="text"
-                        value={serverForm.url}
-                        onChange={(e) => {
-                          setServerForm({ ...serverForm, url: e.target.value });
-                          setConnectionStatus(null); // Clear status when URL changes
-                        }}
-                        className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base border border-[var(--input-border)] rounded-lg bg-[var(--surface-hover)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--green)] focus:border-[var(--green)] transition-all duration-200 hover:border-[var(--border-hover)] font-mono"
-                        placeholder={
-                          serverForm.connection_type === "stdio"
-                            ? "npx @modelcontextprotocol/server-filesystem /path"
-                            : serverForm.connection_type === "sse"
-                            ? "http://localhost:8000/api/mcp/server/sse"
-                            : "http://localhost:8000/api/mcp/server/mcp"
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs sm:text-sm font-medium mb-1.5 sm:mb-2 text-[var(--text-primary)]">
-                        API Key{" "}
-                        <span className="text-[var(--text-secondary)] font-normal">
-                          (optional)
-                        </span>
-                      </label>
-                      <input
-                        type="password"
-                        value={serverForm.api_key}
-                        onChange={(e) => {
-                          setServerForm({
-                            ...serverForm,
-                            api_key: e.target.value,
-                          });
-                          setConnectionStatus(null); // Clear status when API key changes
-                        }}
-                        className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base border border-[var(--input-border)] rounded-lg bg-[var(--surface-hover)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--green)] focus:border-[var(--green)] transition-all duration-200 hover:border-[var(--border-hover)]"
-                        placeholder="Enter API key if required"
-                      />
-                    </div>
+          <div className="flex-1 overflow-y-auto p-6">
 
-                    {/* Authentication Section */}
-                    <div className="border-t border-[var(--border)] pt-4 mt-4">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                          <Lock className="w-4 h-4 text-[var(--text-secondary)]" />
-                          <h4 className="text-sm font-semibold text-[var(--text-primary)]">
-                            Custom Headers
-                          </h4>
-                        </div>
-                      </div>
-
-                      {/* Custom Headers */}
-                      <div>
-                        <div className="flex items-center justify-between mb-3">
-                          <label className="text-xs sm:text-sm font-medium text-[var(--text-primary)]">
-                            Headers
-                          </label>
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (headerJsonMode) {
-                                  syncJsonToPairs();
-                                  setHeaderJsonMode(false);
-                                } else {
-                                  syncPairsToJson();
-                                  setHeaderJsonMode(true);
-                                }
-                              }}
-                              className={`px-3 py-1.5 text-xs border rounded-lg transition-colors flex items-center gap-1.5 ${
-                                headerJsonMode
-                                  ? "bg-[var(--green)] border-[var(--green)] text-white"
-                                  : "bg-[var(--surface-elevated)] border-[var(--input-border)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
-                              }`}
-                            >
-                              <FileJson className="w-3.5 h-3.5" />
-                              JSON
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (headerJsonMode) {
-                                  setHeaderJsonText("{}");
-                                } else {
-                                  setHeaderPairs([
-                                    ...headerPairs,
-                                    { key: "", value: "", enabled: true },
-                                  ]);
-                                }
-                              }}
-                              className="px-3 py-1.5 text-xs bg-[var(--surface-elevated)] border border-[var(--input-border)] text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-hover)] transition-colors flex items-center gap-1.5"
-                            >
-                              <Plus className="w-3.5 h-3.5" />
-                              Add
-                            </button>
-                          </div>
-                        </div>
-
-                        {headerJsonMode ? (
-                          <div>
-                            <textarea
-                              value={headerJsonText}
-                              onChange={(e) =>
-                                setHeaderJsonText(e.target.value)
-                              }
-                              className="w-full px-3 py-2 text-sm border border-[var(--input-border)] rounded-lg bg-[var(--surface-elevated)] text-[var(--text-primary)] font-mono focus:outline-none focus:ring-2 focus:ring-[var(--green)] focus:border-[var(--green)] min-h-[120px]"
-                              placeholder='{\n  "Authorization": "Bearer token",\n  "X-Custom-Header": "value"\n}'
-                            />
-                          </div>
-                        ) : (
-                          <div className="space-y-3">
-                            {headerPairs.length === 0 ? (
-                              <div className="text-center py-4 text-sm text-[var(--text-secondary)]">
-                                No headers added. Click "+ Add" to add a header.
-                              </div>
-                            ) : (
-                              headerPairs.map((pair, index) => (
-                                <div key={index} className="space-y-2">
-                                  <div className="flex items-center gap-3">
-                                    {/* Toggle Switch */}
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        const newPairs = [...headerPairs];
-                                        newPairs[index].enabled =
-                                          !newPairs[index].enabled;
-                                        setHeaderPairs(newPairs);
-                                      }}
-                                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--green)] focus:ring-offset-2 focus:ring-offset-[#343541] ${
-                                        pair.enabled
-                                          ? "bg-[var(--green)]"
-                                          : "bg-gray-600"
-                                      }`}
-                                      role="switch"
-                                      aria-checked={pair.enabled}
-                                    >
-                                      <span
-                                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                          pair.enabled
-                                            ? "translate-x-5"
-                                            : "translate-x-1"
-                                        }`}
-                                      />
-                                    </button>
-
-                                    {/* Header Name */}
-                                    <input
-                                      type="text"
-                                      value={pair.key}
-                                      onChange={(e) => {
-                                        const newPairs = [...headerPairs];
-                                        newPairs[index].key = e.target.value;
-                                        setHeaderPairs(newPairs);
-                                      }}
-                                      className="flex-1 px-3 py-2 text-sm border border-[var(--input-border)] rounded-lg bg-[var(--surface-elevated)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--green)] focus:border-[var(--green)]"
-                                      placeholder="Header Name"
-                                    />
-
-                                    {/* Delete Button */}
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        const newPairs = headerPairs.filter(
-                                          (_, i) => i !== index
-                                        );
-                                        setHeaderPairs(
-                                          newPairs.length > 0 ? newPairs : []
-                                        );
-                                      }}
-                                      className="p-2 text-[var(--text-secondary)] hover:text-red-400 transition-colors"
-                                      aria-label="Remove header"
-                                    >
-                                      <Trash2 className="w-4 h-4" />
-                                    </button>
-                                  </div>
-
-                                  {/* Header Value */}
-                                  <div className="flex items-center gap-2 ml-8">
-                                    <input
-                                      type={
-                                        headerVisibility[index]
-                                          ? "text"
-                                          : "password"
-                                      }
-                                      value={pair.value}
-                                      onChange={(e) => {
-                                        const newPairs = [...headerPairs];
-                                        newPairs[index].value = e.target.value;
-                                        setHeaderPairs(newPairs);
-                                      }}
-                                      className="flex-1 px-3 py-2 text-sm border border-[var(--input-border)] rounded-lg bg-[var(--surface-elevated)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--green)] focus:border-[var(--green)]"
-                                      placeholder="Header Value"
-                                    />
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setHeaderVisibility({
-                                          ...headerVisibility,
-                                          [index]: !headerVisibility[index],
-                                        });
-                                      }}
-                                      className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
-                                      aria-label={
-                                        headerVisibility[index]
-                                          ? "Hide value"
-                                          : "Show value"
-                                      }
-                                    >
-                                      {headerVisibility[index] ? (
-                                        <EyeOff className="w-4 h-4" />
-                                      ) : (
-                                        <Eye className="w-4 h-4" />
-                                      )}
-                                    </button>
-                                  </div>
-                                </div>
-                              ))
-                            )}
-                          </div>
-                        )}
-
-                        <p className="text-xs text-[var(--text-secondary)] mt-3">
-                          Use the toggle to enable/disable headers. Only enabled
-                          headers with both name and value will be sent.
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Connection Status */}
-                    {connectionStatus && (
-                      <div
-                        className={`p-4 rounded-lg border-2 flex items-start gap-3 animate-in fade-in slide-in-from-top-2 duration-300 ${
-                          connectionStatus.connected
-                            ? "bg-green-900/20 border-green-500/50 text-green-300"
-                            : "bg-red-900/20 border-red-500/50 text-red-300"
-                        }`}
-                      >
-                        <div
-                          className={`p-1.5 rounded-full ${
-                            connectionStatus.connected
-                              ? "bg-green-500/20"
-                              : "bg-red-500/20"
-                          }`}
-                        >
-                          {connectionStatus.connected ? (
-                            <CheckCircle className="w-5 h-5 shrink-0" />
-                          ) : (
-                            <WifiOff className="w-5 h-5 shrink-0" />
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-semibold mb-1">
-                            {connectionStatus.connected
-                              ? "Connection Successful"
-                              : "Connection Failed"}
-                          </p>
-                          <p className="text-xs opacity-90 leading-relaxed">
-                            {connectionStatus.message}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-2">
-                      <button
-                        onClick={handleTestConnection}
-                        disabled={!serverForm.url.trim() || testingConnection}
-                        className="px-4 py-2.5 bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] disabled:opacity-50 disabled:cursor-not-allowed text-[var(--text-primary)] rounded-lg transition-all duration-200 flex items-center justify-center gap-2 font-medium text-sm sm:text-base touch-manipulation hover:scale-[1.02] active:scale-[0.98] border border-[var(--input-border)] hover:border-[var(--border-hover)]"
-                      >
-                        {testingConnection ? (
-                          <>
-                            <Loader2 className="w-4 h-4 shrink-0 animate-spin" />
-                            <span>Testing...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Wifi className="w-4 h-4 shrink-0" />
-                            <span>Test Connection</span>
-                          </>
-                        )}
-                      </button>
-                      <button
-                        onClick={() =>
-                          editingServer
-                            ? handleUpdateServer(editingServer)
-                            : handleAddServer()
-                        }
-                        disabled={testingConnection}
-                        className="flex-1 px-4 py-2.5 bg-[var(--green)] hover:bg-[var(--green-hover)] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-all duration-200 flex items-center justify-center gap-2 font-medium text-sm sm:text-base touch-manipulation hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl shadow-[#10a37f]/20"
-                      >
-                        {testingConnection ? (
-                          <>
-                            <Loader2 className="w-4 h-4 shrink-0 animate-spin" />
-                            <span>Testing...</span>
-                          </>
-                        ) : (
-                          <>
-                            {editingServer ? (
-                              <Save className="w-4 h-4 shrink-0" />
-                            ) : (
-                              <Plus className="w-4 h-4 shrink-0" />
-                            )}
-                            <span>
-                              {editingServer ? "Update Server" : "Add Server"}
-                            </span>
-                          </>
-                        )}
-                      </button>
-                      {editingServer && (
-                        <button
-                          onClick={() => {
-                            setEditingServer(null);
-                            setServerForm({
-                              name: "",
-                              url: "",
-                              connection_type: "http",
-                              api_key: "",
-                              headers: {},
-                            });
-                            setHeaderPairs([]);
-                            setHeaderJsonText("{}");
-                            setHeaderJsonMode(false);
-                            setHeaderVisibility({});
-                            setConnectionStatus(null);
-                          }}
-                          disabled={testingConnection}
-                          className="w-full sm:w-auto px-4 py-2.5 bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] disabled:opacity-50 disabled:cursor-not-allowed text-[var(--text-primary)] rounded-lg transition-colors font-medium text-sm sm:text-base touch-manipulation"
-                        >
-                          Cancel
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Configured Servers List */}
+            {/* LLM Settings */}
+            {activeTab === 'llm' && (
+              <div className="max-w-xl mx-auto space-y-6">
                 <div>
-                  <div className="flex items-center gap-3 mb-4 sm:mb-5">
-                    <div className="p-2 bg-[var(--green)]/10 rounded-lg">
-                      <Server className="w-5 h-5 text-[var(--green)]" />
-                    </div>
-                    <div>
-                      <h3 className="text-base sm:text-lg font-semibold text-[var(--text-primary)]">
-                        Configured Servers
-                      </h3>
-                      <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                        {mcpServers.length} server
-                        {mcpServers.length !== 1 ? "s" : ""} configured
-                      </p>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    {mcpServers.length === 0 ? (
-                      <div className="text-center py-12 sm:py-16 px-3 sm:px-4 bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] rounded-xl border-2 border-dashed border-[var(--border)]">
-                        <div className="p-4 bg-[var(--surface-hover)] rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                          <Server className="w-8 h-8 text-[var(--text-secondary)]" />
-                        </div>
-                        <p className="text-sm sm:text-base font-medium text-[var(--text-primary)] mb-1">
-                          No MCP servers configured
-                        </p>
-                        <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
-                          Add a server above to get started
-                        </p>
-                      </div>
-                    ) : (
-                      mcpServers.map((server) => (
-                        <div
-                          key={server.name}
-                          className="flex items-center justify-between p-4 sm:p-5 bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] border border-[var(--border)] rounded-xl hover:border-[var(--green)]/50 transition-all duration-200 hover:shadow-lg hover:shadow-[#10a37f]/10 group"
-                        >
-                          <div className="flex-1 min-w-0 pr-2">
-                            <div className="font-medium text-sm sm:text-base text-[var(--text-primary)] mb-1 truncate">
-                              {server.name}
-                            </div>
-                            <div className="text-xs sm:text-sm text-[var(--text-secondary)] truncate">
-                              {server.url}
-                            </div>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="text-xs text-[var(--text-secondary)]">
-                                Type: {server.connection_type || "http"}
-                              </span>
-                              {server.has_api_key && (
-                                <span className="text-xs text-[var(--text-secondary)]">
-                                  🔒 API key configured
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex gap-1.5 sm:gap-2 shrink-0">
-                            <button
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                if (!server.name || !server.name.trim()) {
-                                  toast.error("Server name is missing");
-                                  return;
-                                }
-                                startEditServer(server);
-                              }}
-                              className="p-1.5 sm:p-2 hover:bg-[var(--surface-elevated)] rounded-lg transition-colors touch-manipulation"
-                              aria-label={`Edit ${server.name}`}
-                              type="button"
-                            >
-                              <Edit2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--text-secondary)] hover:text-[var(--green)]" />
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                if (!server.name || !server.name.trim()) {
-                                  toast.error("Server name is missing");
-                                  return;
-                                }
-                                setDeletingServer(server.name);
-                              }}
-                              className="p-1.5 sm:p-2 hover:bg-red-500/20 rounded-lg transition-colors touch-manipulation"
-                              aria-label={`Delete ${server.name}`}
-                              type="button"
-                            >
-                              <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-400 hover:text-red-300" />
-                            </button>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
+                  <h3 className="text-lg font-semibold text-white mb-1">LLM Configuration</h3>
+                  <p className="text-sm text-zinc-400">Configure the AI model provider settings.</p>
                 </div>
-              </div>
-            )}
 
-            {activeTab === "llm" && (
-              <div className="space-y-4 sm:space-y-5 md:space-y-6">
-                <div className="flex items-center gap-3 mb-4 sm:mb-5">
-                  <div className="p-2 bg-[var(--green)]/10 rounded-lg">
-                    <Brain className="w-5 h-5 text-[var(--green)]" />
-                  </div>
+                <div className="space-y-4">
                   <div>
-                    <h3 className="text-base sm:text-lg font-semibold text-[var(--text-primary)]">
-                      LLM Configuration
-                    </h3>
-                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                      Configure your LLM provider and API keys
-                    </p>
-                  </div>
-                </div>
-
-                {/* Default LLM Option */}
-                <div className="bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] rounded-xl border border-[var(--border)] p-4 sm:p-5">
-                  <div className="flex items-start justify-between gap-4 mb-4">
-                    <div className="flex-1">
-                      <h4 className="text-sm sm:text-base font-semibold text-[var(--text-primary)] mb-2">
-                        Default LLM (DeepSeek)
-                      </h4>
-                      <p className="text-xs sm:text-sm text-[var(--text-secondary)] mb-2">
-                        Use the default DeepSeek LLM with 100 requests per day limit.
-                        Perfect for testing and light usage.
-                      </p>
-                      {llmConfig?.is_default && (
-                        <div className="flex items-center gap-2 mt-2">
-                          <div className="px-2 py-1 bg-[var(--green)]/10 text-[var(--green)] rounded-md text-xs font-medium border border-[var(--green)]/20">
-                            Currently Active
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      onClick={handleUseDefaultLLM}
-                      disabled={llmConfig?.is_default}
-                      className="px-4 py-2 text-sm font-medium text-white bg-[var(--green)] hover:bg-[var(--green-hover)] disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors touch-manipulation"
+                    <label className="block text-sm font-medium text-zinc-300 mb-1">Provider</label>
+                    <select
+                      value={llmForm.type}
+                      onChange={(e) => setLlmForm({ ...llmForm, type: e.target.value })}
+                      className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
                     >
-                      {llmConfig?.is_default ? "Active" : "Use Default"}
+                      <option value="openai">OpenAI</option>
+                      <option value="anthropic">Anthropic</option>
+                      <option value="gemini">Google Gemini</option>
+                      <option value="ollama">Ollama (Local)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-300 mb-1">Model Name</label>
+                    <input
+                      type="text"
+                      value={llmForm.model}
+                      onChange={(e) => setLlmForm({ ...llmForm, model: e.target.value })}
+                      className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                      placeholder="e.g. gpt-4o"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-300 mb-1">API Key</label>
+                    <div className="relative">
+                      <input
+                        type={showApiKey ? "text" : "password"}
+                        value={llmForm.api_key}
+                        onChange={(e) => setLlmForm({ ...llmForm, api_key: e.target.value })}
+                        className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none pr-10"
+                        placeholder="sk-..."
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowApiKey(!showApiKey)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-white"
+                      >
+                        <Key className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-300 mb-1">API Base URL (Optional)</label>
+                    <input
+                      type="text"
+                      value={llmForm.api_base}
+                      onChange={(e) => setLlmForm({ ...llmForm, api_base: e.target.value })}
+                      className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                      placeholder="https://api.openai.com/v1"
+                    />
+                  </div>
+
+                  <div className="pt-4">
+                    <button
+                      onClick={handleSaveLLMConfig}
+                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Check className="w-4 h-4" />
+                      Save Configuration
                     </button>
                   </div>
                 </div>
-
-                {/* Custom LLM Configuration */}
-                <div className="bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] rounded-xl border border-[var(--border)] p-4 sm:p-5">
-                  <h4 className="text-sm sm:text-base font-semibold text-[var(--text-primary)] mb-4">
-                    Custom LLM Configuration
-                  </h4>
-                  <p className="text-xs sm:text-sm text-[var(--text-secondary)] mb-4">
-                    Add your own API key for unlimited requests. Supports OpenAI, OpenRouter, Groq, Gemini, DeepSeek, and Ollama.
-                  </p>
-
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-xs sm:text-sm font-medium text-[var(--text-primary)] mb-2">
-                        Provider Type
-                      </label>
-                      <select
-                        value={llmForm.type}
-                        onChange={(e) => {
-                          const newType = e.target.value as LLMConfig["type"];
-                          const suggestions = modelSuggestions[newType] || [];
-                          // Set default API base URL based on provider
-                          let defaultApiBase = "";
-                          if (newType === "openrouter") {
-                            defaultApiBase = "https://openrouter.ai/api/v1";
-                          } else if (newType === "deepseek") {
-                            defaultApiBase = "https://api.deepseek.com";
-                          }
-                          
-                          setLlmForm({
-                            ...llmForm,
-                            type: newType,
-                            model: suggestions.length > 0 ? suggestions[0] : "",
-                            api_key: "",
-                            api_base: defaultApiBase,
-                            base_url: newType === "ollama" ? "http://localhost:11434" : "",
-                          });
-                          setCustomModelInput(false);
-                          setLlmTestStatus(null); // Clear test status when provider changes
-                        }}
-                        className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--green)]"
-                      >
-                        <option value="openai">OpenAI</option>
-                        <option value="openrouter">OpenRouter</option>
-                        <option value="groq">Groq</option>
-                        <option value="gemini">Google Gemini</option>
-                        <option value="deepseek">DeepSeek</option>
-                        <option value="ollama">Ollama (Local)</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="block text-xs sm:text-sm font-medium text-[var(--text-primary)]">
-                          Model Name
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setCustomModelInput(!customModelInput);
-                            if (!customModelInput) {
-                              // When switching to custom, keep current model if it's not in suggestions
-                              const suggestions = modelSuggestions[llmForm.type] || [];
-                              if (!suggestions.includes(llmForm.model)) {
-                                // Keep current model
-                              } else {
-                                // Clear model when switching to custom input
-                                setLlmForm({ ...llmForm, model: "" });
-                              }
-                            }
-                          }}
-                          className="text-xs text-[var(--green)] hover:underline"
-                        >
-                          {customModelInput ? "Select from list" : "Enter custom model"}
-                        </button>
-                      </div>
-                      {!customModelInput ? (
-                        <select
-                          value={llmForm.model}
-                          onChange={(e) =>
-                            setLlmForm({ ...llmForm, model: e.target.value })
-                          }
-                          className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--green)]"
-                        >
-                          <option value="">Select a model...</option>
-                          {(modelSuggestions[llmForm.type] || []).map((model) => (
-                            <option key={model} value={model}>
-                              {model}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input
-                          type="text"
-                          value={llmForm.model}
-                          onChange={(e) => {
-                            setLlmForm({ ...llmForm, model: e.target.value });
-                            setLlmTestStatus(null); // Clear test status when model changes
-                          }}
-                          placeholder={
-                            llmForm.type === "openai"
-                              ? "e.g., gpt-4o, gpt-4-turbo"
-                              : llmForm.type === "openrouter"
-                              ? "e.g., anthropic/claude-3.7-sonnet"
-                              : llmForm.type === "groq"
-                              ? "e.g., llama-3.1-70b-versatile"
-                              : llmForm.type === "gemini"
-                              ? "e.g., gemini-1.5-pro"
-                              : llmForm.type === "deepseek"
-                              ? "e.g., deepseek-chat"
-                              : "e.g., llama3.2"
-                          }
-                          className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--green)]"
-                        />
-                      )}
-                      {llmForm.type === "openrouter" && (
-                        <p className="text-xs text-[var(--text-secondary)] mt-1">
-                          Browse all models at{" "}
-                          <a
-                            href="https://openrouter.ai/models"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[var(--green)] hover:underline"
-                          >
-                            openrouter.ai/models
-                          </a>
-                        </p>
-                      )}
-                    </div>
-
-                    {llmForm.type !== "ollama" && (
-                      <div>
-                        <label className="block text-xs sm:text-sm font-medium text-[var(--text-primary)] mb-2">
-                          API Key
-                        </label>
-                        <input
-                          type="password"
-                          value={llmForm.api_key || ""}
-                          onChange={(e) => {
-                            setLlmForm({ ...llmForm, api_key: e.target.value });
-                            setLlmTestStatus(null); // Clear test status when API key changes
-                          }}
-                          placeholder={
-                            llmForm.type === "openrouter"
-                              ? "sk-or-v1-..."
-                              : "Enter your API key"
-                          }
-                          className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--green)]"
-                        />
-                        {llmForm.type === "openrouter" && (
-                          <p className="text-xs text-[var(--text-secondary)] mt-1">
-                            Get your API key from{" "}
-                            <a
-                              href="https://openrouter.ai/"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-[var(--green)] hover:underline"
-                            >
-                              openrouter.ai
-                            </a>
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                    {(llmForm.type === "openai" ||
-                      llmForm.type === "openrouter" ||
-                      llmForm.type === "groq" ||
-                      llmForm.type === "deepseek") && (
-                      <div>
-                        <label className="block text-xs sm:text-sm font-medium text-[var(--text-primary)] mb-2">
-                          API Base URL (Optional)
-                        </label>
-                        <input
-                          type="text"
-                          value={llmForm.api_base || ""}
-                          onChange={(e) =>
-                            setLlmForm({ ...llmForm, api_base: e.target.value })
-                          }
-                          placeholder={
-                            llmForm.type === "openrouter"
-                              ? "https://openrouter.ai/api/v1"
-                              : "Leave empty for default"
-                          }
-                          className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--green)]"
-                        />
-                      </div>
-                    )}
-
-                    {llmForm.type === "ollama" && (
-                      <div>
-                        <label className="block text-xs sm:text-sm font-medium text-[var(--text-primary)] mb-2">
-                          Base URL
-                        </label>
-                        <input
-                          type="text"
-                          value={llmForm.base_url || ""}
-                          onChange={(e) =>
-                            setLlmForm({ ...llmForm, base_url: e.target.value })
-                          }
-                          placeholder="http://localhost:11434"
-                          className="w-full px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--green)]"
-                        />
-                      </div>
-                    )}
-
-                    {/* Test Status Display */}
-                    {llmTestStatus && (
-                      <div
-                        className={`p-3 rounded-lg border ${
-                          llmTestStatus.valid
-                            ? "bg-green-500/10 border-green-500/20 text-green-400"
-                            : "bg-red-500/10 border-red-500/20 text-red-400"
-                        }`}
-                      >
-                        <div className="flex items-start gap-2">
-                          {llmTestStatus.valid ? (
-                            <CheckCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                          ) : (
-                            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-                          )}
-                          <div className="flex-1">
-                            <p className="text-xs font-medium">
-                              {llmTestStatus.valid ? "Test Passed" : "Test Failed"}
-                            </p>
-                            <p className="text-xs mt-1 opacity-90">
-                              {llmTestStatus.message}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex gap-2 pt-2">
-                      <button
-                        onClick={handleTestLLMConfig}
-                        disabled={testingLLM || !llmForm.model.trim() || (llmForm.type !== "ollama" && !llmForm.api_key?.trim())}
-                        className="px-4 py-2 text-sm font-medium text-[var(--text-primary)] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors touch-manipulation flex items-center gap-2"
-                      >
-                        {testingLLM ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Testing...
-                          </>
-                        ) : (
-                          <>
-                            <Wifi className="w-4 h-4" />
-                            Test Connection
-                          </>
-                        )}
-                      </button>
-                      <button
-                        onClick={handleSaveLLMConfig}
-                        disabled={testingLLM || !llmForm.model.trim() || (llmForm.type !== "ollama" && !llmForm.api_key?.trim())}
-                        className="flex-1 px-4 py-2 text-sm font-medium text-white bg-[var(--green)] hover:bg-[var(--green-hover)] disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors touch-manipulation flex items-center justify-center gap-2"
-                      >
-                        {testingLLM ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Testing & Saving...
-                          </>
-                        ) : (
-                          <>
-                            <Save className="w-4 h-4" />
-                            Save Configuration
-                          </>
-                        )}
-                      </button>
-                      {!llmConfig?.is_default && (
-                        <button
-                          onClick={handleResetLLMConfig}
-                          disabled={testingLLM}
-                          className="px-4 py-2 text-sm font-medium text-[var(--text-primary)] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors touch-manipulation"
-                        >
-                          Reset
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Existing LLM Configurations */}
-                <div className="bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] rounded-xl border border-[var(--border)] p-4 sm:p-5">
-                  <h4 className="text-sm sm:text-base font-semibold text-[var(--text-primary)] mb-4 flex items-center gap-2">
-                    <Brain className="w-4 h-4 text-[var(--green)]" />
-                    Existing LLM Configurations
-                  </h4>
-                  <p className="text-xs text-[var(--text-secondary)] mb-4">
-                    Manage your LLM configurations - switch, update, or delete saved configurations
-                  </p>
-                  {llmConfigs.length > 0 ? (
-                    <div className="space-y-3">
-                      {llmConfigs.map((config) => (
-                        <div
-                          key={config.id}
-                          className={`p-4 rounded-lg border ${
-                            config.active
-                              ? "bg-[var(--green)]/10 border-[var(--green)]"
-                              : "bg-[var(--surface)] border-[var(--border)]"
-                          }`}
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                <span className="text-sm font-semibold text-[var(--text-primary)] capitalize">
-                                  {config.type}
-                                </span>
-                                {config.active && (
-                                  <span className="px-2 py-0.5 bg-[var(--green)] text-white text-xs rounded-full flex items-center gap-1">
-                                    <Power className="w-3 h-3" />
-                                    Active
-                                  </span>
-                                )}
-                                {config.is_default && (
-                                  <span className="px-2 py-0.5 bg-amber-500/20 text-amber-500 text-xs rounded-full">
-                                    Default
-                                  </span>
-                                )}
-                              </div>
-                              <div className="text-sm text-[var(--text-primary)] mb-1">
-                                Model: <span className="font-medium">{config.model}</span>
-                              </div>
-                              <div className="flex items-center gap-4 text-xs text-[var(--text-secondary)]">
-                                <span>
-                                  API Key:{" "}
-                                  {config.has_api_key ? (
-                                    <span className="text-[var(--green)]">✓ Set</span>
-                                  ) : (
-                                    <span className="text-red-500">✗ Not set</span>
-                                  )}
-                                </span>
-                                {config.base_url && (
-                                  <span>Base URL: {config.base_url}</span>
-                                )}
-                                {config.api_base && (
-                                  <span>API Base: {config.api_base}</span>
-                                )}
-                                {config.created_at && (
-                                  <span>
-                                    Created:{" "}
-                                    {new Date(config.created_at).toLocaleDateString()}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2 ml-4">
-                              {!config.active && (
-                                <button
-                                  onClick={async () => {
-                                    try {
-                                      await switchLLMConfig(config.id);
-                                      toast.success("Switched LLM configuration successfully");
-                                      await loadLLMConfigsList();
-                                      await loadLLMConfig();
-                                    } catch (error: any) {
-                                      toast.error(error.message || "Failed to switch LLM configuration");
-                                    }
-                                  }}
-                                  className="p-2 bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border)] rounded-lg transition-colors"
-                                  title="Switch to this LLM"
-                                >
-                                  <Power className="w-4 h-4 text-[var(--green)]" />
-                                </button>
-                              )}
-                              {!config.active && (
-                                <button
-                                  onClick={async () => {
-                                    if (!confirm("Are you sure you want to delete this LLM configuration?")) {
-                                      return;
-                                    }
-                                    try {
-                                      await deleteLLMConfig(config.id);
-                                      toast.success("LLM configuration deleted successfully");
-                                      await loadLLMConfigsList();
-                                    } catch (error: any) {
-                                      toast.error(error.message || "Failed to delete LLM configuration");
-                                    }
-                                  }}
-                                  className="p-2 bg-[var(--surface)] hover:bg-red-500/10 border border-[var(--border)] rounded-lg transition-colors"
-                                  title="Delete this LLM configuration"
-                                >
-                                  <Trash2 className="w-4 h-4 text-red-500" />
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-[var(--text-secondary)]">
-                      <Brain className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                      <p>No LLM configurations found. Add one above.</p>
-                    </div>
-                  )}
-                </div>
               </div>
             )}
 
-            {activeTab === "tools" && (
-              <div className="space-y-4 sm:space-y-5 md:space-y-6">
-                <div className="flex items-center gap-3 mb-4 sm:mb-5">
-                  <div className="p-2 bg-[var(--green)]/10 rounded-lg">
-                    <Wrench className="w-5 h-5 text-[var(--green)]" />
-                  </div>
+            {/* MCP Settings */}
+            {activeTab === 'mcp' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-base sm:text-lg font-semibold text-[var(--text-primary)]">
-                      Available Tools
-                    </h3>
-                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                      Manage and view available tools from MCP servers
-                    </p>
+                    <h3 className="text-lg font-semibold text-white">MCP Servers</h3>
+                    <p className="text-sm text-zinc-400">Manage Model Context Protocol servers.</p>
                   </div>
+                  {!isAddingServer && !editingServer && (
+                    <button
+                      onClick={() => setIsAddingServer(true)}
+                      className="bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add Server
+                    </button>
+                  )}
                 </div>
-                {toolsInfo ? (
-                  <div className="space-y-4 sm:space-y-5 md:space-y-6">
-                    <div>
-                      <h4 className="font-medium mb-3 sm:mb-4 text-sm sm:text-base text-[var(--text-primary)] flex items-center gap-2">
-                        <Wrench className="w-4 h-4 shrink-0 text-[var(--green)]" />
-                        <span>Local Tools</span>
-                        <span className="text-xs text-[var(--text-secondary)] font-normal">
-                          ({toolsInfo.local_tools.length})
-                        </span>
-                      </h4>
-                      <div className="space-y-2">
-                        {toolsInfo.local_tools.length === 0 ? (
-                          <div className="text-center py-8 sm:py-12 px-3 sm:px-4 bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] rounded-xl border-2 border-dashed border-[var(--border)]">
-                            <div className="p-4 bg-[var(--surface-hover)] rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                              <Wrench className="w-8 h-8 text-[var(--text-secondary)]" />
-                            </div>
-                            <p className="text-sm sm:text-base font-medium text-[var(--text-primary)] mb-1">
-                              No local tools available
-                            </p>
-                            <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
-                              Local tools will appear here when configured
-                            </p>
-                          </div>
-                        ) : (
-                          toolsInfo.local_tools.map((tool) => (
-                            <div
-                              key={tool.name}
-                              className="p-4 sm:p-5 bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] border border-[var(--border)] rounded-xl hover:border-[var(--green)]/50 transition-all duration-200 hover:shadow-lg hover:shadow-[#10a37f]/10"
-                            >
-                              <div className="flex items-start gap-3">
-                                <div className="p-2 bg-[var(--green)]/10 rounded-lg shrink-0">
-                                  <Wrench className="w-4 h-4 text-[var(--green)]" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="font-semibold text-sm sm:text-base text-[var(--text-primary)] mb-1">
-                                    {tool.name}
-                                  </div>
-                                  <div className="text-xs sm:text-sm text-[var(--text-secondary)] mb-2 leading-relaxed">
-                                    {tool.description}
-                                  </div>
-                                  <div className="inline-flex items-center px-2 py-1 bg-[var(--surface-hover)] rounded-md text-xs text-[var(--text-secondary)] border border-[var(--border)]">
-                                    Type: {tool.type}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ))
-                        )}
+
+                {(isAddingServer || editingServer) ? (
+                  <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6 space-y-4">
+                    <h4 className="text-white font-medium mb-4">{editingServer ? 'Edit Server' : 'Add New Server'}</h4>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs text-zinc-400 mb-1">Name</label>
+                        <input
+                          value={serverForm.name}
+                          onChange={(e) => setServerForm({ ...serverForm, name: e.target.value })}
+                          className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white text-sm"
+                          placeholder="My Server"
+                          disabled={!!editingServer} // Cannot rename
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-zinc-400 mb-1">Connection Type</label>
+                        <select
+                          value={serverForm.connection_type}
+                          onChange={(e) => setServerForm({ ...serverForm, connection_type: e.target.value as any })}
+                          className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white text-sm"
+                        >
+                          <option value="sse">SSE (Server-Sent Events)</option>
+                          <option value="stdio">Stdio (Local Process)</option>
+                        </select>
                       </div>
                     </div>
 
-                    {/* Custom RAG Tools Section */}
-                    {isAuthenticated && (
-                      <div>
-                        <div className="flex items-center justify-between mb-3 sm:mb-4">
-                          <div className="flex-1">
-                            <h4 className="font-medium text-sm sm:text-base text-[var(--text-primary)] flex items-center gap-2 mb-1">
-                              <FileJson className="w-4 h-4 shrink-0 text-[var(--green)]" />
-                              <span>Custom RAG Tools</span>
-                              <span className="text-xs text-[var(--text-secondary)] font-normal">
-                                ({customRAGTools.length})
-                              </span>
-                            </h4>
-                            <p className="text-xs text-[var(--text-secondary)] ml-6">
-                              Supported file types: PDF, TXT, DOCX, DOC, MD (Max
-                              100MB)
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => {
-                              setShowToolForm(true);
-                              setEditingTool(null);
-                              setToolForm({
-                                name: "",
-                                description: "",
-                                collection_id: null,
-                                enabled: true,
-                              });
-                            }}
-                            className="flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium text-white bg-[var(--green)] hover:bg-[var(--green-hover)] rounded-lg transition-colors touch-manipulation active:scale-95"
-                          >
-                            <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
-                            <span className="hidden sm:inline">Add Tool</span>
-                            <span className="sm:hidden">Add</span>
-                          </button>
-                        </div>
-                        <div className="space-y-2">
-                          {customRAGTools.length === 0 ? (
-                            <div className="text-center py-8 sm:py-12 px-3 sm:px-4 bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] rounded-xl border-2 border-dashed border-[var(--border)]">
-                              <div className="p-4 bg-[var(--surface-hover)] rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                                <FileJson className="w-8 h-8 text-[var(--text-secondary)]" />
-                              </div>
-                              <p className="text-sm sm:text-base font-medium text-[var(--text-primary)] mb-1">
-                                No custom RAG tools
-                              </p>
-                              <p className="text-xs sm:text-sm text-[var(--text-secondary)] mb-2">
-                                Create custom retrieval tools from your document
-                                collections
-                              </p>
-                              <div className="text-xs text-[var(--text-secondary)] mb-4 px-4 py-2 bg-[var(--surface-hover)] rounded-lg border border-[var(--border)]">
-                                <p className="font-medium text-[var(--text-secondary)] mb-1">
-                                  Supported File Types:
-                                </p>
-                                <ul className="list-disc list-inside space-y-0.5 text-[var(--text-secondary)]">
-                                  <li>PDF (.pdf) — PDF files</li>
-                                  <li>TXT (.txt) — Plain text files</li>
-                                  <li>
-                                    DOCX (.docx) — Microsoft Word documents
-                                  </li>
-                                  <li>DOC (.doc) — Older Word documents</li>
-                                  <li>MD (.md) — Markdown files</li>
-                                </ul>
-                                <p className="mt-2 text-[var(--text-secondary)]">
-                                  Maximum file size: 100MB per file
-                                </p>
-                              </div>
-                              <button
-                                onClick={() => {
-                                  setShowToolForm(true);
-                                  setEditingTool(null);
-                                  setToolForm({
-                                    name: "",
-                                    description: "",
-                                    collection_id: null,
-                                    enabled: true,
-                                  });
-                                }}
-                                className="px-4 py-2 text-sm font-medium text-white bg-[var(--green)] hover:bg-[var(--green-hover)] rounded-lg transition-colors"
-                              >
-                                Create Your First Tool
-                              </button>
-                            </div>
-                          ) : (
-                            customRAGTools.map((tool) => (
-                              <div
-                                key={tool.id}
-                                className="p-4 sm:p-5 bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] border border-[var(--border)] rounded-xl hover:border-[var(--green)]/50 transition-all duration-200 hover:shadow-lg hover:shadow-[#10a37f]/10"
-                              >
-                                <div className="flex items-start gap-3">
-                                  <div className="p-2 bg-[var(--green)]/10 rounded-lg shrink-0">
-                                    <FileJson className="w-4 h-4 text-[var(--green)]" />
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-start justify-between gap-2 mb-2">
-                                      <div className="flex-1">
-                                        <div className="font-semibold text-sm sm:text-base text-[var(--text-primary)] mb-1">
-                                          {tool.name}
-                                        </div>
-                                        <div className="text-xs sm:text-sm text-[var(--text-secondary)] mb-2 leading-relaxed">
-                                          {tool.description}
-                                        </div>
-                                        {tool.collection_id && (
-                                          <div className="text-xs text-[var(--text-secondary)] mb-2">
-                                            Collection:{" "}
-                                            {collections.find(
-                                              (c) => c.id === tool.collection_id
-                                            )?.name || "Unknown"}
-                                          </div>
-                                        )}
-                                        <div className="flex items-center gap-2">
-                                          <div className="inline-flex items-center px-2 py-1 bg-[var(--surface-hover)] rounded-md text-xs text-[var(--text-secondary)] border border-[var(--border)]">
-                                            Type: RAG
-                                          </div>
-                                          <div
-                                            className={`inline-flex items-center px-2 py-1 rounded-md text-xs border ${
-                                              tool.enabled
-                                                ? "bg-green-500/10 text-green-400 border-green-500/20"
-                                                : "bg-red-500/10 text-red-400 border-red-500/20"
-                                            }`}
-                                          >
-                                            {tool.enabled
-                                              ? "Enabled"
-                                              : "Disabled"}
-                                          </div>
-                                        </div>
-                                      </div>
-                                      <div className="flex items-center gap-2 shrink-0">
-                                        <button
-                                          onClick={async () => {
-                                            try {
-                                              await toggleCustomRAGTool(
-                                                tool.id
-                                              );
-                                              toast.success(
-                                                `Tool ${
-                                                  tool.enabled
-                                                    ? "disabled"
-                                                    : "enabled"
-                                                }`
-                                              );
-                                              await loadCustomRAGTools();
-                                              await loadToolsInfo();
-                                            } catch (error) {
-                                              toast.error(
-                                                `Failed to toggle tool: ${
-                                                  error instanceof Error
-                                                    ? error.message
-                                                    : "Unknown error"
-                                                }`
-                                              );
-                                            }
-                                          }}
-                                          className={`p-2 rounded-lg transition-colors ${
-                                            tool.enabled
-                                              ? "bg-green-500/10 text-green-400 hover:bg-green-500/20"
-                                              : "bg-gray-700 text-[var(--text-secondary)] hover:bg-gray-600"
-                                          }`}
-                                          title={
-                                            tool.enabled ? "Disable" : "Enable"
-                                          }
-                                        >
-                                          {tool.enabled ? (
-                                            <CheckCircle className="w-4 h-4" />
-                                          ) : (
-                                            <X className="w-4 h-4" />
-                                          )}
-                                        </button>
-                                        <button
-                                          onClick={() => {
-                                            setEditingTool(tool.id);
-                                            setToolForm({
-                                              name: tool.name,
-                                              description: tool.description,
-                                              collection_id: tool.collection_id,
-                                              enabled: tool.enabled,
-                                            });
-                                            setShowToolForm(true);
-                                          }}
-                                          className="p-2 rounded-lg bg-gray-700 text-[var(--text-primary)] hover:bg-gray-600 transition-colors"
-                                          title="Edit"
-                                        >
-                                          <Edit2 className="w-4 h-4" />
-                                        </button>
-                                        <button
-                                          onClick={() =>
-                                            setDeletingTool(tool.id)
-                                          }
-                                          className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
-                                          title="Delete"
-                                        >
-                                          <Trash2 className="w-4 h-4" />
-                                        </button>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            ))
-                          )}
-                        </div>
-                      </div>
-                    )}
-
                     <div>
-                      <h4 className="font-medium mb-3 sm:mb-4 text-sm sm:text-base text-[var(--text-primary)] flex items-center gap-2">
-                        <Server className="w-4 h-4 shrink-0 text-[var(--green)]" />
-                        <span>MCP Servers</span>
-                        <span className="text-xs text-[var(--text-secondary)] font-normal">
-                          ({mcpServers.length})
-                        </span>
-                      </h4>
-                      <div className="space-y-2">
-                        {mcpServers.length === 0 ? (
-                          <div className="text-center py-8 sm:py-12 px-3 sm:px-4 bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] rounded-xl border-2 border-dashed border-[var(--border)]">
-                            <div className="p-4 bg-[var(--surface-hover)] rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                              <Server className="w-8 h-8 text-[var(--text-secondary)]" />
-                            </div>
-                            <p className="text-sm sm:text-base font-medium text-[var(--text-primary)] mb-1">
-                              No MCP servers configured
-                            </p>
-                            <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
-                              Configure MCP servers in the MCP Servers tab
-                            </p>
-                          </div>
-                        ) : (
-                          mcpServers.map((server) => (
-                            <div
-                              key={server.name}
-                              className="p-4 sm:p-5 bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] border border-[var(--border)] rounded-xl hover:border-[var(--green)]/50 transition-all duration-200 hover:shadow-lg hover:shadow-[#10a37f]/10 flex items-center justify-between gap-3"
-                            >
-                              <div className="flex-1 min-w-0">
-                                <div className="font-medium text-sm sm:text-base text-[var(--text-primary)] mb-1 truncate">
-                                  {server.name}
-                                </div>
-                                <div className="text-xs sm:text-sm text-[var(--text-secondary)] mb-2 truncate">
-                                  {server.url}
-                                </div>
-                                <div className="text-xs text-[var(--text-secondary)]">
-                                  Status:{" "}
-                                  <span
-                                    className={
-                                      server.enabled !== false
-                                        ? "text-green-400"
-                                        : "text-red-400"
-                                    }
-                                  >
-                                    {server.enabled !== false
-                                      ? "Enabled"
-                                      : "Disabled"}
-                                  </span>
-                                </div>
-                              </div>
-                              <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                                <input
-                                  type="checkbox"
-                                  checked={server.enabled !== false}
-                                  onChange={async (e) => {
-                                    e.preventDefault();
-                                    if (!server.name || !server.name.trim()) {
-                                      toast.error("Server name is missing");
-                                      return;
-                                    }
-                                    try {
-                                      const result = await toggleMCPServer(
-                                        server.name
-                                      );
-                                      // Backend returns {status, server, message}, TypeScript expects {server, message}
-                                      const serverData = result.server;
-                                      const newStatus = serverData?.enabled
-                                        ? "enabled"
-                                        : "disabled";
-                                      toast.success(`MCP server ${newStatus}`);
-                                      await loadMCPServers();
-                                      // Immediately refresh health status to update MCP count
-                                      const loadHealth = useStore.getState().loadHealth;
-                                      loadHealth();
-                                      // Also ping WebSocket for real-time update
-                                      const { healthWebSocket } = await import("@/lib/websocket");
-                                      healthWebSocket.ping();
-                                    } catch (error) {
-                                      toast.error(
-                                        `Failed to toggle server: ${
-                                          error instanceof Error
-                                            ? error.message
-                                            : "Unknown error"
-                                        }`
-                                      );
-                                    }
-                                  }}
-                                  className="sr-only peer"
-                                />
-                                <div className="w-10 h-5 sm:w-11 sm:h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[var(--green)] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 sm:after:h-5 sm:after:w-5 after:transition-all peer-checked:bg-[var(--green)] touch-manipulation"></div>
-                              </label>
-                            </div>
-                          ))
-                        )}
-                      </div>
+                      <label className="block text-xs text-zinc-400 mb-1">URL / Command</label>
+                      <input
+                        value={serverForm.url}
+                        onChange={(e) => setServerForm({ ...serverForm, url: e.target.value })}
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white text-sm"
+                        placeholder={serverForm.connection_type === 'stdio' ? "npx -y @modelcontextprotocol/server-filesystem ..." : "http://localhost:3000/sse"}
+                      />
+                    </div>
+
+                    <div className="pt-4 flex gap-3">
+                      <button
+                        onClick={editingServer ? handleUpdateServer : handleAddServer}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                      >
+                        {editingServer ? 'Update Server' : 'Add Server'}
+                      </button>
+                      <button
+                        onClick={handleValidateServer}
+                        disabled={isValidating}
+                        className="bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"
+                      >
+                        {isValidating && <RefreshCw className="w-3 h-3 animate-spin" />}
+                        Test Connection
+                      </button>
+                      <button
+                        onClick={() => {
+                          setIsAddingServer(false);
+                          setEditingServer(null);
+                        }}
+                        className="text-zinc-400 hover:text-white px-4 py-2 text-sm"
+                      >
+                        Cancel
+                      </button>
                     </div>
                   </div>
                 ) : (
-                  <div className="text-center py-8 sm:py-12 text-[var(--text-secondary)]">
-                    <Loader2 className="w-6 h-6 sm:w-8 sm:h-8 animate-spin mx-auto mb-2 text-[var(--green)]" />
-                    <p className="text-xs sm:text-sm">
-                      Loading tools information...
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {activeTab === "rag" && isAuthenticated && (
-              <div className="space-y-4 sm:space-y-5 md:space-y-6">
-                {/* ReAct Mode Toggle */}
-                <div className="p-4 border border-[var(--border)] rounded-xl bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)]">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <label className="text-sm font-medium text-[var(--text-primary)] flex items-center gap-2">
-                        <Brain className="w-4 h-4 text-[var(--green)]" />
-                        ReAct Mode
-                      </label>
-                      <p className="text-xs text-[var(--text-secondary)] mt-1">
-                        Enable reasoning and acting for better problem-solving
-                      </p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={currentUseReact}
-                        onChange={(e) => handleUseReactChange(e.target.checked)}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[var(--green)] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--green)]"></div>
-                    </label>
-                  </div>
-                </div>
-
-                {/* RAG Sub-tabs */}
-                <div className="flex border-b border-[var(--border)] bg-[var(--surface-hover)] rounded-t-lg overflow-x-auto">
-                  <button
-                    onClick={() => setRagActiveTab("documents")}
-                    className={`px-4 py-3 font-medium text-sm transition-colors flex items-center gap-2 ${
-                      ragActiveTab === "documents"
-                        ? "border-b-2 border-[var(--green)] text-[var(--green)] bg-[var(--surface-elevated)]"
-                        : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                    }`}
-                  >
-                    <File className="w-4 h-4" />
-                    Documents
-                  </button>
-                  <button
-                    onClick={() => setRagActiveTab("collections")}
-                    className={`px-4 py-3 font-medium text-sm transition-colors flex items-center gap-2 ${
-                      ragActiveTab === "collections"
-                        ? "border-b-2 border-[var(--green)] text-[var(--green)] bg-[var(--surface-elevated)]"
-                        : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                    }`}
-                  >
-                    <Folder className="w-4 h-4" />
-                    Collections
-                  </button>
-                  <button
-                    onClick={() => setRagActiveTab("review")}
-                    className={`px-4 py-3 font-medium text-sm transition-colors flex items-center gap-2 relative ${
-                      ragActiveTab === "review"
-                        ? "border-b-2 border-[var(--green)] text-[var(--green)] bg-[var(--surface-elevated)]"
-                        : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                    }`}
-                  >
-                    <Eye className="w-4 h-4" />
-                    Review
-                    {stats.needs_review > 0 && (
-                      <span className="ml-1 px-1.5 py-0.5 text-xs bg-yellow-500 text-white rounded-full">
-                        {stats.needs_review}
-                      </span>
-                    )}
-                  </button>
-                  <button
-                    onClick={() => setRagActiveTab("mcp")}
-                    className={`px-4 py-3 font-medium text-sm transition-colors flex items-center gap-2 ${
-                      ragActiveTab === "mcp"
-                        ? "border-b-2 border-[var(--green)] text-[var(--green)] bg-[var(--surface-elevated)]"
-                        : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                    }`}
-                  >
-                    <Server className="w-4 h-4" />
-                    MCP Tools
-                    {mcpServers.length > 0 && (
-                      <span className="ml-1 px-1.5 py-0.5 text-xs bg-blue-500 text-white rounded-full">
-                        {mcpServers.filter((s) => s.enabled).length}
-                      </span>
-                    )}
-                  </button>
-                </div>
-
-                {/* Documents Tab */}
-                {ragActiveTab === "documents" && (
-                  <div className="space-y-4">
-                    {/* Upload Area */}
-                    <div
-                      className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                        isDragging
-                          ? "border-[var(--green)] bg-[var(--green)]/10"
-                          : "border-[var(--input-border)] bg-[var(--surface-hover)]/50"
-                      }`}
-                      onDragOver={handleDragOver}
-                      onDragLeave={handleDragLeave}
-                      onDrop={handleDrop}
-                    >
-                      <Upload className="w-12 h-12 mx-auto mb-4 text-[var(--text-secondary)]" />
-                      <p className="text-[var(--text-primary)] mb-2">
-                        Drag and drop files here, or click to select
-                      </p>
-                      <p className="text-sm text-[var(--text-secondary)] mb-4">
-                        Supported: PDF, TXT, DOCX, DOC, MD (Max 100MB)
-                      </p>
-                      <input
-                        type="file"
-                        multiple
-                        accept=".pdf,.txt,.docx,.doc,.md"
-                        onChange={handleFileSelect}
-                        className="hidden"
-                        id="file-upload"
-                        disabled={isUploading}
-                      />
-                      <label
-                        htmlFor="file-upload"
-                        className={`inline-block px-4 py-2 rounded bg-[var(--green)] text-white cursor-pointer hover:bg-[var(--green-hover)] transition-colors ${
-                          isUploading ? "opacity-50 cursor-not-allowed" : ""
-                        }`}
-                      >
-                        {isUploading ? "Uploading..." : "Select Files"}
-                      </label>
-                    </div>
-
-                    {/* Collection Filter */}
-                    <div>
-                      <label className="block text-sm font-medium mb-2 text-[var(--text-primary)]">
-                        Filter by Collection
-                      </label>
-                      <select
-                        value={currentCollectionId || ""}
-                        onChange={(e) =>
-                          handleCollectionSelect(
-                            e.target.value ? parseInt(e.target.value) : null
-                          )
-                        }
-                        className="w-full px-3 py-2 border border-[var(--input-border)] rounded-lg bg-[var(--surface-elevated)] text-[var(--text-primary)]"
-                      >
-                        <option value="">All Documents</option>
-                        {ragCollections.map((col) => (
-                          <option key={col.id} value={col.id}>
-                            {col.name} ({col.document_count})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Documents List */}
-                    <div className="space-y-2">
-                      {documents.length === 0 ? (
-                        <div className="text-center py-8 text-[var(--text-secondary)]">
-                          No documents found
-                        </div>
-                      ) : (
-                        documents.map((doc) => (
-                          <div
-                            key={doc.id}
-                            className="flex items-center justify-between p-4 bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] rounded-lg border border-[var(--border)]"
-                          >
-                            <div className="flex items-center gap-3 flex-1">
-                              {getStatusIcon(doc.status)}
-                              <div className="flex-1">
-                                <p className="text-[var(--text-primary)] font-medium">
-                                  {doc.original_filename}
-                                </p>
-                                <p className="text-sm text-[var(--text-secondary)]">
-                                  {formatFileSize(doc.file_size)} •{" "}
-                                  {doc.chunk_count} chunks • {doc.status}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {doc.status === "needs_review" && (
-                                <>
-                                  <button
-                                    onClick={() => handleApprove(doc.id)}
-                                    className="px-3 py-1 text-sm bg-green-600 hover:bg-green-700 rounded text-white"
-                                  >
-                                    Approve
-                                  </button>
-                                  <button
-                                    onClick={() => handleReject(doc.id)}
-                                    className="px-3 py-1 text-sm bg-red-600 hover:bg-red-700 rounded text-white"
-                                  >
-                                    Reject
-                                  </button>
-                                </>
-                              )}
-                              <button
-                                onClick={() => handleDeleteDocument(doc.id)}
-                                className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                  <div className="grid grid-cols-1 gap-4">
+                    {mcpServers.map((server) => (
+                      <div key={server.name} className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400">
+                            <Server className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h4 className="text-white font-medium">{server.name}</h4>
+                            <div className="flex items-center gap-2 text-xs text-zinc-500">
+                              <span className="uppercase bg-zinc-800 px-1.5 py-0.5 rounded text-[10px]">{server.connection_type || 'SSE'}</span>
+                              <span className="truncate max-w-[200px]">{server.url}</span>
                             </div>
                           </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Collections Tab */}
-                {ragActiveTab === "collections" && (
-                  <div className="space-y-4">
-                    {/* Create Collection */}
-                    <div className="bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] rounded-lg p-4 border border-[var(--border)]">
-                      <h3 className="text-lg font-semibold mb-4 text-[var(--text-primary)]">
-                        Create Collection
-                      </h3>
-                      <div className="space-y-3">
-                        <input
-                          type="text"
-                          value={newCollectionName}
-                          onChange={(e) => setNewCollectionName(e.target.value)}
-                          placeholder="Collection name"
-                          className="w-full px-3 py-2 border border-[var(--input-border)] rounded-lg bg-[var(--surface-elevated)] text-[var(--text-primary)]"
-                        />
-                        <textarea
-                          value={newCollectionDesc}
-                          onChange={(e) => setNewCollectionDesc(e.target.value)}
-                          placeholder="Description (optional)"
-                          className="w-full px-3 py-2 border border-[var(--input-border)] rounded-lg bg-[var(--surface-elevated)] text-[var(--text-primary)]"
-                          rows={2}
-                        />
-                        <button
-                          onClick={handleCreateCollection}
-                          className="px-4 py-2 bg-[var(--green)] hover:bg-[var(--green-hover)] text-white rounded-lg flex items-center gap-2"
-                        >
-                          <Plus className="w-4 h-4" />
-                          Create Collection
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Collections List */}
-                    <div className="space-y-2">
-                      {ragCollections.length === 0 ? (
-                        <div className="text-center py-8 text-[var(--text-secondary)]">
-                          No collections found
                         </div>
-                      ) : (
-                        ragCollections.map((col) => (
-                          <div
-                            key={col.id}
-                            className="flex items-center justify-between p-4 bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] rounded-lg border border-[var(--border)]"
-                          >
-                            <div className="flex-1">
-                              <p className="text-[var(--text-primary)] font-medium">
-                                {col.name}
-                              </p>
-                              {col.description && (
-                                <p className="text-sm text-[var(--text-secondary)] mt-1">
-                                  {col.description}
-                                </p>
-                              )}
-                              <p className="text-xs text-[var(--text-secondary)] mt-1">
-                                {col.document_count} documents
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => handleCollectionSelect(col.id)}
-                                className={`px-3 py-1 text-sm rounded ${
-                                  currentCollectionId === col.id
-                                    ? "bg-[var(--green)] text-white"
-                                    : "bg-gray-700 text-[var(--text-primary)] hover:bg-gray-600"
-                                }`}
-                              >
-                                {currentCollectionId === col.id
-                                  ? "Selected"
-                                  : "Select"}
-                              </button>
-                              <button
-                                onClick={() => handleDeleteCollection(col.id)}
-                                className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                )}
 
-                {/* Review Tab */}
-                {ragActiveTab === "review" && (
-                  <div className="space-y-4">
-                    {/* Statistics */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div className="bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] rounded-lg p-4 border border-[var(--border)]">
-                        <p className="text-sm text-[var(--text-secondary)]">
-                          Pending
-                        </p>
-                        <p className="text-2xl font-bold text-[var(--text-primary)]">
-                          {stats.pending}
-                        </p>
-                      </div>
-                      <div className="bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] rounded-lg p-4 border border-[var(--border)]">
-                        <p className="text-sm text-[var(--text-secondary)]">
-                          Needs Review
-                        </p>
-                        <p className="text-2xl font-bold text-yellow-400">
-                          {stats.needs_review}
-                        </p>
-                      </div>
-                      <div className="bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] rounded-lg p-4 border border-[var(--border)]">
-                        <p className="text-sm text-[var(--text-secondary)]">
-                          Ready
-                        </p>
-                        <p className="text-2xl font-bold text-green-400">
-                          {stats.ready}
-                        </p>
-                      </div>
-                      <div className="bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] rounded-lg p-4 border border-[var(--border)]">
-                        <p className="text-sm text-[var(--text-secondary)]">
-                          Total
-                        </p>
-                        <p className="text-2xl font-bold text-[var(--text-primary)]">
-                          {stats.total}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Review Documents */}
-                    <div className="space-y-2">
-                      {reviewDocuments.length === 0 ? (
-                        <div className="text-center py-8 text-[var(--text-secondary)]">
-                          No documents need review
-                        </div>
-                      ) : (
-                        reviewDocuments.map((doc) => (
-                          <div
-                            key={doc.id}
-                            className="p-4 bg-gradient-to-br from-[var(--surface-elevated)] to-[var(--surface)] rounded-lg border border-[var(--border)]"
-                          >
-                            <div className="flex items-start justify-between mb-3">
-                              <div className="flex-1">
-                                <p className="text-[var(--text-primary)] font-medium">
-                                  {doc.original_filename}
-                                </p>
-                                <p className="text-sm text-[var(--text-secondary)] mt-1">
-                                  {formatFileSize(doc.file_size)} •{" "}
-                                  {doc.chunk_count} chunks
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <button
-                                  onClick={() => handleApprove(doc.id)}
-                                  className="px-3 py-1 text-sm bg-green-600 hover:bg-green-700 rounded text-white"
-                                >
-                                  Approve
-                                </button>
-                                <button
-                                  onClick={() => handleReject(doc.id)}
-                                  className="px-3 py-1 text-sm bg-red-600 hover:bg-red-700 rounded text-white"
-                                >
-                                  Reject
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* MCP Tools Tab */}
-                {ragActiveTab === "mcp" && (
-                  <div className="space-y-4">
-                    {/* Info Notice */}
-                    <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-                      <div className="flex items-start gap-3">
-                        <Info className="w-5 h-5 text-yellow-500 shrink-0 mt-0.5" />
-                        <div className="flex-1">
-                          <h3 className="text-sm font-semibold text-yellow-600 dark:text-yellow-400 mb-1">
-                            MCP Tools Not Available in RAG Mode
-                          </h3>
-                          <p className="text-sm text-yellow-600/80 dark:text-yellow-400/80">
-                            RAG mode focuses on document retrieval and doesn't support MCP
-                            (Model Context Protocol) tools. To use MCP tools, switch to Agent
-                            mode.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* MCP Servers Status */}
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-semibold text-[var(--text-primary)] flex items-center gap-2">
-                          <Server className="w-4 h-4" />
-                          Your MCP Servers
-                        </h3>
-                        <span className="text-xs text-[var(--text-secondary)]">
-                          {mcpServers.filter((s) => s.enabled).length} enabled
-                        </span>
-                      </div>
-
-                      {mcpServers.length === 0 ? (
-                        <div className="p-6 border border-[var(--border)] rounded-lg bg-[var(--surface-hover)] text-center">
-                          <Server className="w-8 h-8 mx-auto mb-2 text-[var(--text-secondary)]" />
-                          <p className="text-sm text-[var(--text-secondary)] mb-4">
-                            No MCP servers configured
-                          </p>
+                        <div className="flex items-center gap-2">
                           <button
-                            onClick={() => {
-                              setActiveTab("mcp");
-                            }}
-                            className="px-4 py-2 text-sm font-medium text-white bg-[var(--green)] hover:bg-[var(--green)]/90 rounded-lg transition-colors flex items-center gap-2 mx-auto"
+                            onClick={() => startEditing(server)}
+                            className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
                           >
-                            <Plus className="w-4 h-4" />
-                            Add MCP Server
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteServer(server.name)}
+                            className="p-2 text-zinc-400 hover:text-red-400 hover:bg-zinc-800 rounded-lg transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
-                      ) : (
-                        <div className="space-y-2">
-                          {mcpServers.map((server) => (
-                            <div
-                              key={server.name}
-                              className="p-4 border border-[var(--border)] rounded-lg bg-[var(--surface-hover)]"
-                            >
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <Server
-                                      className={`w-4 h-4 ${
-                                        server.enabled
-                                          ? "text-green-500"
-                                          : "text-[var(--text-secondary)]"
-                                      }`}
-                                    />
-                                    <p className="text-sm font-medium text-[var(--text-primary)]">
-                                      {server.name}
-                                    </p>
-                                    {server.enabled && (
-                                      <span className="px-2 py-0.5 text-xs bg-green-500/20 text-green-400 rounded">
-                                        Enabled
-                                      </span>
-                                    )}
-                                    {!server.enabled && (
-                                      <span className="px-2 py-0.5 text-xs bg-gray-500/20 text-[var(--text-secondary)] rounded">
-                                        Disabled
-                                      </span>
-                                    )}
-                                  </div>
-                                  <p className="text-xs text-[var(--text-secondary)] mt-1">
-                                    {server.url}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                      </div>
+                    ))}
 
-                    {/* Actions */}
-                    <div className="pt-4 border-t border-[var(--border)] space-y-3">
-                      <button
-                        onClick={() => {
-                          setActiveTab("mcp");
-                        }}
-                        className="w-full px-4 py-2.5 text-sm font-medium text-white bg-[var(--green)] hover:bg-[var(--green)]/90 rounded-lg transition-colors flex items-center justify-center gap-2"
-                      >
-                        <Settings className="w-4 h-4" />
-                        Manage MCP Servers
-                      </button>
-                      <button
-                        onClick={() => {
-                          const mode = useStore.getState().mode;
-                          if (mode !== "agent") {
-                            useStore.getState().setMode("agent");
-                            toast.success(
-                              "Switched to Agent mode. MCP tools are now available."
-                            );
-                          } else {
-                            toast("Already in Agent mode");
-                          }
-                        }}
-                        className="w-full px-4 py-2.5 text-sm font-medium text-[var(--text-primary)] bg-[var(--input-bg)] hover:bg-[var(--surface-hover)] border border-[var(--input-border)] rounded-lg transition-colors flex items-center justify-center gap-2"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                        Switch to Agent Mode
-                      </button>
-                    </div>
+                    {mcpServers.length === 0 && (
+                      <div className="text-center py-12 text-zinc-500 border border-dashed border-zinc-800 rounded-xl">
+                        <p>No MCP servers configured.</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             )}
+
+            {/* RAG Content */}
+            {activeTab === 'rag' && (
+              <div className="space-y-6">
+                {/* Stats Cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {[
+                    { label: "Total Documents", value: stats.total, color: "text-zinc-200" },
+                    { label: "Ready", value: stats.ready, color: "text-green-400" },
+                    { label: "Pending", value: stats.pending, color: "text-yellow-400" },
+                    { label: "Needs Review", value: stats.needs_review, color: "text-red-400" },
+                  ].map((stat, i) => (
+                    <div key={i} className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4">
+                      <div className="text-sm text-zinc-500">{stat.label}</div>
+                      <div className={`text-2xl font-semibold mt-1 ${stat.color}`}>{stat.value}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="p-4 bg-zinc-900/30 border border-zinc-800 rounded-xl text-center text-zinc-500">
+                  <InfoIcon className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p>RAG Configuration is managed via the backend.</p>
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-zinc-500">
+                  <button onClick={refreshStats} className="flex items-center gap-1 hover:text-white transition-colors">
+                    <RefreshCw className={`w-3 h-3 ${refreshingStats ? 'animate-spin' : ''}`} />
+                    Refresh Stats
+                  </button>
+                </div>
+              </div>
+            )}
+
           </div>
         </div>
       </div>
-
-      {/* Delete Server Confirmation Modal */}
-      {deletingServer && (
-        <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-[var(--surface-elevated)] rounded-xl shadow-2xl max-w-md w-full border border-[var(--border)]">
-            <div className="p-4 sm:p-5 md:p-6">
-              <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
-                  <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />
-                </div>
-                <h3 className="text-base sm:text-lg font-semibold text-[var(--text-primary)]">
-                  Delete MCP Server
-                </h3>
-              </div>
-              <p className="text-sm sm:text-base text-[var(--text-primary)] mb-4 sm:mb-6">
-                Are you sure you want to delete{" "}
-                <span className="font-medium text-white">{deletingServer}</span>
-                ? This action cannot be undone.
-              </p>
-              <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end">
-                <button
-                  onClick={() => setDeletingServer(null)}
-                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-sm font-medium text-[var(--text-primary)] hover:text-white hover:bg-[var(--surface-hover)] rounded-lg transition-colors touch-manipulation"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => handleDeleteServer(deletingServer)}
-                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-sm font-medium bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors touch-manipulation"
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Custom RAG Tool Form Modal */}
-      {showToolForm && (
-        <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-[var(--surface-elevated)] rounded-xl shadow-2xl max-w-2xl w-full border border-[var(--border)] max-h-[90vh] overflow-y-auto">
-            <div className="p-4 sm:p-5 md:p-6">
-              <div className="flex items-center justify-between mb-4 sm:mb-6">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[var(--green)]/20 flex items-center justify-center shrink-0">
-                    <FileJson className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--green)]" />
-                  </div>
-                  <h3 className="text-base sm:text-lg font-semibold text-[var(--text-primary)]">
-                    {editingTool
-                      ? "Edit Custom RAG Tool"
-                      : "Create Custom RAG Tool"}
-                  </h3>
-                </div>
-                <button
-                  onClick={() => {
-                    setShowToolForm(false);
-                    setEditingTool(null);
-                    setToolForm({
-                      name: "",
-                      description: "",
-                      collection_id: null,
-                      enabled: true,
-                    });
-                  }}
-                  className="p-2 hover:bg-[var(--surface-hover)] rounded-lg transition-colors"
-                >
-                  <X className="w-5 h-5 text-[var(--text-secondary)]" />
-                </button>
-              </div>
-
-              <div className="space-y-4 sm:space-y-5">
-                <div>
-                  <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
-                    <span>Tool Name</span>
-                    <span className="text-red-400 ml-1">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={toolForm.name}
-                    onChange={(e) =>
-                      setToolForm({ ...toolForm, name: e.target.value })
-                    }
-                    placeholder="e.g., retrieve_my_docs"
-                    className="w-full px-4 py-2.5 bg-[var(--surface-elevated)] border border-[var(--input-border)] rounded-lg text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--green)] focus:border-transparent"
-                  />
-                  <p className="mt-1.5 text-xs text-[var(--text-secondary)]">
-                    Unique name for the tool (lowercase, underscores allowed)
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
-                    <span>Description</span>
-                    <span className="text-red-400 ml-1">*</span>
-                  </label>
-                  <textarea
-                    value={toolForm.description}
-                    onChange={(e) =>
-                      setToolForm({ ...toolForm, description: e.target.value })
-                    }
-                    placeholder="Describe what this tool retrieves..."
-                    rows={3}
-                    className="w-full px-4 py-2.5 bg-[var(--surface-elevated)] border border-[var(--input-border)] rounded-lg text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--green)] focus:border-transparent resize-none"
-                  />
-                  <p className="mt-1.5 text-xs text-[var(--text-secondary)]">
-                    This description helps the AI understand when to use this
-                    tool
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
-                    Collection (Optional)
-                  </label>
-                  <select
-                    value={toolForm.collection_id || ""}
-                    onChange={(e) =>
-                      setToolForm({
-                        ...toolForm,
-                        collection_id: e.target.value
-                          ? parseInt(e.target.value)
-                          : null,
-                      })
-                    }
-                    className="w-full px-4 py-2.5 bg-[var(--surface-elevated)] border border-[var(--input-border)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--green)] focus:border-transparent"
-                  >
-                    <option value="">All Collections</option>
-                    {collections.map((collection) => (
-                      <option key={collection.id} value={collection.id}>
-                        {collection.name}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="mt-1.5 text-xs text-[var(--text-secondary)]">
-                    Select a specific collection or leave blank to search all
-                    documents
-                  </p>
-                </div>
-
-                <div className="p-3 bg-[var(--surface-hover)] rounded-lg border border-[var(--border)]">
-                  <p className="text-xs font-medium text-[var(--text-secondary)] mb-2">
-                    📄 Supported Document Types:
-                  </p>
-                  <ul className="text-xs text-[var(--text-secondary)] space-y-1 list-disc list-inside">
-                    <li>PDF (.pdf) — PDF files</li>
-                    <li>TXT (.txt) — Plain text files</li>
-                    <li>DOCX (.docx) — Microsoft Word documents</li>
-                    <li>DOC (.doc) — Older Word documents</li>
-                    <li>MD (.md) — Markdown files</li>
-                  </ul>
-                  <p className="text-xs text-[var(--text-secondary)] mt-2">
-                    💡 Upload documents in RAG Settings tab first, then create
-                    tools to retrieve from them.
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    id="tool-enabled"
-                    checked={toolForm.enabled}
-                    onChange={(e) =>
-                      setToolForm({ ...toolForm, enabled: e.target.checked })
-                    }
-                    className="w-4 h-4 text-[var(--green)] bg-[var(--surface-elevated)] border-[var(--input-border)] rounded focus:ring-[var(--green)] focus:ring-2"
-                  />
-                  <label
-                    htmlFor="tool-enabled"
-                    className="text-sm text-[var(--text-primary)] cursor-pointer"
-                  >
-                    Enable this tool
-                  </label>
-                </div>
-              </div>
-
-              <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end mt-6 sm:mt-8">
-                <button
-                  onClick={() => {
-                    setShowToolForm(false);
-                    setEditingTool(null);
-                    setToolForm({
-                      name: "",
-                      description: "",
-                      collection_id: null,
-                      enabled: true,
-                    });
-                  }}
-                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-sm font-medium text-[var(--text-primary)] hover:text-white hover:bg-[var(--surface-hover)] rounded-lg transition-colors touch-manipulation"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={async () => {
-                    if (!toolForm.name.trim() || !toolForm.description.trim()) {
-                      toast.error("Name and description are required");
-                      return;
-                    }
-                    try {
-                      if (editingTool) {
-                        await updateCustomRAGTool(editingTool, toolForm);
-                        toast.success("Tool updated successfully");
-                      } else {
-                        await createCustomRAGTool(toolForm);
-                        toast.success("Tool created successfully");
-                      }
-                      setShowToolForm(false);
-                      setEditingTool(null);
-                      setToolForm({
-                        name: "",
-                        description: "",
-                        collection_id: null,
-                        enabled: true,
-                      });
-                      await loadCustomRAGTools();
-                      await loadToolsInfo();
-                    } catch (error) {
-                      toast.error(
-                        `Failed to ${editingTool ? "update" : "create"} tool: ${
-                          error instanceof Error
-                            ? error.message
-                            : "Unknown error"
-                        }`
-                      );
-                    }
-                  }}
-                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-sm font-medium bg-[var(--green)] hover:bg-[var(--green-hover)] text-white rounded-lg transition-colors touch-manipulation"
-                >
-                  {editingTool ? "Update Tool" : "Create Tool"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Custom RAG Tool Confirmation Modal */}
-      {deletingTool && (
-        <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-[var(--surface-elevated)] rounded-xl shadow-2xl max-w-md w-full border border-[var(--border)]">
-            <div className="p-4 sm:p-5 md:p-6">
-              <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
-                  <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />
-                </div>
-                <h3 className="text-base sm:text-lg font-semibold text-[var(--text-primary)]">
-                  Delete Custom RAG Tool
-                </h3>
-              </div>
-              <p className="text-sm sm:text-base text-[var(--text-primary)] mb-4 sm:mb-6">
-                Are you sure you want to delete this tool? This action cannot be
-                undone.
-              </p>
-              <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end">
-                <button
-                  onClick={() => setDeletingTool(null)}
-                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-sm font-medium text-[var(--text-primary)] hover:text-white hover:bg-[var(--surface-hover)] rounded-lg transition-colors touch-manipulation"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={async () => {
-                    try {
-                      await deleteCustomRAGTool(deletingTool);
-                      toast.success("Tool deleted successfully");
-                      setDeletingTool(null);
-                      await loadCustomRAGTools();
-                      await loadToolsInfo();
-                    } catch (error) {
-                      toast.error(
-                        `Failed to delete tool: ${
-                          error instanceof Error
-                            ? error.message
-                            : "Unknown error"
-                        }`
-                      );
-                    }
-                  }}
-                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-sm font-medium bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors touch-manipulation"
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
+    </div>
   );
 }

@@ -9,6 +9,7 @@ import { Loader2, MessageSquare } from "lucide-react";
 import { useEffect, useRef } from "react";
 import MessageBubble from "./MessageBubble";
 import ThinkingIndicator from "./ThinkingIndicator";
+import { TextGenerateEffect } from "./ui/text-generate-effect";
 
 export default function ChatWindow() {
   const messages = useStore((state) => state.messages);
@@ -28,8 +29,8 @@ export default function ChatWindow() {
   );
 
   // Get the last message content length for streaming detection
-  const lastMessageContent = displayMessages.length > 0 
-    ? displayMessages[displayMessages.length - 1].content 
+  const lastMessageContent = displayMessages.length > 0
+    ? displayMessages[displayMessages.length - 1].content
     : "";
   const currentContentLength = lastMessageContent.length;
 
@@ -77,15 +78,15 @@ export default function ChatWindow() {
     // Check if content changed (new message or streaming update)
     const isNewMessage = displayMessages.length > lastMessageCountRef.current;
     const isContentUpdate = currentContentLength > lastContentLengthRef.current;
-    
+
     lastMessageCountRef.current = displayMessages.length;
     lastContentLengthRef.current = currentContentLength;
 
     // Only auto-scroll if:
     // 1. User hasn't manually scrolled up (or was near bottom)
     // 2. Content is updating (new message or streaming)
-    const shouldAutoScroll = 
-      !isUserScrollingRef.current && 
+    const shouldAutoScroll =
+      !isUserScrollingRef.current &&
       (isNewMessage || (isStreaming && isContentUpdate) || isNearBottom());
 
     if (shouldAutoScroll) {
@@ -123,13 +124,13 @@ export default function ChatWindow() {
     // More frequent updates during streaming for smoother experience
     const scrollInterval = setInterval(() => {
       if (!containerRef.current || !messagesEndRef.current) return;
-      
+
       const container = containerRef.current;
       const scrollTop = container.scrollTop;
       const scrollHeight = container.scrollHeight;
       const clientHeight = container.clientHeight;
       const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-      
+
       // Only scroll if user is near bottom (within 200px) and not manually scrolling
       if (distanceFromBottom < 200 && !isUserScrollingRef.current) {
         requestAnimationFrame(() => {
@@ -167,9 +168,12 @@ export default function ChatWindow() {
                 <div className="absolute inset-0 rounded-full bg-[var(--green)] opacity-20 animate-ping" />
               </div>
             </div>
-            <h2 className="text-xl sm:text-2xl md:text-3xl font-semibold mb-3 text-[var(--text-primary)] animate-slide-in-right">
-              How can I help you today?
-            </h2>
+            <div className="mb-3">
+              <TextGenerateEffect
+                words="How can I help you today?"
+                className="text-xl sm:text-2xl md:text-3xl font-semibold text-[var(--text-primary)] text-center animate-slide-in-right"
+              />
+            </div>
             <p className="text-sm sm:text-base text-[var(--text-secondary)] mb-8 animate-slide-in-left">
               Start a conversation or ask me anything
             </p>
