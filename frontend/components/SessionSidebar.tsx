@@ -24,6 +24,8 @@ import { useStore } from "@/lib/store";
 import { type Session } from "@/lib/api";
 import { formatDistanceToNow } from "date-fns";
 import toast from "react-hot-toast";
+import ProfileDropdown from "./ProfileDropdown";
+import ProfileSettingsDialog from "./ProfileSettingsDialog";
 
 interface SessionSidebarProps {
   isOpen: boolean; // Kept for compatibility but controlled internally by common parent usually
@@ -43,6 +45,8 @@ export default function SessionSidebar({
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [renamingSessionId, setRenamingSessionId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [profileSettingsOpen, setProfileSettingsOpen] = useState(false);
 
   const sessions = useStore((state) => state.sessions);
   const currentSessionId = useStore((state) => state.currentSessionId);
@@ -156,37 +160,38 @@ export default function SessionSidebar({
           </div>
 
           {/* User Profile / Auth Actions */}
-          <div className="flex-shrink-0 pt-4 border-t border-white/10">
+          <div className="flex-shrink-0 pt-4 border-t border-white/10 relative">
             {isAuthenticated ? (
               <div className="flex flex-col gap-1">
-                <SidebarLink
-                  link={{
-                    label: user?.name || "User",
-                    href: "#",
-                    icon: (
-                      <div className="h-5 w-5 flex-shrink-0 rounded-full bg-black/50 flex items-center justify-center border border-white/10">
-                        <span className="text-[10px] font-bold text-neutral-200">{user?.name?.[0]?.toUpperCase() || "U"}</span>
-                      </div>
-                    ),
-                  }}
-                />
-                <div onClick={async (e) => {
-                  e.preventDefault();
-                  if (isLoggingOut) return;
-                  setIsLoggingOut(true);
-                  try { await logout(); } finally { setIsLoggingOut(false); }
-                }} className="w-full">
-                  <SidebarLink
-                    link={{
-                      label: isLoggingOut ? "Logging out..." : "Logout",
-                      href: "#",
-                      icon: isLoggingOut ? (
-                        <div className="h-5 w-5 flex items-center justify-center">
-                          <div className="w-4 h-4 border-2 border-neutral-200 border-t-transparent rounded-full animate-spin" />
-                        </div>
-                      ) : (
-                        <IconLogout className="text-neutral-200 h-5 w-5 flex-shrink-0" />
-                      ),
+                <div className="relative">
+                  <div
+                    onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                    className="cursor-pointer"
+                  >
+                    <SidebarLink
+                      link={{
+                        label: user?.name || "User",
+                        href: "#",
+                        icon: (
+                          <div className="h-5 w-5 flex-shrink-0 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center border border-white/10">
+                            <span className="text-[10px] font-bold text-white">{user?.name?.[0]?.toUpperCase() || "U"}</span>
+                          </div>
+                        ),
+                      }}
+                    />
+                  </div>
+                  <ProfileDropdown
+                    isOpen={profileDropdownOpen}
+                    onClose={() => setProfileDropdownOpen(false)}
+                    onSettingsClick={() => setProfileSettingsOpen(true)}
+                    onLogout={async () => {
+                      if (isLoggingOut) return;
+                      setIsLoggingOut(true);
+                      try {
+                        await logout();
+                      } finally {
+                        setIsLoggingOut(false);
+                      }
                     }}
                   />
                 </div>
@@ -210,6 +215,12 @@ export default function SessionSidebar({
               </div>
             )}
           </div>
+          
+          {/* Profile Settings Dialog */}
+          <ProfileSettingsDialog
+            isOpen={profileSettingsOpen}
+            onClose={() => setProfileSettingsOpen(false)}
+          />
         </SidebarBody>
       </Sidebar>
     </div>

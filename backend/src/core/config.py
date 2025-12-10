@@ -81,6 +81,27 @@ class Config:
         # Global servers are owned by superadmin (user_id=1) or None (for backward compatibility)
         if DB_AVAILABLE:
             try:
+                # Load user preferences for global MCP servers
+                user_preferences = {}
+                if user_id:
+                    if db:
+                        from src.core.models import UserGlobalConfigPreference
+                        preferences = db.query(UserGlobalConfigPreference).filter(
+                            UserGlobalConfigPreference.user_id == user_id,
+                            UserGlobalConfigPreference.config_type == "mcp"
+                        ).all()
+                        for pref in preferences:
+                            user_preferences[pref.config_id] = pref.enabled
+                    else:
+                        with get_db_context() as session:
+                            from src.core.models import UserGlobalConfigPreference
+                            preferences = session.query(UserGlobalConfigPreference).filter(
+                                UserGlobalConfigPreference.user_id == user_id,
+                                UserGlobalConfigPreference.config_type == "mcp"
+                            ).all()
+                            for pref in preferences:
+                                user_preferences[pref.config_id] = pref.enabled
+                
                 if db:
                     # Use provided session - get user-specific AND global servers
                     from sqlalchemy import or_
@@ -93,11 +114,23 @@ class Config:
                         )
                     )
                     db_servers = query.all()
-                    servers = [s.to_dict(include_api_key=True) for s in db_servers]
-                    # Mark global servers (user_id=1 or None)
-                    for server in servers:
-                        server_user_id = db_servers[servers.index(server)].user_id
-                        server['is_global'] = (server_user_id == 1 or server_user_id is None)
+                    servers = []
+                    # Filter global servers based on user preferences
+                    for server in db_servers:
+                        server_dict = server.to_dict(include_api_key=True)
+                        server_user_id = server.user_id
+                        is_global = (server_user_id == 1 or server_user_id is None)
+                        server_dict['is_global'] = is_global
+                        
+                        # For global servers, check user preference
+                        if is_global and user_id:
+                            # Check if user has disabled this global server
+                            user_enabled = user_preferences.get(server.id, True)  # Default to enabled if no preference
+                            if not user_enabled:
+                                # User has disabled this global server, skip it
+                                continue
+                        
+                        servers.append(server_dict)
                 else:
                     # Create new session - get user-specific AND global servers
                     with get_db_context() as session:
@@ -111,11 +144,23 @@ class Config:
                             )
                         )
                         db_servers = query.all()
-                        servers = [s.to_dict(include_api_key=True) for s in db_servers]
-                        # Mark global servers (user_id=1 or None)
-                        for server in servers:
-                            server_user_id = db_servers[servers.index(server)].user_id
-                            server['is_global'] = (server_user_id == 1 or server_user_id is None)
+                        servers = []
+                        # Filter global servers based on user preferences
+                        for server in db_servers:
+                            server_dict = server.to_dict(include_api_key=True)
+                            server_user_id = server.user_id
+                            is_global = (server_user_id == 1 or server_user_id is None)
+                            server_dict['is_global'] = is_global
+                            
+                            # For global servers, check user preference
+                            if is_global and user_id:
+                                # Check if user has disabled this global server
+                                user_enabled = user_preferences.get(server.id, True)  # Default to enabled if no preference
+                                if not user_enabled:
+                                    # User has disabled this global server, skip it
+                                    continue
+                            
+                            servers.append(server_dict)
                 
                 user_servers = [s for s in servers if not s.get('is_global')]
                 global_servers = [s for s in servers if s.get('is_global')]

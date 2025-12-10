@@ -128,11 +128,13 @@ if Base is not None:
             from src.utils.encryption import decrypt_value
             
             result = {
+                "id": self.id,
                 "name": self.name,
                 "url": self.url,
                 "connection_type": self.connection_type or "http",
                 "enabled": self.enabled,
-                "has_api_key": bool(self.api_key)
+                "has_api_key": bool(self.api_key),
+                "user_id": self.user_id
             }
             if include_api_key and self.api_key:
                 # Decrypt API key when returning

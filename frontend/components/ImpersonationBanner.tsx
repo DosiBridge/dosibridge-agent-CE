@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { LogIn, LogOut, Shield } from "lucide-react";
 import { getCurrentUser } from "@/lib/api/auth";
 import type { User } from "@/types/api";
 
 export default function ImpersonationBanner() {
+    const router = useRouter();
     const impersonatedUserId = useStore((state) => state.impersonatedUserId);
     const setImpersonatedUserId = useStore((state) => state.setImpersonatedUserId);
     const originalSuperadminId = useStore((state) => state.originalSuperadminId);
@@ -46,10 +48,18 @@ export default function ImpersonationBanner() {
         return null;
     }
 
+    const handleBannerClick = () => {
+        router.push("/chat");
+    };
+
     return (
         <div className="fixed bottom-6 right-6 z-[100] animate-in slide-in-from-bottom-4 duration-300">
             <div className="bg-indigo-950/80 backdrop-blur-md border border-indigo-500/30 shadow-2xl shadow-indigo-500/20 rounded-2xl p-4 flex items-center gap-6 max-w-lg">
-                <div className="flex items-center gap-4">
+                <div 
+                    onClick={handleBannerClick}
+                    className="flex items-center gap-4 cursor-pointer hover:opacity-80 transition-opacity flex-1"
+                    title="Click to go to chat page"
+                >
                     <div className="p-2.5 bg-indigo-500/20 rounded-xl border border-indigo-500/30">
                         <Shield className="w-5 h-5 text-indigo-300" />
                     </div>
@@ -70,10 +80,11 @@ export default function ImpersonationBanner() {
 
                 <div className="h-8 w-px bg-white/10" />
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                     {originalSuperadminId && (
                         <button
-                            onClick={() => {
+                            onClick={(e) => {
+                                e.stopPropagation();
                                 setImpersonatedUserId(originalSuperadminId);
                                 if (typeof window !== 'undefined') {
                                     window.location.reload();
@@ -86,7 +97,8 @@ export default function ImpersonationBanner() {
                         </button>
                     )}
                     <button
-                        onClick={() => {
+                        onClick={(e) => {
+                            e.stopPropagation();
                             setImpersonatedUserId(null);
                             if (typeof window !== 'undefined') {
                                 window.location.reload();

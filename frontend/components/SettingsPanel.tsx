@@ -25,6 +25,7 @@ import {
   updateMCPServer,
   deleteMCPServer,
   toggleMCPServer,
+  toggleGlobalMCPServerPreference,
 } from "@/lib/api/mcp";
 import { type MCPServer } from "@/types/api/mcp";
 import { cn } from "@/lib/utils";
@@ -247,6 +248,19 @@ export default function SettingsPanel() {
       toast.success("Server status updated");
     } catch (error) {
       toast.error("Failed to toggle server status");
+    } finally {
+      setTogglingServerName(null);
+    }
+  };
+
+  const handleToggleGlobalMCPServerPreference = async (serverId: number) => {
+    setTogglingServerName(`global-${serverId}`);
+    try {
+      await toggleGlobalMCPServerPreference(serverId);
+      toast.success("Global MCP server preference updated");
+      await loadMCPServers();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to toggle global MCP server preference");
     } finally {
       setTogglingServerName(null);
     }
@@ -1053,9 +1067,32 @@ export default function SettingsPanel() {
                           </button>
                               </>
                             ) : (
-                              <div className="p-2 text-zinc-500" title="Only superadmins can modify global servers">
-                                <Lock className="w-4 h-4" />
-                        </div>
+                              <>
+                                {/* Toggle preference button - for global MCP servers (user can enable/disable for their profile) */}
+                                {isGlobal && (server.user_id === null || server.user_id === undefined || server.user_id === 1) && server.id ? (
+                                  <button
+                                    onClick={() => handleToggleGlobalMCPServerPreference(server.id!)}
+                                    className={cn(
+                                      "p-2 rounded-lg transition-colors",
+                                      server.user_enabled !== false
+                                        ? "text-green-400 hover:bg-green-500/10"
+                                        : "text-zinc-500 hover:text-green-400 hover:bg-zinc-800"
+                                    )}
+                                    title={server.user_enabled !== false ? "Disable this global MCP for your profile" : "Enable this global MCP for your profile"}
+                                    disabled={togglingServerName === `global-${server.id}`}
+                                  >
+                                    {togglingServerName === `global-${server.id}` ? (
+                                      <Loader2 className="w-4 h-4 animate-spin text-zinc-500" />
+                                    ) : (
+                                      <Power className="w-4 h-4" />
+                                    )}
+                                  </button>
+                                ) : (
+                                  <div className="p-2 text-zinc-500" title="Only superadmins can modify global servers">
+                                    <Lock className="w-4 h-4" />
+                                  </div>
+                                )}
+                              </>
                             )}
                       </div>
                         </div>

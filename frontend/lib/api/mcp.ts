@@ -99,3 +99,14 @@ export async function toggleMCPServer(
   );
   return handleResponse(response);
 }
+
+export async function toggleGlobalMCPServerPreference(
+  serverId: number
+): Promise<{ status: string; message: string; preference: any }> {
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/mcp-servers/global/${serverId}/toggle-preference`, {
+    method: "PATCH",
+    headers: getAuthHeaders(),
+  });
+  return handleResponse(response);
+}
