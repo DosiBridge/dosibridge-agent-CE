@@ -380,7 +380,7 @@ export default function Home() {
               MIT License
             </span>
           </div>
-          <p className="text-center text-gray-500 text-sm">© 2024 DosiBridge. All rights reserved.</p>
+          <p className="text-center text-gray-500 text-sm">© {new Date().getFullYear()} DosiBridge. All rights reserved.</p>
           <p className="text-center text-gray-600 text-xs mt-2">This is a fully open source project released under the MIT License. Free to use, modify, and distribute.</p>
         </div>
       </footer>

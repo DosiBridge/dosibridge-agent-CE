@@ -23,6 +23,7 @@ import {
   switchLLMConfig,
   updateLLMConfig,
   toggleLLMConfig,
+  toggleGlobalLLMConfigPreference,
   type LLMConfigListItem,
 } from "@/lib/api/llm";
 import {
@@ -208,6 +209,18 @@ export default function MonitoringPage() {
       useStore.getState().loadLLMConfig();
     } catch (error: any) {
       toast.error(error.message || "Failed to toggle LLM configuration");
+    }
+  };
+
+  const handleToggleGlobalConfigPreference = async (configId: number) => {
+    try {
+      await toggleGlobalLLMConfigPreference(configId);
+      toast.success("Global LLM configuration preference updated");
+      loadMonitoringData();
+      // Reload LLM config in store
+      useStore.getState().loadLLMConfig();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to toggle global LLM configuration preference");
     }
   };
 
@@ -1449,13 +1462,13 @@ export default function MonitoringPage() {
                     <tbody>
                       {usageStats.recent_days
                         .slice((dailyPage - 1) * dailyLimit, dailyPage * dailyLimit)
-                        .map((day) => {
+                        .map((day, index) => {
                           const date = new Date(day.date);
                           const isToday =
                             date.toDateString() === new Date().toDateString();
                           return (
                             <tr
-                              key={day.date}
+                              key={day.date || `day-${index}`}
                               className={`border-b border-[var(--border)] ${isToday ? "bg-[var(--green)]/5" : ""
                                 }`}
                             >

@@ -6,8 +6,8 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
 from src.core import get_db, User, LLMConfig, DB_AVAILABLE
-from src.core.models import User as UserModel, EmbeddingConfig
-from src.core.auth import get_current_active_user
+from src.core.models import User as UserModel, EmbeddingConfig, UserGlobalConfigPreference
+from src.core.auth import get_current_active_user, get_current_user
 from src.services.usage_tracker import usage_tracker
 from sqlalchemy.sql import func
 
@@ -356,12 +356,31 @@ async def list_global_llm_configs(
         LLMConfig.created_at.desc()     # Then newest first
     ).all()
     
+    # Load user preferences for global LLM configs (if user is authenticated)
+    user_preferences = {}
+    user_id = current_user.id if current_user else None
+    if user_id:
+        preferences = db.query(UserGlobalConfigPreference).filter(
+            UserGlobalConfigPreference.user_id == user_id,
+            UserGlobalConfigPreference.config_type == "llm"
+        ).all()
+        for pref in preferences:
+            user_preferences[pref.config_id] = pref.enabled
+    
     # Convert to dict format for frontend
     config_dicts = []
     for config in configs:
         config_dict = config.to_dict(include_api_key=False)
         config_dict['user_id'] = config.user_id  # Should be 1 or None for global configs
         config_dict['is_global'] = True  # Mark as global
+        
+        # Add user preference for global configs
+        if user_id:
+            # Check if user has a preference, default to True (enabled) if no preference exists
+            config_dict['user_enabled'] = user_preferences.get(config.id, True)
+        else:
+            config_dict['user_enabled'] = config.active  # For unauthenticated, use global active status
+        
         config_dicts.append(config_dict)
     
     return {"status": "success", "configs": config_dicts}
@@ -747,6 +766,74 @@ async def create_global_embedding_config(
     
     return {"status": "success", "config": new_config.to_dict(), "test_message": test_message}
 
+
+@router.patch("/global-config/embedding/{config_id}/toggle-preference")
+async def toggle_global_embedding_config_preference(
+    config_id: int,
+    current_user: Optional[User] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Toggle user's personal preference for a global embedding configuration (enable/disable for personal use).
+    This does not affect the global config's status, only the user's personal preference.
+    """
+    try:
+        user_id = current_user.id if current_user else None
+        
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        from src.core.models import UserGlobalConfigPreference, EmbeddingConfig
+        from sqlalchemy import or_
+        
+        # Verify the config is a global config
+        embedding_config = db.query(EmbeddingConfig).filter(
+            EmbeddingConfig.id == config_id,
+            or_(EmbeddingConfig.user_id == 1, EmbeddingConfig.user_id.is_(None))
+        ).first()
+        
+        if not embedding_config:
+            raise HTTPException(
+                status_code=404,
+                detail="Global embedding configuration not found"
+            )
+        
+        # Get or create user preference
+        preference = db.query(UserGlobalConfigPreference).filter(
+            UserGlobalConfigPreference.user_id == user_id,
+            UserGlobalConfigPreference.config_type == "embedding",
+            UserGlobalConfigPreference.config_id == config_id
+        ).first()
+        
+        if preference:
+            # Toggle existing preference
+            preference.enabled = not preference.enabled
+        else:
+            # Create new preference (default to enabled)
+            preference = UserGlobalConfigPreference(
+                user_id=user_id,
+                config_type="embedding",
+                config_id=config_id,
+                enabled=True
+            )
+            db.add(preference)
+        
+        db.commit()
+        db.refresh(preference)
+        
+        status = "enabled" if preference.enabled else "disabled"
+        return {
+            "status": "success",
+            "message": f"Global embedding configuration {status} for your profile",
+            "preference": preference.to_dict()
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to toggle global embedding config preference: {str(e)}")
+
+
 @router.get("/global-config/embedding")
 async def list_global_embedding_configs(
     db: Session = Depends(get_db),
@@ -765,12 +852,31 @@ async def list_global_embedding_configs(
         EmbeddingConfig.created_at.desc()     # Then newest first
     ).all()
     
+    # Load user preferences for global embedding configs (if user is authenticated)
+    user_preferences = {}
+    user_id = current_user.id if current_user else None
+    if user_id:
+        preferences = db.query(UserGlobalConfigPreference).filter(
+            UserGlobalConfigPreference.user_id == user_id,
+            UserGlobalConfigPreference.config_type == "embedding"
+        ).all()
+        for pref in preferences:
+            user_preferences[pref.config_id] = pref.enabled
+    
     # Convert to dict format for frontend
     config_dicts = []
     for config in configs:
         config_dict = config.to_dict(include_api_key=False)
         config_dict['user_id'] = config.user_id  # Should be 1 or None for global configs
         config_dict['is_global'] = True  # Mark as global
+        
+        # Add user preference for global configs
+        if user_id:
+            # Check if user has a preference, default to True (enabled) if no preference exists
+            config_dict['user_enabled'] = user_preferences.get(config.id, True)
+        else:
+            config_dict['user_enabled'] = config.active  # For unauthenticated, use global active status
+        
         config_dicts.append(config_dict)
     
     return {"status": "success", "configs": config_dicts}

@@ -127,3 +127,14 @@ export async function toggleLLMConfig(
   });
   return handleResponse(response);
 }
+
+export async function toggleGlobalLLMConfigPreference(
+  configId: number
+): Promise<{ message: string; preference: any }> {
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/llm-config/global/${configId}/toggle-preference`, {
+    method: "PATCH",
+    headers: getAuthHeaders(),
+  });
+  return handleResponse(response);
+}

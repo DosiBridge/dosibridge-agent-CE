@@ -508,6 +508,32 @@ def init_db():
                     conn.execute(text("CREATE INDEX idx_api_requests_created_at ON api_requests(created_at)"))
                     conn.commit()
                     print("✓ Created api_requests table")
+                
+                # Check if user_global_config_preferences table exists
+                result = conn.execute(
+                    text("SELECT table_name FROM information_schema.tables "
+                         "WHERE table_name='user_global_config_preferences'")
+                )
+                if not result.fetchone():
+                    print("📝 Creating user_global_config_preferences table...")
+                    conn.execute(
+                        text("""
+                            CREATE TABLE user_global_config_preferences (
+                                id SERIAL PRIMARY KEY,
+                                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                                config_type VARCHAR(50) NOT NULL,
+                                config_id INTEGER NOT NULL,
+                                enabled BOOLEAN DEFAULT TRUE NOT NULL,
+                                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                                updated_at TIMESTAMP WITH TIME ZONE,
+                                UNIQUE(user_id, config_type, config_id)
+                            )
+                        """)
+                    )
+                    conn.execute(text("CREATE INDEX idx_user_global_config_pref_user_id ON user_global_config_preferences(user_id)"))
+                    conn.execute(text("CREATE INDEX idx_user_global_config_pref_config ON user_global_config_preferences(config_type, config_id)"))
+                    conn.commit()
+                    print("✓ Created user_global_config_preferences table")
         except Exception as e:
             print(f"⚠️  Migration check failed (this is okay if columns already exist): {e}")
     except Exception as e:

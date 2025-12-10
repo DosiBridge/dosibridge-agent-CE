@@ -213,6 +213,38 @@ if Base is not None:
             """Check if user is a superadmin"""
             return getattr(self, 'role', 'user') == "superadmin"
 
+    class UserGlobalConfigPreference(Base):
+        """User preferences for global configurations (enable/disable for personal use)"""
+        __tablename__ = "user_global_config_preferences"
+        
+        id = Column(Integer, primary_key=True, index=True)
+        user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+        config_type = Column(String(50), nullable=False)  # "llm", "embedding", "mcp"
+        config_id = Column(Integer, nullable=False)  # ID of the global config
+        enabled = Column(Boolean, default=True, nullable=False)  # Whether user has enabled this config for themselves
+        created_at = Column(DateTime(timezone=True), server_default=func.now())
+        updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+        
+        # Relationship
+        user = relationship("User", backref="global_config_preferences")
+        
+        # Unique constraint on user_id + config_type + config_id
+        __table_args__ = (
+            UniqueConstraint('user_id', 'config_type', 'config_id', name='uq_user_global_config_pref'),
+        )
+        
+        def to_dict(self) -> dict:
+            """Convert model to dictionary"""
+            return {
+                "id": self.id,
+                "user_id": self.user_id,
+                "config_type": self.config_type,
+                "config_id": self.config_id,
+                "enabled": self.enabled,
+                "created_at": self.created_at.isoformat() if self.created_at else None,
+                "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            }
+
     class Conversation(Base):
         """Conversation model for storing chat sessions with summary"""
         __tablename__ = "conversations"

@@ -64,16 +64,36 @@ async def list_mcp_servers(
                 MCPServer.created_at.desc()
             ).all()
         
+        # Load user preferences for global MCP servers
+        user_preferences = {}
+        if current_user:
+            from src.core.models import UserGlobalConfigPreference
+            preferences = db.query(UserGlobalConfigPreference).filter(
+                UserGlobalConfigPreference.user_id == current_user.id,
+                UserGlobalConfigPreference.config_type == "mcp"
+            ).all()
+            for pref in preferences:
+                user_preferences[pref.config_id] = pref.enabled
+        
         # Don't send api_key in response for security
         safe_servers = []
         for server in db_servers:
             safe_server = server.to_dict(include_api_key=False)
             safe_server["has_api_key"] = bool(server.api_key)
             safe_server["user_id"] = server.user_id  # Include user_id to identify global servers
-            safe_server["is_global"] = (server.user_id == 1 or server.user_id is None)  # Mark global servers (user_id=1 or None)
+            is_global = (server.user_id == 1 or server.user_id is None)
+            safe_server["is_global"] = is_global  # Mark global servers (user_id=1 or None)
             # Ensure enabled field exists (default to True if not present)
             if "enabled" not in safe_server:
                 safe_server["enabled"] = True
+            
+            # Add user preference for global servers
+            if is_global and current_user:
+                # Check if user has a preference, default to True (enabled) if no preference exists
+                safe_server["user_enabled"] = user_preferences.get(server.id, True)
+            else:
+                safe_server["user_enabled"] = safe_server.get("enabled", True)  # For user's own servers, use enabled status
+            
             safe_servers.append(safe_server)
         
         user_servers = [s for s in safe_servers if not s.get('is_global')]
@@ -427,6 +447,73 @@ async def test_mcp_server_connection(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/mcp-servers/global/{server_id}/toggle-preference")
+async def toggle_global_mcp_server_preference(
+    server_id: int,
+    current_user: Optional[User] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Toggle user's personal preference for a global MCP server (enable/disable for personal use).
+    This does not affect the global server's status, only the user's personal preference.
+    """
+    try:
+        user_id = current_user.id if current_user else None
+        
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        from src.core.models import UserGlobalConfigPreference
+        from sqlalchemy import or_
+        
+        # Verify the server is a global server
+        mcp_server = db.query(MCPServer).filter(
+            MCPServer.id == server_id,
+            or_(MCPServer.user_id == 1, MCPServer.user_id.is_(None))
+        ).first()
+        
+        if not mcp_server:
+            raise HTTPException(
+                status_code=404,
+                detail="Global MCP server not found"
+            )
+        
+        # Get or create user preference
+        preference = db.query(UserGlobalConfigPreference).filter(
+            UserGlobalConfigPreference.user_id == user_id,
+            UserGlobalConfigPreference.config_type == "mcp",
+            UserGlobalConfigPreference.config_id == server_id
+        ).first()
+        
+        if preference:
+            # Toggle existing preference
+            preference.enabled = not preference.enabled
+        else:
+            # Create new preference (default to enabled)
+            preference = UserGlobalConfigPreference(
+                user_id=user_id,
+                config_type="mcp",
+                config_id=server_id,
+                enabled=True
+            )
+            db.add(preference)
+        
+        db.commit()
+        db.refresh(preference)
+        
+        status = "enabled" if preference.enabled else "disabled"
+        return {
+            "status": "success",
+            "message": f"Global MCP server {status} for your profile",
+            "preference": preference.to_dict()
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to toggle global MCP server preference: {str(e)}")
 
 
 @router.patch("/mcp-servers/{server_name}/toggle")

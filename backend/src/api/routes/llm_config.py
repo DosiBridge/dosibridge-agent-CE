@@ -570,12 +570,32 @@ async def list_llm_configs(
                     LLMConfig.created_at.desc()
                 ).all()
         
+        # Load user preferences for global configs
+        user_preferences = {}
+        if user_id:
+            from src.core.models import UserGlobalConfigPreference
+            preferences = db.query(UserGlobalConfigPreference).filter(
+                UserGlobalConfigPreference.user_id == user_id,
+                UserGlobalConfigPreference.config_type == "llm"
+            ).all()
+            for pref in preferences:
+                user_preferences[pref.config_id] = pref.enabled
+        
         # Convert to dict and mark global configs
         config_dicts = []
         for config in configs:
             config_dict = config.to_dict(include_api_key=False)
             config_dict['user_id'] = config.user_id  # Include user_id to identify global configs
-            config_dict['is_global'] = (config.user_id == 1 or config.user_id is None)  # Mark global configs (user_id=1 or None)
+            is_global = (config.user_id == 1 or config.user_id is None)
+            config_dict['is_global'] = is_global  # Mark global configs (user_id=1 or None)
+            
+            # Add user preference for global configs
+            if is_global and user_id:
+                # Check if user has a preference, default to True (enabled) if no preference exists
+                config_dict['user_enabled'] = user_preferences.get(config.id, True)
+            else:
+                config_dict['user_enabled'] = config.active  # For user's own configs, use active status
+            
             config_dicts.append(config_dict)
         
         return {
@@ -916,4 +936,138 @@ async def toggle_llm_config(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to toggle LLM configuration: {str(e)}")
+
+
+@router.patch("/llm-config/global/{config_id}/toggle-preference")
+async def toggle_global_llm_config_preference(
+    config_id: int,
+    current_user: Optional[User] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Toggle user's personal preference for a global LLM configuration (enable/disable for personal use).
+    This does not affect the global config's status, only the user's personal preference.
+    """
+    try:
+        user_id = current_user.id if current_user else None
+        
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        from src.core.models import UserGlobalConfigPreference, LLMConfig as LLMConfigModel
+        from sqlalchemy import or_
+        
+        # Verify the config is a global config
+        llm_config = db.query(LLMConfigModel).filter(
+            LLMConfigModel.id == config_id,
+            or_(LLMConfigModel.user_id == 1, LLMConfigModel.user_id.is_(None))
+        ).first()
+        
+        if not llm_config:
+            raise HTTPException(
+                status_code=404,
+                detail="Global LLM configuration not found"
+            )
+        
+        # Get or create user preference
+        preference = db.query(UserGlobalConfigPreference).filter(
+            UserGlobalConfigPreference.user_id == user_id,
+            UserGlobalConfigPreference.config_type == "llm",
+            UserGlobalConfigPreference.config_id == config_id
+        ).first()
+        
+        if preference:
+            # Toggle existing preference
+            preference.enabled = not preference.enabled
+        else:
+            # Create new preference (default to enabled)
+            preference = UserGlobalConfigPreference(
+                user_id=user_id,
+                config_type="llm",
+                config_id=config_id,
+                enabled=True
+            )
+            db.add(preference)
+        
+        db.commit()
+        db.refresh(preference)
+        
+        status = "enabled" if preference.enabled else "disabled"
+        return {
+            "status": "success",
+            "message": f"Global LLM configuration {status} for your profile",
+            "preference": preference.to_dict()
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to toggle global LLM config preference: {str(e)}")
+
+
+@router.patch("/llm-config/global/{config_id}/toggle-preference")
+async def toggle_global_llm_config_preference(
+    config_id: int,
+    current_user: Optional[User] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Toggle user's personal preference for a global LLM configuration (enable/disable for personal use).
+    This does not affect the global config's status, only the user's personal preference.
+    """
+    try:
+        user_id = current_user.id if current_user else None
+        
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        from src.core.models import UserGlobalConfigPreference, LLMConfig as LLMConfigModel
+        from sqlalchemy import or_
+        
+        # Verify the config is a global config
+        llm_config = db.query(LLMConfigModel).filter(
+            LLMConfigModel.id == config_id,
+            or_(LLMConfigModel.user_id == 1, LLMConfigModel.user_id.is_(None))
+        ).first()
+        
+        if not llm_config:
+            raise HTTPException(
+                status_code=404,
+                detail="Global LLM configuration not found"
+            )
+        
+        # Get or create user preference
+        preference = db.query(UserGlobalConfigPreference).filter(
+            UserGlobalConfigPreference.user_id == user_id,
+            UserGlobalConfigPreference.config_type == "llm",
+            UserGlobalConfigPreference.config_id == config_id
+        ).first()
+        
+        if preference:
+            # Toggle existing preference
+            preference.enabled = not preference.enabled
+        else:
+            # Create new preference (default to enabled)
+            preference = UserGlobalConfigPreference(
+                user_id=user_id,
+                config_type="llm",
+                config_id=config_id,
+                enabled=True
+            )
+            db.add(preference)
+        
+        db.commit()
+        db.refresh(preference)
+        
+        status = "enabled" if preference.enabled else "disabled"
+        return {
+            "status": "success",
+            "message": f"Global LLM configuration {status} for your profile",
+            "preference": preference.to_dict()
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to toggle global LLM config preference: {str(e)}")
 

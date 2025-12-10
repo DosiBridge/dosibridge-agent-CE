@@ -36,6 +36,7 @@ import {
   deleteLLMConfig,
   updateLLMConfig,
   toggleLLMConfig,
+  toggleGlobalLLMConfigPreference,
   type LLMConfigListItem,
 } from "@/lib/api/llm";
 import RAGUploadModal from "@/components/rag/RAGUploadModal";
@@ -382,6 +383,19 @@ export default function SettingsPanel() {
       await loadLLMConfig();
     } catch (error: any) {
       toast.error(error.message || "Failed to toggle LLM configuration");
+    } finally {
+      setSwitchingConfigId(null);
+    }
+  };
+
+  const handleToggleGlobalConfigPreference = async (configId: number) => {
+    setSwitchingConfigId(configId);
+    try {
+      await toggleGlobalLLMConfigPreference(configId);
+      toast.success("Global LLM configuration preference updated");
+      await loadLLMConfigsList();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to toggle global LLM configuration preference");
     } finally {
       setSwitchingConfigId(null);
     }
@@ -765,7 +779,26 @@ export default function SettingsPanel() {
                                         <Power className="w-4 h-4" />
                                       )}
                                   </button>
-                                )}
+                                  )}
+                                  {/* Toggle preference button - for global configs (user can enable/disable for their profile) */}
+                                  {isGlobal && (config.user_id === null || config.user_id === undefined || config.user_id === 1) && (
+                                    <button
+                                      onClick={() => handleToggleGlobalConfigPreference(config.id)}
+                                      className={`p-2 rounded-lg transition-colors disabled:opacity-50 ${
+                                        (config as any).user_enabled !== false
+                                          ? "bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30"
+                                          : "bg-zinc-500/20 text-zinc-400 hover:bg-zinc-500/30 border border-zinc-700"
+                                      }`}
+                                      title={(config as any).user_enabled !== false ? "Disable this global LLM for your profile" : "Enable this global LLM for your profile"}
+                                      disabled={switchingConfigId === config.id}
+                                    >
+                                      {switchingConfigId === config.id ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                      ) : (
+                                        <Power className="w-4 h-4" />
+                                      )}
+                                    </button>
+                                  )}
                                   {/* Switch button - for global configs or to activate any config */}
                                 {!config.active && (
                                   <button
@@ -781,7 +814,7 @@ export default function SettingsPanel() {
                                     )}
                                   </button>
                                 )}
-                                  {/* Edit button - for user's own configs */}
+                                  {/* Edit button - for user's own configs (NOT for global configs) */}
                                   {canModify && !config.is_default && config.user_id !== null && config.user_id !== undefined && config.user_id !== 1 && (
                                     <button
                                       onClick={() => startEditingLLMConfig(config)}

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Loader2, Activity, Zap, Database, Cpu, Brain, Power, Edit2, Trash2, X, Eye, EyeOff } from 'lucide-react';
 import { getTodayUsage, getApiKeysInfo, UsageStats, ApiKeysInfo } from '@/lib/api/monitoring';
-import { listLLMConfigs, switchLLMConfig, deleteLLMConfig, updateLLMConfig, toggleLLMConfig, type LLMConfigListItem } from '@/lib/api/llm';
+import { listLLMConfigs, switchLLMConfig, deleteLLMConfig, updateLLMConfig, toggleLLMConfig, toggleGlobalLLMConfigPreference, type LLMConfigListItem } from '@/lib/api/llm';
 import type { LLMConfig } from '@/types/api';
 import toast from 'react-hot-toast';
 
@@ -80,6 +80,22 @@ export default function UserStatsView() {
         } catch (error: any) {
             console.error("Failed to toggle LLM config:", error);
             toast.error(error?.message || "Failed to toggle LLM configuration");
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
+    const handleToggleGlobalConfigPreference = async (configId: number) => {
+        setActionLoading(configId);
+        try {
+            await toggleGlobalLLMConfigPreference(configId);
+            toast.success("Global LLM configuration preference updated");
+            // Reload configs to reflect changes
+            const configsData = await listLLMConfigs();
+            setLlmConfigs(configsData.configs);
+        } catch (error: any) {
+            console.error("Failed to toggle global LLM config preference:", error);
+            toast.error(error?.message || "Failed to toggle global LLM configuration preference");
         } finally {
             setActionLoading(null);
         }
@@ -369,6 +385,25 @@ export default function UserStatsView() {
                                                 )}
                                             </button>
                                         )}
+                                        {/* Toggle preference button - for global configs (user can enable/disable for their profile) */}
+                                        {config.is_global && (config.user_id === null || config.user_id === undefined || config.user_id === 1) && (
+                                            <button
+                                                onClick={() => handleToggleGlobalConfigPreference(config.id)}
+                                                disabled={actionLoading === config.id}
+                                                className={`p-2 rounded-lg transition-colors disabled:opacity-50 ${
+                                                    (config as any).user_enabled !== false
+                                                        ? "bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30"
+                                                        : "bg-zinc-500/20 text-zinc-400 hover:bg-zinc-500/30 border border-zinc-700"
+                                                }`}
+                                                title={(config as any).user_enabled !== false ? "Disable this global LLM for your profile" : "Enable this global LLM for your profile"}
+                                            >
+                                                {actionLoading === config.id ? (
+                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                ) : (
+                                                    <Power className="w-4 h-4" />
+                                                )}
+                                            </button>
+                                        )}
                                         {/* Switch button - for global configs or to activate any config */}
                                         {!config.active && (
                                             <button
@@ -384,7 +419,7 @@ export default function UserStatsView() {
                                                 )}
                                             </button>
                                         )}
-                                        {/* Edit button - for user's own configs */}
+                                        {/* Edit button - for user's own configs (NOT for global configs) */}
                                         {config.user_id !== null && config.user_id !== undefined && config.user_id !== 1 && !config.is_default && (
                                             <button
                                                 onClick={() => handleEditConfig(config)}

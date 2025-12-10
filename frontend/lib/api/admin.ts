@@ -324,6 +324,15 @@ export const toggleGlobalEmbeddingConfig = async (id: number): Promise<{ status:
   return handleResponse(response);
 };
 
+export const toggleGlobalEmbeddingConfigPreference = async (id: number): Promise<{ status: string; message: string; preference: any }> => {
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/admin/global-config/embedding/${id}/toggle-preference`, {
+    method: "PATCH",
+    headers: getAuthHeaders(),
+  });
+  return handleResponse(response);
+};
+
 // --- Advanced User Management ---
 
 export const deleteUserPermanently = async (userId: number): Promise<{ status: string; message: string }> => {
