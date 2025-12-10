@@ -247,6 +247,136 @@ async def create_global_mcp_server(
     
     return {"status": "success", "server": new_server.to_dict()}
 
+@router.get("/global-config/llm")
+async def list_global_llm_configs(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_superadmin)
+):
+    """List all global LLM configurations (superadmin only)"""
+    if not DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    configs = db.query(LLMConfig).filter(LLMConfig.user_id.is_(None)).order_by(LLMConfig.created_at.desc()).all()
+    return {"status": "success", "configs": [c.to_dict() for c in configs]}
+
+@router.put("/global-config/llm/{config_id}")
+async def update_global_llm_config(
+    config_id: int,
+    config: GlobalLLMConfigRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_superadmin)
+):
+    """Update a global LLM configuration (superadmin only)"""
+    if not DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    llm_config = db.query(LLMConfig).filter(LLMConfig.id == config_id, LLMConfig.user_id.is_(None)).first()
+    if not llm_config:
+        raise HTTPException(status_code=404, detail="Global LLM config not found")
+    
+    llm_config.type = config.type
+    llm_config.model = config.model
+    llm_config.base_url = config.base_url
+    llm_config.is_default = config.is_default
+    
+    if config.api_key:
+        from src.utils.encryption import encrypt_value
+        llm_config.api_key = encrypt_value(config.api_key)
+    
+    db.commit()
+    db.refresh(llm_config)
+    
+    return {"status": "success", "config": llm_config.to_dict()}
+
+@router.delete("/global-config/llm/{config_id}")
+async def delete_global_llm_config(
+    config_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_superadmin)
+):
+    """Delete a global LLM configuration (superadmin only)"""
+    if not DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    llm_config = db.query(LLMConfig).filter(LLMConfig.id == config_id, LLMConfig.user_id.is_(None)).first()
+    if not llm_config:
+        raise HTTPException(status_code=404, detail="Global LLM config not found")
+    
+    db.delete(llm_config)
+    db.commit()
+    
+    return {"status": "success", "message": "Global LLM config deleted"}
+
+@router.patch("/global-config/llm/{config_id}/toggle")
+async def toggle_global_llm_config(
+    config_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_superadmin)
+):
+    """Toggle active status of a global LLM configuration (superadmin only)"""
+    if not DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    llm_config = db.query(LLMConfig).filter(LLMConfig.id == config_id, LLMConfig.user_id.is_(None)).first()
+    if not llm_config:
+        raise HTTPException(status_code=404, detail="Global LLM config not found")
+    
+    llm_config.active = not llm_config.active
+    db.commit()
+    db.refresh(llm_config)
+    
+    return {"status": "success", "config": llm_config.to_dict()}
+
+@router.get("/global-config/mcp")
+async def list_global_mcp_servers(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_superadmin)
+):
+    """List all global MCP servers (superadmin only)"""
+    if not DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    from src.core.models import MCPServer
+    servers = db.query(MCPServer).filter(MCPServer.user_id.is_(None)).order_by(MCPServer.created_at.desc()).all()
+    return {"status": "success", "servers": [s.to_dict() for s in servers]}
+
+@router.put("/global-config/mcp/{server_id}")
+async def update_global_mcp_server(
+    server_id: int,
+    server: GlobalMCPRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_superadmin)
+):
+    """Update a global MCP server (superadmin only)"""
+    if not DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    from src.core.models import MCPServer
+    
+    mcp_server = db.query(MCPServer).filter(MCPServer.id == server_id, MCPServer.user_id.is_(None)).first()
+    if not mcp_server:
+        raise HTTPException(status_code=404, detail="Global MCP server not found")
+    
+    # Check if name already exists globally (excluding current server)
+    existing = db.query(MCPServer).filter(
+        MCPServer.user_id.is_(None),
+        MCPServer.name == server.name,
+        MCPServer.id != server_id
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Global MCP server with this name already exists")
+    
+    mcp_server.name = server.name
+    mcp_server.url = server.url
+    mcp_server.connection_type = server.connection_type
+    mcp_server.set_api_key(server.api_key)
+    mcp_server.set_headers(server.headers)
+    
+    db.commit()
+    db.refresh(mcp_server)
+    
+    return {"status": "success", "server": mcp_server.to_dict()}
+
 @router.delete("/global-config/mcp/{server_id}")
 async def delete_global_mcp_server(
     server_id: int,
@@ -267,6 +397,28 @@ async def delete_global_mcp_server(
     db.commit()
     
     return {"status": "success", "message": "Global MCP server deleted"}
+
+@router.patch("/global-config/mcp/{server_id}/toggle")
+async def toggle_global_mcp_server(
+    server_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_superadmin)
+):
+    """Toggle enabled status of a global MCP server (superadmin only)"""
+    if not DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    from src.core.models import MCPServer
+    
+    server = db.query(MCPServer).filter(MCPServer.id == server_id, MCPServer.user_id.is_(None)).first()
+    if not server:
+        raise HTTPException(status_code=404, detail="Global MCP server not found")
+    
+    server.enabled = not server.enabled
+    db.commit()
+    db.refresh(server)
+    
+    return {"status": "success", "server": server.to_dict()}
 
 
 # --- User Inspection & Enhanced Management ---

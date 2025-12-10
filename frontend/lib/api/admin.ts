@@ -172,10 +172,91 @@ export const createGlobalMCPServer = async (server: {
   return handleResponse(response);
 };
 
-export const deleteGlobalMCPServer = async (id: number): Promise<{ status: string }> => {
+export const listGlobalMCPServers = async (): Promise<{ status: string; servers: any[] }> => {
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/admin/global-config/mcp`, {
+    headers: getAuthHeaders(),
+  });
+  return handleResponse(response);
+};
+
+export const updateGlobalMCPServer = async (
+  id: number,
+  server: {
+    name: string;
+    url: string;
+    connection_type?: string;
+    api_key?: string;
+    headers?: Record<string, string>;
+  }
+): Promise<{ status: string; server: any }> => {
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/admin/global-config/mcp/${id}`, {
+    method: "PUT",
+    headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify(server),
+  });
+  return handleResponse(response);
+};
+
+export const deleteGlobalMCPServer = async (id: number): Promise<{ status: string; message: string }> => {
   const apiBaseUrl = await getApiBaseUrl();
   const response = await fetch(`${apiBaseUrl}/api/admin/global-config/mcp/${id}`, {
     method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+  return handleResponse(response);
+};
+
+export const toggleGlobalMCPServer = async (id: number): Promise<{ status: string; server: any }> => {
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/admin/global-config/mcp/${id}/toggle`, {
+    method: "PATCH",
+    headers: getAuthHeaders(),
+  });
+  return handleResponse(response);
+};
+
+export const listGlobalLLMConfigs = async (): Promise<{ status: string; configs: any[] }> => {
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/admin/global-config/llm`, {
+    headers: getAuthHeaders(),
+  });
+  return handleResponse(response);
+};
+
+export const updateGlobalLLMConfig = async (
+  id: number,
+  config: {
+    type: string;
+    model: string;
+    api_key?: string;
+    base_url?: string;
+    is_default?: boolean;
+  }
+): Promise<{ status: string; config: any }> => {
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/admin/global-config/llm/${id}`, {
+    method: "PUT",
+    headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify(config),
+  });
+  return handleResponse(response);
+};
+
+export const deleteGlobalLLMConfig = async (id: number): Promise<{ status: string; message: string }> => {
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/admin/global-config/llm/${id}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+  return handleResponse(response);
+};
+
+export const toggleGlobalLLMConfig = async (id: number): Promise<{ status: string; config: any }> => {
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/admin/global-config/llm/${id}/toggle`, {
+    method: "PATCH",
     headers: getAuthHeaders(),
   });
   return handleResponse(response);

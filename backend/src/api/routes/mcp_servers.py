@@ -27,23 +27,37 @@ async def list_mcp_servers(
     try:
         app_logger.info("Listing MCP servers", {"user_id": current_user.id})
         
-        # Load ALL servers for the current user (including disabled ones) for management UI
+        # Load ALL servers for the current user AND global servers (including disabled ones) for management UI
         # This is different from Config.load_mcp_servers which filters by enabled=True
-        db_servers = db.query(MCPServer).filter(MCPServer.user_id == current_user.id).all()
+        from sqlalchemy import or_
+        db_servers = db.query(MCPServer).filter(
+            or_(
+                MCPServer.user_id == current_user.id,  # User's own servers
+                MCPServer.user_id.is_(None)             # Global servers (available to all)
+            )
+        ).order_by(
+            MCPServer.user_id.asc(),  # User servers first, then global (None comes after)
+            MCPServer.created_at.desc()
+        ).all()
         
         # Don't send api_key in response for security
         safe_servers = []
         for server in db_servers:
             safe_server = server.to_dict(include_api_key=False)
             safe_server["has_api_key"] = bool(server.api_key)
+            safe_server["user_id"] = server.user_id  # Include user_id to identify global servers
+            safe_server["is_global"] = server.user_id is None  # Mark global servers
             # Ensure enabled field exists (default to True if not present)
             if "enabled" not in safe_server:
                 safe_server["enabled"] = True
             safe_servers.append(safe_server)
         
+        user_servers = [s for s in safe_servers if not s.get('is_global')]
+        global_servers = [s for s in safe_servers if s.get('is_global')]
+        
         app_logger.info(
             "MCP servers listed successfully",
-            {"user_id": current_user.id, "count": len(safe_servers)}
+            {"user_id": current_user.id, "user_count": len(user_servers), "global_count": len(global_servers), "total": len(safe_servers)}
         )
         
         return {

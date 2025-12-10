@@ -478,19 +478,28 @@ async def list_llm_configs(
 ):
     """
     List all LLM configurations for the authenticated user.
-    Shows all saved configurations including inactive ones.
+    Shows user-specific configs AND global configs (user_id=None).
     Always ensures default DeepSeek config is shown (creates it if missing).
     """
     try:
         user_id = current_user.id if current_user else None
         
-        # Get all configs for this user
-        configs = db.query(LLMConfig).filter(LLMConfig.user_id == user_id).order_by(
+        from sqlalchemy import or_
+        
+        # Get all configs for this user AND global configs
+        configs = db.query(LLMConfig).filter(
+            or_(
+                LLMConfig.user_id == user_id,  # User's own configs
+                LLMConfig.user_id.is_(None)     # Global configs (available to all)
+            )
+        ).order_by(
+            LLMConfig.user_id.asc(),  # User configs first, then global (None comes after)
             LLMConfig.active.desc(),
+            LLMConfig.is_default.desc(),  # Default configs first
             LLMConfig.created_at.desc()
         ).all()
         
-        # Check if active default DeepSeek exists
+        # Check if active default DeepSeek exists (user-specific or global)
         has_active_default = any(
             config.active and config.is_default and config.type == "deepseek" 
             for config in configs
@@ -503,14 +512,29 @@ async def list_llm_configs(
             current_config = Config.load_llm_config(db=db, user_id=user_id)
             
             # Refresh configs list after potential creation
-            configs = db.query(LLMConfig).filter(LLMConfig.user_id == user_id).order_by(
+            configs = db.query(LLMConfig).filter(
+                or_(
+                    LLMConfig.user_id == user_id,  # User's own configs
+                    LLMConfig.user_id.is_(None)     # Global configs (available to all)
+                )
+            ).order_by(
+                LLMConfig.user_id.asc(),
                 LLMConfig.active.desc(),
+                LLMConfig.is_default.desc(),
                 LLMConfig.created_at.desc()
             ).all()
         
+        # Convert to dict and mark global configs
+        config_dicts = []
+        for config in configs:
+            config_dict = config.to_dict(include_api_key=False)
+            config_dict['user_id'] = config.user_id  # Include user_id to identify global configs
+            config_dict['is_global'] = config.user_id is None  # Mark global configs
+            config_dicts.append(config_dict)
+        
         return {
             "status": "success",
-            "configs": [config.to_dict(include_api_key=False) for config in configs]
+            "configs": config_dicts
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to list LLM configurations: {str(e)}")
@@ -701,34 +725,50 @@ async def switch_llm_config(
 ):
     """
     Switch to/activate a specific LLM configuration.
-    Deactivates all other configs and activates the selected one.
+    Users can switch to their own configs OR global configs (user_id=None).
+    When switching to a global config, deactivates user's personal configs.
+    When switching to a user config, deactivates other user configs.
     """
     try:
         user_id = current_user.id if current_user else None
         
-        # Find the config
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        from sqlalchemy import or_
+        
+        # Find the config - can be user-specific OR global
         llm_config = db.query(LLMConfig).filter(
             LLMConfig.id == config_id,
-            LLMConfig.user_id == user_id
+            or_(
+                LLMConfig.user_id == user_id,  # User's own config
+                LLMConfig.user_id.is_(None)     # Global config (available to all)
+            )
         ).first()
         
         if not llm_config:
-            raise HTTPException(status_code=404, detail="LLM configuration not found")
+            raise HTTPException(status_code=404, detail="LLM configuration not found or not accessible")
         
-        # Deactivate all user configs
-        if user_id:
+        # If switching to a global config, deactivate all user's personal configs
+        # If switching to a user config, deactivate all other user configs
+        if llm_config.user_id is None:
+            # Switching to global config - deactivate user's personal configs
             db.query(LLMConfig).filter(LLMConfig.user_id == user_id).update({LLMConfig.active: False})
+            # Note: Global configs remain active for all users, we just deactivate user's personal ones
+            # The system will automatically use the global config when no user config is active
         else:
-            db.query(LLMConfig).filter(LLMConfig.user_id.is_(None)).update({LLMConfig.active: False})
+            # Switching to user's own config - deactivate other user configs
+            db.query(LLMConfig).filter(LLMConfig.user_id == user_id).update({LLMConfig.active: False})
+            # Activate the selected user config
+            llm_config.active = True
         
-        # Activate the selected config
-        llm_config.active = True
         db.commit()
         db.refresh(llm_config)
         
+        config_type = "global" if llm_config.user_id is None else "personal"
         return {
             "status": "success",
-            "message": f"Switched to {llm_config.type} - {llm_config.model}",
+            "message": f"Switched to {config_type} {llm_config.type} - {llm_config.model}",
             "config": llm_config.to_dict()
         }
     except HTTPException:

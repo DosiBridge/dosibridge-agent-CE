@@ -77,29 +77,45 @@ class Config:
             print("⚠️  MCP servers require authentication - user_id is required. No MCP access for unauthenticated users.")
             return []
         
-        # Load from database - ONLY for the specified user (user-specific/private)
+        # Load from database - user-specific servers AND global servers (user_id=None)
         if DB_AVAILABLE:
             try:
                 if db:
-                    # Use provided session - filter by user_id and enabled
+                    # Use provided session - get user-specific AND global servers
+                    from sqlalchemy import or_
                     query = db.query(MCPServer).filter(
                         MCPServer.enabled == True,
-                        MCPServer.user_id == user_id
+                        or_(
+                            MCPServer.user_id == user_id,  # User's own servers
+                            MCPServer.user_id.is_(None)     # Global servers (available to all)
+                        )
                     )
                     db_servers = query.all()
                     servers = [s.to_dict(include_api_key=True) for s in db_servers]
+                    # Mark global servers
+                    for server in servers:
+                        server['is_global'] = db_servers[servers.index(server)].user_id is None
                 else:
-                    # Create new session - filter by user_id and enabled
+                    # Create new session - get user-specific AND global servers
                     with get_db_context() as session:
+                        from sqlalchemy import or_
                         query = session.query(MCPServer).filter(
                             MCPServer.enabled == True,
-                            MCPServer.user_id == user_id
+                            or_(
+                                MCPServer.user_id == user_id,  # User's own servers
+                                MCPServer.user_id.is_(None)     # Global servers (available to all)
+                            )
                         )
                         db_servers = query.all()
                         servers = [s.to_dict(include_api_key=True) for s in db_servers]
+                        # Mark global servers
+                        for server in servers:
+                            server['is_global'] = db_servers[servers.index(server)].user_id is None
                 
+                user_servers = [s for s in servers if not s.get('is_global')]
+                global_servers = [s for s in servers if s.get('is_global')]
                 if servers:
-                    print(f"📝 Loaded {len(servers)} MCP server(s) for user {user_id} (private/user-specific only)")
+                    print(f"📝 Loaded {len(user_servers)} user-specific + {len(global_servers)} global MCP server(s) for user {user_id}")
             except Exception as e:
                 print(f"⚠️  Failed to load MCP servers from database: {e}")
                 servers = []
@@ -134,22 +150,38 @@ class Config:
         Returns:
             Dictionary with LLM configuration including type, model, api_key, etc.
         """
-        # Load from database first (user-specific if user_id provided)
+        # Load from database: prioritize user-specific, then global, then default
         if DB_AVAILABLE:
             try:
                 if db:
                     # Use provided session
                     if user_id:
-                        # Load user-specific active config
+                        # First try user-specific active config
                         llm_config = db.query(LLMConfig).filter(
                             LLMConfig.user_id == user_id,
                             LLMConfig.active == True
                         ).first()
+                        
+                        # If no user-specific active config, fall back to global config
+                        # This allows users to use global configs as defaults when they don't have personal configs
+                        # Prioritize global configs marked as default, then by creation date
+                        if not llm_config:
+                            llm_config = db.query(LLMConfig).filter(
+                                LLMConfig.user_id.is_(None),
+                                LLMConfig.active == True
+                            ).order_by(
+                                LLMConfig.is_default.desc(),  # Default configs first
+                                LLMConfig.created_at.desc()    # Then newest first
+                            ).first()
                     else:
                         # Load global default config (no user_id)
+                        # Prioritize global configs marked as default, then by creation date
                         llm_config = db.query(LLMConfig).filter(
                             LLMConfig.user_id.is_(None),
                             LLMConfig.active == True
+                        ).order_by(
+                            LLMConfig.is_default.desc(),  # Default configs first
+                            LLMConfig.created_at.desc()    # Then newest first
                         ).first()
                     
                     if llm_config:
@@ -177,16 +209,31 @@ class Config:
                     # Create new session
                     with get_db_context() as session:
                         if user_id:
-                            # Load user-specific active config
+                            # First try user-specific active config
                             llm_config = session.query(LLMConfig).filter(
                                 LLMConfig.user_id == user_id,
                                 LLMConfig.active == True
                             ).first()
+                            
+                            # If no user-specific config, fall back to global config
+                            # Prioritize global configs marked as default, then by creation date
+                            if not llm_config:
+                                llm_config = session.query(LLMConfig).filter(
+                                    LLMConfig.user_id.is_(None),
+                                    LLMConfig.active == True
+                                ).order_by(
+                                    LLMConfig.is_default.desc(),  # Default configs first
+                                    LLMConfig.created_at.desc()    # Then newest first
+                                ).first()
                         else:
                             # Load global default config (no user_id)
+                            # Prioritize global configs marked as default, then by creation date
                             llm_config = session.query(LLMConfig).filter(
                                 LLMConfig.user_id.is_(None),
                                 LLMConfig.active == True
+                            ).order_by(
+                                LLMConfig.is_default.desc(),  # Default configs first
+                                LLMConfig.created_at.desc()    # Then newest first
                             ).first()
                         
                         if llm_config:

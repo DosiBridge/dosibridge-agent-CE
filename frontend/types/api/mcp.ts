@@ -9,6 +9,8 @@ export interface MCPServer {
   has_api_key?: boolean;
   headers?: Record<string, string>;
   enabled?: boolean;
+  user_id?: number | null;  // null for global servers
+  is_global?: boolean;  // True if this is a global server (user_id === null)
 }
 
 export interface MCPServerRequest {
