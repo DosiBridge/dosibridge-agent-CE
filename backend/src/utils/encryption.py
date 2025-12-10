@@ -23,7 +23,7 @@ def get_encryption_key() -> bytes:
     Otherwise, generate a key from JWT_SECRET_KEY using PBKDF2.
     
     Returns:
-        Encryption key as bytes
+        Encryption key as bytes (base64-encoded Fernet key)
         
     Raises:
         EncryptionError: If no key can be generated
@@ -31,17 +31,33 @@ def get_encryption_key() -> bytes:
     # Try to get explicit encryption key
     encryption_key_env = os.getenv("MCP_APIKEY_ENCRYPTION_KEY")
     if encryption_key_env:
+        # Strip any whitespace that might have been added
+        encryption_key_env = encryption_key_env.strip()
+        
         try:
             # Fernet keys are base64-encoded strings (44 characters)
-            # Try to decode from base64 to get the actual key bytes
+            # Fernet expects the key as base64-encoded bytes, not decoded bytes
             if len(encryption_key_env) == 44:
-                # Valid Fernet key format - decode from base64
-                return base64.urlsafe_b64decode(encryption_key_env)
+                # Valid Fernet key format - convert string to bytes (keep base64-encoded)
+                # Fernet can accept both str and bytes, but we need to ensure it's properly formatted
+                try:
+                    # Validate it's valid base64 by trying to decode and re-encode
+                    decoded = base64.urlsafe_b64decode(encryption_key_env)
+                    if len(decoded) == 32:
+                        # Valid 32-byte key - return as base64-encoded bytes
+                        return encryption_key_env.encode('utf-8')
+                    else:
+                        # Invalid length after decoding, derive from password
+                        return _derive_key_from_password(encryption_key_env)
+                except Exception:
+                    # Invalid base64 format, derive from password
+                    return _derive_key_from_password(encryption_key_env)
             else:
-                # Not a valid Fernet key format, use as password and derive key
+                # Not a valid Fernet key format (not 44 chars), use as password and derive key
                 return _derive_key_from_password(encryption_key_env)
-        except Exception:
-            # If decoding fails, use it as password and derive key
+        except Exception as e:
+            # If any error occurs, use it as password and derive key
+            print(f"⚠️  Warning: Error processing MCP_APIKEY_ENCRYPTION_KEY: {e}. Deriving key from password.")
             return _derive_key_from_password(encryption_key_env)
     
     # Fallback: derive from JWT_SECRET_KEY
@@ -99,9 +115,21 @@ def encrypt_value(value: str) -> Optional[str]:
     
     try:
         key = get_encryption_key()
+        # Ensure key is bytes (Fernet accepts both str and bytes)
+        if isinstance(key, str):
+            key = key.encode('utf-8')
         fernet = Fernet(key)
         encrypted = fernet.encrypt(value.encode())
         return encrypted.decode()
+    except ValueError as e:
+        # Fernet key validation error - provide helpful message
+        error_msg = str(e)
+        if "Fernet key must be 32 url-safe base64-encoded bytes" in error_msg:
+            raise EncryptionError(
+                "Invalid encryption key format. MCP_APIKEY_ENCRYPTION_KEY must be a valid Fernet key "
+                "(44-character base64-encoded string). Generate one with: python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'"
+            ) from e
+        raise EncryptionError(f"Failed to encrypt value: {error_msg}") from e
     except Exception as e:
         raise EncryptionError(f"Failed to encrypt value: {str(e)}") from e
 
