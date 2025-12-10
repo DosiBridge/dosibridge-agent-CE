@@ -16,6 +16,7 @@ interface ProfileDropdownProps {
   onClose: () => void;
   onSettingsClick: () => void;
   onLogout: () => Promise<void>;
+  isSidebarOpen: boolean;
 }
 
 export default function ProfileDropdown({
@@ -23,6 +24,7 @@ export default function ProfileDropdown({
   onClose,
   onSettingsClick,
   onLogout,
+  isSidebarOpen,
 }: ProfileDropdownProps) {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -100,11 +102,16 @@ export default function ProfileDropdown({
           />
           <motion.div
             ref={dropdownRef}
-            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            initial={{ opacity: 0, y: isSidebarOpen ? 10 : 0, x: isSidebarOpen ? 0 : -10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, x: 0, scale: 1 }}
+            exit={{ opacity: 0, y: isSidebarOpen ? 10 : 0, x: isSidebarOpen ? 0 : -10, scale: 0.95 }}
             transition={{ duration: 0.2 }}
-            className="absolute bottom-full left-0 mb-2 w-56 bg-neutral-800 border border-neutral-700 rounded-lg shadow-xl z-20 py-1"
+            className={cn(
+              "absolute bg-neutral-800 border border-neutral-700 rounded-lg shadow-xl z-50 py-1 w-64",
+              isSidebarOpen
+                ? "bottom-full left-0 mb-3"
+                : "left-full bottom-0 ml-3 mb-0"
+            )}
           >
             {/* User Info */}
             <div className="px-4 py-3 border-b border-neutral-700">

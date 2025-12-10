@@ -34,11 +34,24 @@ interface SessionSidebarProps {
 }
 
 export default function SessionSidebar({
-  isOpen, // Not fully using this props as Aceternity Sidebar handles its own state usually, but will sync
+  isOpen,
   onClose,
   onToggle,
 }: SessionSidebarProps) {
-  const [open, setOpen] = useState(false);
+  // Use props for open state
+  const open = isOpen;
+  const setOpen = (value: boolean | ((prevState: boolean) => boolean)) => {
+    // Determine new value
+    const newValue = typeof value === 'function' ? value(open) : value;
+    if (newValue !== open) {
+      if (newValue) {
+        onToggle();
+      } else {
+        onClose();
+      }
+    }
+  };
+
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [creatingSession, setCreatingSession] = useState(false);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
@@ -93,7 +106,7 @@ export default function SessionSidebar({
   return (
     <div
       className={cn(
-        "rounded-md flex flex-col md:flex-row bg-neutral-800 border border-neutral-700 overflow-hidden",
+        "rounded-md flex flex-col md:flex-row bg-neutral-800 border border-neutral-700 relative z-50",
         "h-full bg-transparent border-none" // Override for transparency
       )}
     >
@@ -102,7 +115,11 @@ export default function SessionSidebar({
           <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden min-h-0">
             {/* Logo Section */}
             <div className="flex flex-col mb-6">
-              {open ? <Logo /> : <LogoIcon />}
+              {open ? (
+                <Logo onClick={onToggle} />
+              ) : (
+                <LogoIcon onClick={onToggle} />
+              )}
             </div>
 
             {/* Static Actions */}
@@ -183,6 +200,7 @@ export default function SessionSidebar({
                   <ProfileDropdown
                     isOpen={profileDropdownOpen}
                     onClose={() => setProfileDropdownOpen(false)}
+                    isSidebarOpen={open}
                     onSettingsClick={() => setProfileSettingsOpen(true)}
                     onLogout={async () => {
                       if (isLoggingOut) return;
@@ -215,7 +233,7 @@ export default function SessionSidebar({
               </div>
             )}
           </div>
-          
+
           {/* Profile Settings Dialog */}
           <ProfileSettingsDialog
             isOpen={profileSettingsOpen}
@@ -227,11 +245,11 @@ export default function SessionSidebar({
   );
 }
 
-export const Logo = () => {
+export const Logo = ({ onClick }: { onClick?: () => void }) => {
   return (
-    <Link
-      href="#"
-      className="font-normal flex items-center gap-3 text-sm text-white py-2 px-2 relative z-20"
+    <div
+      onClick={onClick}
+      className="font-normal flex items-center gap-3 text-sm text-white py-2 px-2 relative z-20 cursor-pointer"
     >
       <div className="h-5 w-5 bg-white rounded-br-lg rounded-tr-sm rounded-tl-lg rounded-bl-sm flex-shrink-0 flex items-center justify-center" />
       <motion.span
@@ -241,17 +259,17 @@ export const Logo = () => {
       >
         DosiBridge
       </motion.span>
-    </Link>
+    </div>
   );
 };
-export const LogoIcon = () => {
+export const LogoIcon = ({ onClick }: { onClick?: () => void }) => {
   return (
-    <Link
-      href="#"
-      className="font-normal flex items-center justify-start text-sm text-white py-2 px-2 relative z-20 w-full"
+    <div
+      onClick={onClick}
+      className="font-normal flex items-center justify-start text-sm text-white py-2 px-2 relative z-20 w-full cursor-pointer"
     >
       <div className="h-5 w-5 bg-white rounded-br-lg rounded-tr-sm rounded-tl-lg rounded-bl-sm flex-shrink-0 flex items-center justify-center" />
-    </Link>
+    </div>
   );
 };
 
