@@ -265,7 +265,12 @@ class ChatService:
             final_answer = ""
             last_ai_message = None
             async for event in agent.astream({"messages": messages}, stream_mode="values"):
-                last_msg = event["messages"][-1]
+                # Normalize all messages in the event to ensure no list content
+                event_messages = event.get("messages", [])
+                normalized_event_messages = ChatService._normalize_messages(event_messages)
+                event["messages"] = normalized_event_messages
+                
+                last_msg = normalized_event_messages[-1] if normalized_event_messages else None
                 
                 if isinstance(last_msg, AIMessage):
                     last_ai_message = last_msg

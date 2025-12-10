@@ -530,7 +530,11 @@ async def chat_stream(
                         history = db_history_manager.get_session_messages(chat_request.session_id, user_id, db)
                     else:
                         history = history_manager.get_session_messages(chat_request.session_id, user_id)
-                    messages = list(history) + [HumanMessage(content=chat_request.message)]
+                    
+                    # Normalize message contents to ensure they're strings (not lists)
+                    from src.services.chat_service import ChatService
+                    normalized_history = ChatService._normalize_messages(history)
+                    messages = normalized_history + [HumanMessage(content=chat_request.message)]
                     
                     # Stream agent responses
                     full_response = ""
@@ -543,7 +547,12 @@ async def chat_stream(
                     
                     try:
                         async for event in agent.astream({"messages": messages}, stream_mode="values"):
-                            last_msg = event["messages"][-1]
+                            # Normalize all messages in the event to ensure no list content
+                            event_messages = event.get("messages", [])
+                            normalized_event_messages = ChatService._normalize_messages(event_messages)
+                            event["messages"] = normalized_event_messages
+                            
+                            last_msg = normalized_event_messages[-1] if normalized_event_messages else None
                             
                             # Track last AI message for token usage extraction
                             if isinstance(last_msg, AIMessage):
@@ -971,7 +980,11 @@ async def chat_stream(
                             history = db_history_manager.get_session_messages(chat_request.session_id, user_id, db)
                         else:
                             history = history_manager.get_session_messages(chat_request.session_id, user_id)
-                        messages = list(history) + [HumanMessage(content=chat_request.message)]
+                        
+                        # Normalize message contents to ensure they're strings (not lists)
+                        from src.services.chat_service import ChatService
+                        normalized_history = ChatService._normalize_messages(history)
+                        messages = normalized_history + [HumanMessage(content=chat_request.message)]
                         
                         # Stream agent responses
                         full_response = ""
@@ -983,7 +996,12 @@ async def chat_stream(
                         
                         try:
                             async for event in agent.astream({"messages": messages}, stream_mode="values"):
-                                last_msg = event["messages"][-1]
+                                # Normalize all messages in the event to ensure no list content
+                                event_messages = event.get("messages", [])
+                                normalized_event_messages = ChatService._normalize_messages(event_messages)
+                                event["messages"] = normalized_event_messages
+                                
+                                last_msg = normalized_event_messages[-1] if normalized_event_messages else None
                                 
                                 # Track last AI message for token usage extraction
                                 if isinstance(last_msg, AIMessage):
