@@ -106,7 +106,7 @@ export default function SessionSidebar({
   return (
     <div
       className={cn(
-        "rounded-md flex flex-col md:flex-row bg-neutral-800 border border-neutral-700 relative z-50",
+        "rounded-md flex flex-col md:flex-row relative z-50",
         "h-full bg-transparent border-none" // Override for transparency
       )}
     >

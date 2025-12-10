@@ -472,7 +472,13 @@ export default function ProfileSettingsDialog({
                       </label>
                       <input
                         type="text"
-                        value={user?.role === "superadmin" ? "Super Admin" : user?.role?.charAt(0).toUpperCase() + user?.role?.slice(1) || "User"}
+                        value={
+                          user?.role === "superadmin"
+                            ? "Super Admin"
+                            : user?.role
+                            ? user.role.charAt(0).toUpperCase() + user.role.slice(1)
+                            : "User"
+                        }
                         disabled
                         className="w-full px-3 py-2 bg-neutral-900 border border-neutral-700 rounded-lg text-neutral-400 cursor-not-allowed"
                       />
