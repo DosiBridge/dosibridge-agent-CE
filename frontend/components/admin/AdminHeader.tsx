@@ -1,6 +1,7 @@
 import React from 'react';
 import { useStore } from '@/lib/store';
-import { Bell, Search } from 'lucide-react';
+import { Bell, Search, Home, MessageSquare } from 'lucide-react';
+import Link from 'next/link';
 
 interface AdminHeaderProps {
     title: string;
@@ -13,6 +14,22 @@ export default function AdminHeader({ title }: AdminHeaderProps) {
         <header className="h-20 border-b border-white/5 bg-zinc-900/50 backdrop-blur-xl px-10 flex items-center justify-between sticky top-0 z-30">
             <div className="flex items-center gap-4">
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">{title}</h1>
+                <div className="flex items-center gap-2 ml-4">
+                    <Link
+                        href="/"
+                        className="p-2 text-zinc-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors border border-transparent hover:border-white/10"
+                        title="Go to Home"
+                    >
+                        <Home className="w-5 h-5" />
+                    </Link>
+                    <Link
+                        href="/chat"
+                        className="p-2 text-zinc-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors border border-transparent hover:border-white/10"
+                        title="Go to Chatbot"
+                    >
+                        <MessageSquare className="w-5 h-5" />
+                    </Link>
+                </div>
             </div>
 
             <div className="flex items-center gap-6">
