@@ -14,6 +14,10 @@ import {
 import { useStore } from "@/lib/store";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { updateProfile, changePassword, type UpdateProfileRequest, type ChangePasswordRequest } from "@/lib/api/auth";
+import { deleteAllSessions } from "@/lib/api/sessions";
+import { clearAllStoredSessions } from "@/lib/sessionStorage";
+import toast from "react-hot-toast";
 
 interface ProfileSettingsDialogProps {
   isOpen: boolean;
@@ -41,6 +45,36 @@ export default function ProfileSettingsDialog({
   const [activeTab, setActiveTab] = useState<TabId>(initialTab as TabId);
   const [mounted, setMounted] = useState(false);
   const user = useStore((state) => state.user);
+  const checkAuth = useStore((state) => state.checkAuth);
+  const setCurrentSession = useStore((state) => state.setCurrentSession);
+  const createNewSession = useStore((state) => state.createNewSession);
+
+  // General settings state
+  const [compactMode, setCompactMode] = useState(false);
+  const [showTimestamps, setShowTimestamps] = useState(true);
+  const [defaultChatMode, setDefaultChatMode] = useState<"agent" | "rag">("agent");
+  const [autoSaveSessions, setAutoSaveSessions] = useState(true);
+
+  // Notification settings state
+  const [systemNotifications, setSystemNotifications] = useState(true);
+  const [errorNotifications, setErrorNotifications] = useState(true);
+  const [successMessages, setSuccessMessages] = useState(true);
+
+  // Account settings state
+  const [name, setName] = useState(user?.name || "");
+  const [email, setEmail] = useState(user?.email || "");
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  // Security settings state
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [showPasswordFields, setShowPasswordFields] = useState(false);
+
+  // Data control state
+  const [exportingData, setExportingData] = useState(false);
+  const [clearingHistory, setClearingHistory] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -51,6 +85,13 @@ export default function ProfileSettingsDialog({
       setActiveTab(initialTab as TabId);
     }
   }, [isOpen, initialTab]);
+
+  useEffect(() => {
+    if (user) {
+      setName(user.name || "");
+      setEmail(user.email || "");
+    }
+  }, [user]);
 
   useEffect(() => {
     const handleTabChange = (event: CustomEvent) => {
@@ -66,6 +107,133 @@ export default function ProfileSettingsDialog({
       };
     }
   }, []);
+
+  const handleSaveProfile = async () => {
+    if (!user) return;
+    
+    const updates: UpdateProfileRequest = {};
+    if (name.trim() !== user.name) {
+      updates.name = name.trim();
+    }
+    if (email.trim() !== user.email) {
+      updates.email = email.trim();
+    }
+
+    if (!updates.name && !updates.email) {
+      toast.error("No changes to save");
+      return;
+    }
+
+    setSavingProfile(true);
+    try {
+      await updateProfile(updates);
+      toast.success("Profile updated successfully");
+      await checkAuth(); // Refresh user data
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update profile");
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast.error("Please fill in all password fields");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error("New passwords do not match");
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      toast.error("Password must be at least 8 characters long");
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const data: ChangePasswordRequest = {
+        current_password: currentPassword,
+        new_password: newPassword,
+      };
+      await changePassword(data);
+      toast.success("Password changed successfully");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setShowPasswordFields(false);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to change password");
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
+  const handleExportData = async () => {
+    setExportingData(true);
+    try {
+      // Get all sessions and messages from store
+      const sessions = useStore.getState().sessions;
+      const currentSessionId = useStore.getState().currentSessionId;
+      const messages = useStore.getState().messages;
+
+      const exportData = {
+        user: user,
+        sessions: sessions,
+        currentSession: {
+          id: currentSessionId,
+          messages: messages,
+        },
+        exportDate: new Date().toISOString(),
+      };
+
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `dosibridge-export-${new Date().toISOString().split("T")[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success("Data exported successfully");
+    } catch (error: any) {
+      toast.error("Failed to export data");
+    } finally {
+      setExportingData(false);
+    }
+  };
+
+  const handleClearChatHistory = async () => {
+    if (!confirm("Are you sure you want to clear all chat history? This action cannot be undone.")) {
+      return;
+    }
+
+    setClearingHistory(true);
+    try {
+      // Clear backend sessions if authenticated
+      try {
+        await deleteAllSessions();
+      } catch (error) {
+        // Ignore errors - might not be authenticated
+      }
+      
+      // Clear local storage sessions
+      clearAllStoredSessions();
+      
+      // Create a new session
+      await createNewSession();
+      
+      toast.success("Chat history cleared successfully");
+    } catch (error: any) {
+      toast.error("Failed to clear chat history");
+    } finally {
+      setClearingHistory(false);
+    }
+  };
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -86,7 +254,12 @@ export default function ProfileSettingsDialog({
                         <p className="text-xs text-neutral-400">Use a more compact interface layout</p>
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" className="sr-only peer" />
+                        <input 
+                          type="checkbox" 
+                          className="sr-only peer" 
+                          checked={compactMode}
+                          onChange={(e) => setCompactMode(e.target.checked)}
+                        />
                         <div className="w-11 h-6 bg-neutral-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-500/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-500"></div>
                       </label>
                     </div>
@@ -96,7 +269,12 @@ export default function ProfileSettingsDialog({
                         <p className="text-xs text-neutral-400">Display message timestamps in chat</p>
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" className="sr-only peer" defaultChecked />
+                        <input 
+                          type="checkbox" 
+                          className="sr-only peer" 
+                          checked={showTimestamps}
+                          onChange={(e) => setShowTimestamps(e.target.checked)}
+                        />
                         <div className="w-11 h-6 bg-neutral-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-500/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-500"></div>
                       </label>
                     </div>
@@ -110,9 +288,13 @@ export default function ProfileSettingsDialog({
                       <label className="block text-sm font-medium text-neutral-300 mb-2">
                         Default Chat Mode
                       </label>
-                      <select className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                        <option>Agent Mode</option>
-                        <option>RAG Mode</option>
+                      <select 
+                        className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        value={defaultChatMode}
+                        onChange={(e) => setDefaultChatMode(e.target.value as "agent" | "rag")}
+                      >
+                        <option value="agent">Agent Mode</option>
+                        <option value="rag">RAG Mode</option>
                       </select>
                       <p className="text-xs text-neutral-400 mt-1">Choose your default mode when starting a new chat</p>
                     </div>
@@ -122,7 +304,12 @@ export default function ProfileSettingsDialog({
                         <p className="text-xs text-neutral-400">Automatically save chat sessions</p>
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" className="sr-only peer" defaultChecked />
+                        <input 
+                          type="checkbox" 
+                          className="sr-only peer" 
+                          checked={autoSaveSessions}
+                          onChange={(e) => setAutoSaveSessions(e.target.checked)}
+                        />
                         <div className="w-11 h-6 bg-neutral-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-500/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-500"></div>
                       </label>
                     </div>
@@ -149,7 +336,12 @@ export default function ProfileSettingsDialog({
                         <p className="text-xs text-neutral-400">Receive system alerts and updates</p>
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" className="sr-only peer" defaultChecked />
+                        <input 
+                          type="checkbox" 
+                          className="sr-only peer" 
+                          checked={systemNotifications}
+                          onChange={(e) => setSystemNotifications(e.target.checked)}
+                        />
                         <div className="w-11 h-6 bg-neutral-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-500/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-500"></div>
                       </label>
                     </div>
@@ -159,7 +351,12 @@ export default function ProfileSettingsDialog({
                         <p className="text-xs text-neutral-400">Get notified about errors and issues</p>
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" className="sr-only peer" defaultChecked />
+                        <input 
+                          type="checkbox" 
+                          className="sr-only peer" 
+                          checked={errorNotifications}
+                          onChange={(e) => setErrorNotifications(e.target.checked)}
+                        />
                         <div className="w-11 h-6 bg-neutral-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-500/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-500"></div>
                       </label>
                     </div>
@@ -169,7 +366,12 @@ export default function ProfileSettingsDialog({
                         <p className="text-xs text-neutral-400">Show success notifications</p>
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" className="sr-only peer" defaultChecked />
+                        <input 
+                          type="checkbox" 
+                          className="sr-only peer" 
+                          checked={successMessages}
+                          onChange={(e) => setSuccessMessages(e.target.checked)}
+                        />
                         <div className="w-11 h-6 bg-neutral-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-500/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-500"></div>
                       </label>
                     </div>
@@ -194,30 +396,35 @@ export default function ProfileSettingsDialog({
                       <p className="text-sm text-neutral-300 mb-2">
                         Export all your data including conversations, documents, and settings.
                       </p>
-                      <button className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 border border-indigo-500/30 rounded-lg text-sm text-white transition-colors">
-                        Export All Data
+                      <button 
+                        onClick={handleExportData}
+                        disabled={exportingData}
+                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 border border-indigo-500/30 rounded-lg text-sm text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {exportingData ? "Exporting..." : "Export All Data"}
                       </button>
                     </div>
                     <div className="border-t border-neutral-700 pt-3">
                       <p className="text-sm text-neutral-300 mb-2">
                         Clear all your chat sessions and conversation history.
                       </p>
-                      <button className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-lg text-sm text-white transition-colors">
-                        Clear Chat History
+                      <button 
+                        onClick={handleClearChatHistory}
+                        disabled={clearingHistory}
+                        className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-lg text-sm text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {clearingHistory ? "Clearing..." : "Clear Chat History"}
                       </button>
                     </div>
                   </div>
                 </div>
                 
-                <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4">
-                  <h4 className="text-sm font-semibold text-red-400 mb-3">Danger Zone</h4>
+                <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-xl p-4">
+                  <h4 className="text-sm font-semibold text-yellow-400 mb-3">Account Management</h4>
                   <div className="space-y-3">
                     <p className="text-sm text-neutral-300 mb-2">
-                      Permanently delete all your data. This action cannot be undone.
+                      Account deletion is not available for security reasons. Please contact your administrator if you need to delete your account.
                     </p>
-                    <button className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-lg text-sm text-red-400 transition-colors">
-                      Delete All Data
-                    </button>
                   </div>
                 </div>
               </div>
@@ -241,7 +448,8 @@ export default function ProfileSettingsDialog({
                       </label>
                       <input
                         type="text"
-                        defaultValue={user?.name || ""}
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
                         className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-neutral-500"
                         placeholder="Enter your name"
                       />
@@ -252,7 +460,8 @@ export default function ProfileSettingsDialog({
                       </label>
                       <input
                         type="email"
-                        defaultValue={user?.email || ""}
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
                         className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-neutral-500"
                         placeholder="your.email@example.com"
                       />
@@ -269,8 +478,12 @@ export default function ProfileSettingsDialog({
                       />
                     </div>
                     <div className="pt-2">
-                      <button className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium text-white transition-colors">
-                        Save Changes
+                      <button 
+                        onClick={handleSaveProfile}
+                        disabled={savingProfile}
+                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {savingProfile ? "Saving..." : "Save Changes"}
                       </button>
                     </div>
                   </div>
@@ -290,26 +503,78 @@ export default function ProfileSettingsDialog({
                 <div className="bg-neutral-800/50 border border-neutral-700 rounded-xl p-4">
                   <h4 className="text-sm font-semibold text-white mb-4">Password & Authentication</h4>
                   <div className="space-y-4">
-                    <div>
-                      <p className="text-sm text-neutral-300 mb-3">
-                        Change your account password to keep your account secure.
-                      </p>
-                      <button className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 border border-indigo-500/30 rounded-lg text-sm font-medium text-white transition-colors">
-                        Change Password
-                      </button>
-                    </div>
-                    <div className="border-t border-neutral-700 pt-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-white">Two-Factor Authentication</p>
-                          <p className="text-xs text-neutral-400">Add an extra layer of security to your account</p>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input type="checkbox" className="sr-only peer" />
-                          <div className="w-11 h-6 bg-neutral-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-500/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-500"></div>
-                        </label>
+                    {!showPasswordFields ? (
+                      <div>
+                        <p className="text-sm text-neutral-300 mb-3">
+                          Change your account password to keep your account secure.
+                        </p>
+                        <button 
+                          onClick={() => setShowPasswordFields(true)}
+                          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 border border-indigo-500/30 rounded-lg text-sm font-medium text-white transition-colors"
+                        >
+                          Change Password
+                        </button>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-neutral-300 mb-2">
+                            Current Password
+                          </label>
+                          <input
+                            type="password"
+                            value={currentPassword}
+                            onChange={(e) => setCurrentPassword(e.target.value)}
+                            className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            placeholder="Enter current password"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-neutral-300 mb-2">
+                            New Password
+                          </label>
+                          <input
+                            type="password"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            placeholder="Enter new password (min. 8 characters)"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-neutral-300 mb-2">
+                            Confirm New Password
+                          </label>
+                          <input
+                            type="password"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            placeholder="Confirm new password"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={handleChangePassword}
+                            disabled={changingPassword}
+                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 border border-indigo-500/30 rounded-lg text-sm font-medium text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {changingPassword ? "Changing..." : "Update Password"}
+                          </button>
+                          <button 
+                            onClick={() => {
+                              setShowPasswordFields(false);
+                              setCurrentPassword("");
+                              setNewPassword("");
+                              setConfirmPassword("");
+                            }}
+                            className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-lg text-sm font-medium text-white transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
                 
@@ -514,4 +779,3 @@ export default function ProfileSettingsDialog({
     document.body
   );
 }
-

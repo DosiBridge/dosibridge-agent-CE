@@ -117,3 +117,33 @@ export async function getCurrentUser(): Promise<User> {
     throw error;
   }
 }
+
+export interface UpdateProfileRequest {
+  name?: string;
+  email?: string;
+}
+
+export interface ChangePasswordRequest {
+  current_password: string;
+  new_password: string;
+}
+
+export async function updateProfile(data: UpdateProfileRequest): Promise<User> {
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/auth/profile`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handleResponse<User>(response);
+}
+
+export async function changePassword(data: ChangePasswordRequest): Promise<{ status: string; message: string }> {
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/auth/change-password`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handleResponse<{ status: string; message: string }>(response);
+}
