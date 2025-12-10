@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Loader2, Shield, User as UserIcon, Ban, CheckCircle, Search, LogIn, Mail, MoreVertical } from 'lucide-react';
+import React, { useEffect, useState, useMemo } from 'react';
+import { Loader2, Shield, User as UserIcon, Ban, CheckCircle, Search, LogIn, Mail, MoreVertical, ChevronLeft, ChevronRight } from 'lucide-react';
 import { listUsers, blockUser, unblockUser, AdminUser } from '@/lib/api/admin';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/utils';
@@ -7,12 +7,15 @@ import { format } from 'date-fns';
 import { AnimatePresence, motion } from 'framer-motion';
 import UserInspector from '../UserInspector';
 
+const ITEMS_PER_PAGE = 10;
+
 export default function UsersView() {
     const [loading, setLoading] = useState(true);
     const [users, setUsers] = useState<AdminUser[]>([]);
     const [search, setSearch] = useState("");
     const [processingId, setProcessingId] = useState<number | null>(null);
     const [inspectingUserId, setInspectingUserId] = useState<number | null>(null);
+    const [currentPage, setCurrentPage] = useState(1);
 
     const loadUsers = async () => {
         try {
@@ -57,10 +60,22 @@ export default function UsersView() {
         }
     };
 
-    const filteredUsers = users.filter(user =>
-        user.name.toLowerCase().includes(search.toLowerCase()) ||
-        user.email.toLowerCase().includes(search.toLowerCase())
-    );
+    const filteredUsers = useMemo(() => {
+        return users.filter(user =>
+            user.name.toLowerCase().includes(search.toLowerCase()) ||
+            user.email.toLowerCase().includes(search.toLowerCase())
+        );
+    }, [users, search]);
+
+    const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
+    const paginatedUsers = useMemo(() => {
+        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+        return filteredUsers.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+    }, [filteredUsers, currentPage]);
+
+    useEffect(() => {
+        setCurrentPage(1); // Reset to first page when search changes
+    }, [search]);
 
     if (loading) {
         return (
@@ -103,7 +118,7 @@ export default function UsersView() {
                         </thead>
                         <tbody className="divide-y divide-white/5">
                             <AnimatePresence>
-                                {filteredUsers.map((user) => (
+                                {paginatedUsers.map((user) => (
                                     <motion.tr
                                         key={user.id}
                                         initial={{ opacity: 0 }}
@@ -205,6 +220,59 @@ export default function UsersView() {
                         </div>
                     )}
                 </div>
+
+                {/* Pagination */}
+                {filteredUsers.length > ITEMS_PER_PAGE && (
+                    <div className="flex items-center justify-between px-6 py-4 border-t border-white/5 bg-white/[0.01]">
+                        <div className="text-sm text-zinc-400">
+                            Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, filteredUsers.length)} of {filteredUsers.length} users
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                disabled={currentPage === 1}
+                                className={cn(
+                                    "px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1",
+                                    currentPage === 1
+                                        ? "text-zinc-600 cursor-not-allowed"
+                                        : "text-zinc-300 hover:text-white hover:bg-white/5"
+                                )}
+                            >
+                                <ChevronLeft className="w-4 h-4" />
+                                Previous
+                            </button>
+                            <div className="flex items-center gap-1">
+                                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                                    <button
+                                        key={page}
+                                        onClick={() => setCurrentPage(page)}
+                                        className={cn(
+                                            "w-8 h-8 rounded-lg text-sm font-medium transition-colors",
+                                            currentPage === page
+                                                ? "bg-indigo-500 text-white"
+                                                : "text-zinc-400 hover:text-white hover:bg-white/5"
+                                        )}
+                                    >
+                                        {page}
+                                    </button>
+                                ))}
+                            </div>
+                            <button
+                                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                disabled={currentPage === totalPages}
+                                className={cn(
+                                    "px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1",
+                                    currentPage === totalPages
+                                        ? "text-zinc-600 cursor-not-allowed"
+                                        : "text-zinc-300 hover:text-white hover:bg-white/5"
+                                )}
+                            >
+                                Next
+                                <ChevronRight className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             <AnimatePresence>

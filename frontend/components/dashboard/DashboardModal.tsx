@@ -16,9 +16,15 @@ interface DashboardModalProps {
 
 export default function DashboardModal({ isOpen, onClose }: DashboardModalProps) {
     const user = useStore(state => state.user);
+    const impersonatedUserId = useStore(state => state.impersonatedUserId);
     const [activeTab, setActiveTab] = useState<'overview' | 'admin'>('overview');
 
+    // Check if current user (impersonated or real) is superadmin
+    // When impersonating, user is the impersonated user, so check their role
     const isSuperAdmin = user?.role === 'superadmin';
+    
+    // If impersonating a non-superadmin, don't show admin features
+    const canAccessAdmin = isSuperAdmin && (!impersonatedUserId || user?.role === 'superadmin');
 
     return (
         <Transition appear show={isOpen} as={Fragment}>
@@ -83,7 +89,7 @@ export default function DashboardModal({ isOpen, onClose }: DashboardModalProps)
                                         My Overview
                                     </button>
 
-                                    {isSuperAdmin && (
+                                    {canAccessAdmin && (
                                         <button
                                             onClick={() => setActiveTab('admin')}
                                             className={cn(
@@ -97,10 +103,10 @@ export default function DashboardModal({ isOpen, onClose }: DashboardModalProps)
                                             Admin Console
                                         </button>
                                     )}
-                                    {isSuperAdmin && (
+                                    {canAccessAdmin && (
                                         <div className="flex items-center gap-2 ml-auto">
                                             <Link
-                                            href="/admin"
+                                                href="/admin"
                                                 className="px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors flex items-center gap-1.5"
                                             >
                                                 <LayoutDashboard className="w-3.5 h-3.5" />
@@ -113,10 +119,17 @@ export default function DashboardModal({ isOpen, onClose }: DashboardModalProps)
                                 <div className="min-h-[400px]">
                                     {activeTab === 'overview' ? (
                                         <UserStatsView />
-                                    ) : (
+                                    ) : canAccessAdmin ? (
                                         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                                             <AdminStatsView />
                                             <AdminUserTable />
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center justify-center p-12 text-zinc-400">
+                                            <div className="text-center">
+                                                <p className="text-lg font-semibold mb-2">Admin access unavailable</p>
+                                                <p className="text-sm">Admin features are not available when viewing as a regular user.</p>
+                                            </div>
                                         </div>
                                     )}
                                 </div>

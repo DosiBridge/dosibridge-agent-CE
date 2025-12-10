@@ -179,3 +179,19 @@ export const getUsageAnalytics = async (days: number = 30): Promise<any[]> => {
   });
   return handleResponse(response);
 };
+
+export const getModelAnalytics = async (days: number = 30): Promise<any[]> => {
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/admin/analytics/models?days=${days}`, {
+    headers: getAuthHeaders(),
+  });
+  return handleResponse(response);
+};
+
+export const getTopUsersAnalytics = async (limit: number = 5, days: number = 30): Promise<any[]> => {
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/admin/analytics/top-users?limit=${limit}&days=${days}`, {
+    headers: getAuthHeaders(),
+  });
+  return handleResponse(response);
+};

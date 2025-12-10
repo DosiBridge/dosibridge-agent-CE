@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Loader2, Users, MessageSquare, FileText, Server, TrendingUp, Lock, Activity, Zap } from 'lucide-react';
+import { Loader2, Users, MessageSquare, FileText, Server, TrendingUp, Lock, Activity, Zap, ShieldOff } from 'lucide-react';
 import { getSystemStats, getSystemUsageHistory, SystemStats, SystemUsageHistory } from '@/lib/api/admin';
+import { useStore } from '@/lib/store';
 import toast from 'react-hot-toast';
 import {
     Area,

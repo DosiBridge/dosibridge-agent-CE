@@ -83,9 +83,10 @@ interface AppState {
 
   // Auth actions
   checkAuth: () => Promise<void>;
-  handleLogin: (data: LoginRequest) => Promise<void>;
+  handleLogin: (data: LoginRequest, persistentAccess?: boolean) => Promise<void>;
   handleRegister: (data: RegisterRequest) => Promise<void>;
   handleLogout: () => Promise<void>;
+  togglePersistentAccess: (enabled: boolean) => Promise<void>;
 
   // Actions
   setCurrentSession: (sessionId: string) => void;
@@ -227,8 +228,8 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
-  handleLogin: async (data: LoginRequest) => {
-    const result = await login(data);
+  handleLogin: async (data: LoginRequest, persistentAccess: boolean = false) => {
+    const result = await login(data, persistentAccess);
     set({ user: result.user, isAuthenticated: true });
     // Load user-specific data after login
     // Use setTimeout to ensure state is updated before loading
@@ -238,8 +239,8 @@ export const useStore = create<AppState>((set, get) => ({
     }, 0);
   },
 
-  handleRegister: async (data: RegisterRequest) => {
-    const result = await register(data);
+  handleRegister: async (data: RegisterRequest, persistentAccess: boolean = false) => {
+    const result = await register(data, persistentAccess);
     set({ user: result.user, isAuthenticated: true });
     // Load user-specific data after registration
     // Use setTimeout to ensure state is updated before loading
@@ -279,6 +280,34 @@ export const useStore = create<AppState>((set, get) => ({
 
       // Note: WebSocket will automatically disconnect and reconnect via useEffect in page.tsx
       // when isAuthenticated changes to false
+    }
+  },
+
+  togglePersistentAccess: async (enabled: boolean) => {
+    const { user, isAuthenticated } = get();
+    if (!isAuthenticated || !user || user.role !== "superadmin") {
+      throw new Error("Persistent access is only available for superadmin users");
+    }
+
+    // Import storage utilities
+    const { enablePersistentAccess, disablePersistentAccess, getAuthToken } = await import("./storage/authStorage");
+    
+    if (enabled) {
+      enablePersistentAccess();
+      // Move token to localStorage if it exists
+      const token = getAuthToken();
+      if (token) {
+        const { setAuthToken } = await import("./api/client");
+        setAuthToken(token, true, true);
+      }
+    } else {
+      disablePersistentAccess();
+      // Move token to sessionStorage
+      const token = getAuthToken();
+      if (token) {
+        const { setAuthToken } = await import("./api/client");
+        setAuthToken(token, true, false);
+      }
     }
   },
 
@@ -516,12 +545,35 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   // Load sessions - combines browser storage with backend (if authenticated)
+  // When impersonating, only loads from backend (impersonated user's sessions)
   loadSessions: async () => {
     set({ sessionsLoading: true });
     try {
       const isAuthenticated = get().isAuthenticated;
+      const impersonatedUserId = get().impersonatedUserId;
 
-      // Always load from browser storage first
+      // When impersonating, only load from backend (don't use browser storage)
+      if (impersonatedUserId && isAuthenticated) {
+        try {
+          const backendData = await listSessions();
+          // When impersonating, use backend sessions directly (they belong to the impersonated user)
+          const backendSessions: Session[] = backendData.sessions.map((s) => ({
+            session_id: s.session_id,
+            title: s.title || `Session ${s.session_id.slice(-8)}`,
+            summary: s.summary,
+            message_count: s.message_count || 0,
+            updated_at: s.updated_at,
+          }));
+          set({ sessions: backendSessions, sessionsLoading: false });
+          return;
+        } catch (error) {
+          console.error("Failed to load sessions for impersonated user:", error);
+          set({ sessions: [], sessionsLoading: false });
+          return;
+        }
+      }
+
+      // Normal flow: combine browser storage with backend
       const storedSessions = getStoredSessions();
 
       if (isAuthenticated) {
@@ -575,11 +627,38 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   // Load a specific session - from browser storage first, then backend if authenticated
+  // When impersonating, only loads from backend (impersonated user's session)
   loadSession: async (sessionId: string) => {
     try {
       set({ isLoading: true });
 
-      // Always try browser storage first
+      const impersonatedUserId = get().impersonatedUserId;
+      const isAuthenticated = get().isAuthenticated;
+
+      // When impersonating, only load from backend (don't use browser storage)
+      if (impersonatedUserId && isAuthenticated) {
+        try {
+          const sessionInfo = await getSession(sessionId);
+          const messages: Message[] = sessionInfo.messages.map(
+            (msg, idx) => ({
+              id: `${sessionId}-${idx}-${Date.now()}`,
+              role: msg.role,
+              content: msg.content,
+              timestamp: new Date(),
+              tools_used: [],
+              sources: [],
+            })
+          );
+          set({ messages, isLoading: false });
+          return;
+        } catch (error) {
+          console.error("Failed to load session from backend for impersonated user:", error);
+          set({ messages: [], isLoading: false });
+          return;
+        }
+      }
+
+      // Normal flow: try browser storage first
       const storedMessages = getStoredMessages(sessionId);
 
       if (storedMessages.length > 0) {
@@ -609,7 +688,6 @@ export const useStore = create<AppState>((set, get) => ({
         }
 
         // Session exists in list but has no messages - try backend (if authenticated)
-        const isAuthenticated = get().isAuthenticated;
         if (isAuthenticated) {
           try {
             const sessionInfo = await getSession(sessionId);

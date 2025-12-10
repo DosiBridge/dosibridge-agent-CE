@@ -11,7 +11,7 @@ interface AdminShellProps {
 
 export default function AdminShell({ children, currentView, onChangeView, title }: AdminShellProps) {
     return (
-        <div className="flex min-h-screen bg-black text-white overflow-hidden relative">
+        <div className="flex h-screen bg-black text-white overflow-hidden relative">
             {/* Dot Background Pattern */}
             <div className="absolute inset-0 bg-dot-white/[0.2] pointer-events-none z-0 opacity-20" />
             <div className="absolute inset-0 bg-black [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)] z-0 pointer-events-none" />

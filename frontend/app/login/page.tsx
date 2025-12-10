@@ -17,6 +17,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [persistentAccess, setPersistentAccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const isAuthenticated = useStore((state) => state.isAuthenticated);
@@ -45,7 +46,7 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      await handleLogin({ email: email.trim(), password });
+      await handleLogin({ email: email.trim(), password }, persistentAccess);
       toast.success("Welcome back!");
       router.push("/chat");
     } catch (error: any) {
@@ -107,6 +108,21 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={loading}
               />
+            </div>
+
+            {/* Persistent Access Option (for superadmin) */}
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="persistent-access"
+                checked={persistentAccess}
+                onChange={(e) => setPersistentAccess(e.target.checked)}
+                disabled={loading}
+                className="w-4 h-4 rounded border-white/20 bg-white/5 text-indigo-600 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-0 cursor-pointer"
+              />
+              <Label htmlFor="persistent-access" className="text-sm text-zinc-300 cursor-pointer">
+                Enable persistent access (Superadmin only)
+              </Label>
             </div>
 
             <button

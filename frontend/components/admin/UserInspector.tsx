@@ -116,7 +116,7 @@ export default function UserInspector({ userId, onClose, onRefetch }: UserInspec
 
                 <div className="flex flex-1 overflow-hidden">
                     {/* Sidebar Stats & Actions */}
-                    <div className="w-80 border-r border-white/5 p-6 bg-black/20 overflow-y-auto">
+                    <div className="w-80 border-r border-white/5 p-6 bg-black/20 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent flex-shrink-0">
                         <div className="space-y-6">
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="bg-white/5 p-4 rounded-xl border border-white/5">
@@ -168,14 +168,14 @@ export default function UserInspector({ userId, onClose, onRefetch }: UserInspec
                     </div>
 
                     {/* Main Content (Chats) */}
-                    <div className="flex-1 flex flex-col h-full overflow-hidden">
-                        <div className="flex-1 flex overflow-hidden">
+                    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                        <div className="flex-1 flex min-h-0 overflow-hidden">
                             {/* Session List */}
-                            <div className="w-72 border-r border-white/5 overflow-y-auto bg-black/10">
-                                <div className="p-4 border-b border-white/5 sticky top-0 bg-zinc-900/95 backdrop-blur z-10">
+                            <div className="w-72 border-r border-white/5 flex flex-col bg-black/10 min-h-0">
+                                <div className="p-4 border-b border-white/5 flex-shrink-0 bg-zinc-900/95 backdrop-blur z-10">
                                     <h3 className="font-semibold text-white">Chat History</h3>
                                 </div>
-                                <div className="divide-y divide-white/5">
+                                <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent divide-y divide-white/5">
                                     {sessions.length === 0 && (
                                         <div className="p-8 text-center text-zinc-500 text-sm">No conversations found.</div>
                                     )}
@@ -185,10 +185,10 @@ export default function UserInspector({ userId, onClose, onRefetch }: UserInspec
                                             onClick={() => loadMessages(session.session_id)}
                                             className={`w-full text-left p-4 hover:bg-white/5 transition-colors ${activeSession === session.session_id ? 'bg-indigo-500/10 border-l-2 border-indigo-500' : 'border-l-2 border-transparent'}`}
                                         >
-                                            <div className="text-sm font-medium text-white truncate mb-1">{session.title}</div>
+                                            <div className="text-sm font-medium text-white truncate mb-1">{session.title || 'Untitled Conversation'}</div>
                                             <div className="flex items-center justify-between text-xs text-zinc-500">
-                                                <span>{format(new Date(session.updated_at), 'MMM d, HH:mm')}</span>
-                                                <span className="bg-white/10 px-1.5 py-0.5 rounded">{session.message_count} msgs</span>
+                                                <span>{session.updated_at ? format(new Date(session.updated_at), 'MMM d, HH:mm') : 'Unknown'}</span>
+                                                <span className="bg-white/10 px-1.5 py-0.5 rounded">{session.message_count || 0} msgs</span>
                                             </div>
                                         </button>
                                     ))}
@@ -196,7 +196,7 @@ export default function UserInspector({ userId, onClose, onRefetch }: UserInspec
                             </div>
 
                             {/* Message View */}
-                            <div className="flex-1 bg-black/30 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-zinc-700">
+                            <div className="flex-1 bg-black/30 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent min-h-0">
                                 {!activeSession ? (
                                     <div className="h-full flex flex-col items-center justify-center text-zinc-500">
                                         <MessageSquare className="w-12 h-12 mb-4 opacity-20" />
@@ -207,26 +207,32 @@ export default function UserInspector({ userId, onClose, onRefetch }: UserInspec
                                         Loading messages...
                                     </div>
                                 ) : (
-                                    <div className="space-y-6 max-w-3xl mx-auto">
-                                        {messages.map((msg, idx) => (
-                                            <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                                <div className={`max-w-[80%] rounded-2xl p-4 ${msg.role === 'user'
-                                                        ? 'bg-indigo-600 text-white'
-                                                        : msg.role === 'system'
-                                                            ? 'bg-red-900/20 text-red-200 border border-red-500/20 w-full'
-                                                            : 'bg-zinc-800 text-zinc-200'
-                                                    }`}>
-                                                    {msg.role === 'system' && <div className="text-xs font-bold mb-1 opacity-70 uppercase">System Prompt</div>}
-                                                    <div className="whitespace-pre-wrap text-sm">{msg.content}</div>
-                                                    {msg.tool_calls && (
-                                                        <div className="mt-3 p-2 bg-black/20 rounded text-xs font-mono border border-white/10">
-                                                            <div className="opacity-50 mb-1">Tool Usage:</div>
-                                                            {JSON.stringify(msg.tool_calls, null, 2)}
-                                                        </div>
-                                                    )}
-                                                </div>
+                                    <div className="space-y-6 max-w-3xl mx-auto pb-6">
+                                        {messages.length === 0 ? (
+                                            <div className="text-center text-zinc-500 py-12">
+                                                No messages in this conversation
                                             </div>
-                                        ))}
+                                        ) : (
+                                            messages.map((msg, idx) => (
+                                                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                                    <div className={`max-w-[80%] rounded-2xl p-4 ${msg.role === 'user'
+                                                            ? 'bg-indigo-600 text-white'
+                                                            : msg.role === 'system'
+                                                                ? 'bg-red-900/20 text-red-200 border border-red-500/20 w-full'
+                                                                : 'bg-zinc-800 text-zinc-200'
+                                                        }`}>
+                                                        {msg.role === 'system' && <div className="text-xs font-bold mb-1 opacity-70 uppercase">System Prompt</div>}
+                                                        <div className="whitespace-pre-wrap text-sm break-words">{msg.content || '(Empty message)'}</div>
+                                                        {msg.tool_calls && (
+                                                            <div className="mt-3 p-2 bg-black/20 rounded text-xs font-mono border border-white/10 overflow-x-auto">
+                                                                <div className="opacity-50 mb-1">Tool Usage:</div>
+                                                                <pre className="text-xs">{JSON.stringify(msg.tool_calls, null, 2)}</pre>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
                                     </div>
                                 )}
                             </div>

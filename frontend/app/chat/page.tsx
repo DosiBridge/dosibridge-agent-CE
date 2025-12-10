@@ -14,6 +14,7 @@ import SettingsPanel from "@/components/SettingsPanel";
 import UsageIndicator from "@/components/UsageIndicator";
 import CommandPalette from "@/components/ui/CommandPalette";
 import DashboardModal from "@/components/dashboard/DashboardModal";
+import ImpersonationBanner from "@/components/ImpersonationBanner";
 import { useStore } from "@/lib/store";
 import { healthWebSocket } from "@/lib/websocket";
 import {
@@ -213,6 +214,7 @@ export default function ChatPage() {
     <div className="flex h-screen bg-neutral-950 overflow-hidden relative w-full">
       <BackgroundBeams className="opacity-40" />
       <OnlineStatus />
+      <ImpersonationBanner />
       <Toaster
         position="top-center"
         toastOptions={{

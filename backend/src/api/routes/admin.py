@@ -418,7 +418,9 @@ async def get_usage_analytics(
     # Aggregate daily usage
     daily_stats = db.query(
         APIUsage.usage_date,
-        func.sum(APIUsage.total_tokens).label('total_tokens'),
+        func.sum(APIUsage.input_tokens + APIUsage.output_tokens + APIUsage.embedding_tokens).label('total_tokens'),
+        func.sum(APIUsage.input_tokens).label('input_tokens'),
+        func.sum(APIUsage.output_tokens).label('output_tokens'),
         func.sum(APIUsage.request_count).label('request_count')
     ).filter(
         APIUsage.usage_date >= cutoff
@@ -432,7 +434,85 @@ async def get_usage_analytics(
         {
             "date": stat.usage_date.isoformat().split('T')[0],
             "tokens": int(stat.total_tokens or 0),
+            "input_tokens": int(stat.input_tokens or 0),
+            "output_tokens": int(stat.output_tokens or 0),
             "requests": int(stat.request_count or 0)
         }
         for stat in daily_stats
     ]
+
+@router.get("/analytics/models")
+async def get_model_usage_analytics(
+    days: int = 30,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_superadmin)
+):
+    """Get model usage distribution (superadmin only)"""
+    if not DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Database not available")
+        
+    from src.core.models import APIUsage
+    from datetime import datetime, timedelta
+    
+    cutoff = datetime.now() - timedelta(days=days)
+    
+    # Aggregate by model
+    model_stats = db.query(
+        APIUsage.llm_model,
+        func.sum(APIUsage.request_count).label('request_count')
+    ).filter(
+        APIUsage.usage_date >= cutoff
+    ).group_by(
+        APIUsage.llm_model
+    ).order_by(
+        func.sum(APIUsage.request_count).desc()
+    ).all()
+    
+    return [
+        {
+            "name": stat.llm_model or "Unknown",
+            "value": int(stat.request_count or 0)
+        }
+        for stat in model_stats
+    ]
+
+@router.get("/analytics/top-users")
+async def get_top_users_analytics(
+    limit: int = 5,
+    days: int = 30,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_superadmin)
+):
+    """Get top users by token consumption (superadmin only)"""
+    if not DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Database not available")
+        
+    from src.core.models import APIUsage, User as UserModel
+    from datetime import datetime, timedelta
+    
+    cutoff = datetime.now() - timedelta(days=days)
+    
+    # Aggregate by user
+    user_stats = db.query(
+        APIUsage.user_id,
+        func.sum(APIUsage.input_tokens + APIUsage.output_tokens + APIUsage.embedding_tokens).label('total_tokens')
+    ).filter(
+        APIUsage.usage_date >= cutoff,
+        APIUsage.user_id.isnot(None)
+    ).group_by(
+        APIUsage.user_id
+    ).order_by(
+        func.sum(APIUsage.input_tokens + APIUsage.output_tokens + APIUsage.embedding_tokens).desc()
+    ).limit(limit).all()
+    
+    result = []
+    for stat in user_stats:
+        user = db.query(UserModel).filter(UserModel.id == stat.user_id).first()
+        if user:
+            result.append({
+                "name": user.name,
+                "email": user.email,
+                "tokens": int(stat.total_tokens or 0)
+            })
+            
+    return result

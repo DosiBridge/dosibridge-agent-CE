@@ -66,22 +66,29 @@ export async function getApiBaseUrl(): Promise<string> {
   return configLoadPromise;
 }
 
-// Token management
-const TOKEN_KEY = "auth_token";
+// Token management - use secure storage utility
+import {
+  getAuthToken as getStoredToken,
+  setAuthToken as setStoredToken,
+  removeAuthToken as removeStoredToken,
+  migrateExistingToken,
+} from "../storage/authStorage";
 
-export function getAuthToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(TOKEN_KEY);
+// Migrate existing tokens on module load
+if (typeof window !== "undefined") {
+  migrateExistingToken();
 }
 
-export function setAuthToken(token: string): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(TOKEN_KEY, token);
+export function getAuthToken(): string | null {
+  return getStoredToken();
+}
+
+export function setAuthToken(token: string, isSuperadmin: boolean = false, persistent: boolean = false): void {
+  setStoredToken(token, isSuperadmin, persistent);
 }
 
 export function removeAuthToken(): void {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem(TOKEN_KEY);
+  removeStoredToken();
 }
 
 /**

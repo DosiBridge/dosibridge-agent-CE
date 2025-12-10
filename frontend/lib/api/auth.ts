@@ -16,7 +16,10 @@ import {
   setAuthToken,
 } from "./client";
 
-export async function register(data: RegisterRequest): Promise<AuthResponse> {
+export async function register(
+  data: RegisterRequest,
+  persistentAccess: boolean = false
+): Promise<AuthResponse> {
   const apiBaseUrl = await getApiBaseUrl();
   const response = await fetch(`${apiBaseUrl}/api/auth/register`, {
     method: "POST",
@@ -24,11 +27,19 @@ export async function register(data: RegisterRequest): Promise<AuthResponse> {
     body: JSON.stringify(data),
   });
   const result = await handleResponse<AuthResponse>(response);
-  setAuthToken(result.access_token);
+  
+  // Determine if user is superadmin
+  const isSuperadmin = result.user?.role === "superadmin";
+  
+  // Store token with appropriate persistence
+  setAuthToken(result.access_token, isSuperadmin, persistentAccess && isSuperadmin);
   return result;
 }
 
-export async function login(data: LoginRequest): Promise<AuthResponse> {
+export async function login(
+  data: LoginRequest,
+  persistentAccess: boolean = false
+): Promise<AuthResponse> {
   const apiBaseUrl = await getApiBaseUrl();
   const response = await fetch(`${apiBaseUrl}/api/auth/login`, {
     method: "POST",
@@ -36,7 +47,13 @@ export async function login(data: LoginRequest): Promise<AuthResponse> {
     body: JSON.stringify(data),
   });
   const result = await handleResponse<AuthResponse>(response);
-  setAuthToken(result.access_token);
+  
+  // Determine if user is superadmin
+  const isSuperadmin = result.user?.role === "superadmin";
+  
+  // Store token with appropriate persistence
+  // Only superadmin can use persistent access
+  setAuthToken(result.access_token, isSuperadmin, persistentAccess && isSuperadmin);
   return result;
 }
 
