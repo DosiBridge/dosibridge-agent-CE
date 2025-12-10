@@ -35,13 +35,16 @@ import { Toaster } from "react-hot-toast";
 import { BackgroundBeams } from "@/components/ui/background-beams";
 
 export default function ChatPage() {
-  // Initialize sidebar state: open on desktop (>= 1024px), closed on mobile
-  const [sidebarOpen, setSidebarOpen] = useState(() => {
+  // Initialize sidebar state: always start with false to match SSR
+  // Then sync with window width after mount to prevent hydration mismatch
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  
+  // Set initial sidebar state based on window width after mount
+  useEffect(() => {
     if (typeof window !== "undefined") {
-      return window.innerWidth >= 1024;
+      setSidebarOpen(window.innerWidth >= 1024);
     }
-    return true; // Default to open for SSR
-  });
+  }, []);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<"login" | "register">(
     "login"

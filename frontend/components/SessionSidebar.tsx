@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Sidebar, SidebarBody, SidebarLink } from "./ui/sidebar";
 import {
   IconArrowLeft,
@@ -38,12 +38,20 @@ export default function SessionSidebar({
   onClose,
   onToggle,
 }: SessionSidebarProps) {
-  // Use props for open state
-  const open = isOpen;
+  // Use state to ensure consistent hydration
+  // Always start with false to match server-side rendering
+  const [open, setOpenState] = useState(false);
+  
+  // Sync with prop changes after mount to prevent hydration mismatch
+  useEffect(() => {
+    setOpenState(isOpen);
+  }, [isOpen]);
+  
   const setOpen = (value: boolean | ((prevState: boolean) => boolean)) => {
     // Determine new value
     const newValue = typeof value === 'function' ? value(open) : value;
     if (newValue !== open) {
+      setOpenState(newValue);
       if (newValue) {
         onToggle();
       } else {
@@ -256,6 +264,7 @@ export const Logo = ({ onClick }: { onClick?: () => void }) => {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         className="font-medium text-white whitespace-pre flex-1"
+        suppressHydrationWarning
       >
         DosiBridge
       </motion.span>
