@@ -70,6 +70,10 @@ async def chat(
         
         # Load user's LLM config to check if using default LLM
         llm_config = Config.load_llm_config(db=db, user_id=user_id)
+        if not llm_config:
+            error_msg = "No LLM configuration found. Please configure an LLM provider via the superadmin dashboard or create a personal LLM config."
+            raise HTTPException(status_code=400, detail=error_msg)
+        
         is_default_llm = llm_config.get("is_default", False) or (
             llm_config.get("type", "").lower() == "deepseek" and 
             not llm_config.get("api_key")  # Using system default DeepSeek
@@ -206,6 +210,11 @@ async def chat_stream(
         
         # Load user's LLM config to check if using default LLM
         llm_config = Config.load_llm_config(db=db, user_id=user_id)
+        if not llm_config:
+            error_msg = "No LLM configuration found. Please configure an LLM provider via the superadmin dashboard or create a personal LLM config."
+            yield f"data: {json.dumps({'chunk': '', 'done': True, 'error': error_msg})}\n\n"
+            return
+        
         is_default_llm = llm_config.get("is_default", False) or (
             llm_config.get("type", "").lower() == "deepseek" and 
             not llm_config.get("api_key")  # Using system default DeepSeek
@@ -403,19 +412,21 @@ async def chat_stream(
                     input_tokens = estimate_tokens(chat_request.message)
                     output_tokens = estimate_tokens(full_response)
                     
-                    usage_tracker.record_request(
-                        user_id=user_id,
-                        db=db,
-                        llm_provider=llm_config.get("type"),
-                        llm_model=llm_config.get("model"),
-                        input_tokens=input_tokens,
-                        output_tokens=output_tokens,
-                        embedding_tokens=0,
-                        mode=chat_request.mode,
-                        session_id=chat_request.session_id,
-                        success=True,
-                        ip_address=ip_address
-                    )
+                    # Only record usage if llm_config exists
+                    if llm_config:
+                        usage_tracker.record_request(
+                            user_id=user_id,
+                            db=db,
+                            llm_provider=llm_config.get("type"),
+                            llm_model=llm_config.get("model"),
+                            input_tokens=input_tokens,
+                            output_tokens=output_tokens,
+                            embedding_tokens=0,
+                            mode=chat_request.mode,
+                            session_id=chat_request.session_id,
+                            success=True,
+                            ip_address=ip_address
+                        )
                 
                 yield f"data: {json.dumps({'chunk': '', 'done': True})}\n\n"
                 stream_completed = True
@@ -437,6 +448,11 @@ async def chat_stream(
                     
                     # Get LLM from config
                     llm_config = Config.load_llm_config(db=db, user_id=user_id)
+                    if not llm_config:
+                        error_msg = "No LLM configuration found. Please configure an LLM provider via the superadmin dashboard or create a personal LLM config."
+                        yield f"data: {json.dumps({'error': error_msg, 'done': True})}\n\n"
+                        stream_completed = True
+                        return
                     
                     try:
                         llm = create_llm_from_config(llm_config, streaming=True, temperature=0)
@@ -710,6 +726,11 @@ async def chat_stream(
                         
                         # Get LLM from config
                         llm_config = Config.load_llm_config(db=db, user_id=user_id)
+                        if not llm_config:
+                            error_msg = "No LLM configuration found. Please configure an LLM provider via the superadmin dashboard or create a personal LLM config."
+                            yield f"data: {json.dumps({'error': error_msg, 'done': True})}\n\n"
+                            stream_completed = True
+                            return
                         
                         try:
                             llm = create_llm_from_config(llm_config, streaming=True, temperature=0)
@@ -865,18 +886,20 @@ async def chat_stream(
                                 # Estimate tokens (Ollama streaming doesn't provide usage metadata)
                                 input_tokens = estimate_tokens(chat_request.message)
                                 output_tokens = estimate_tokens(full_response)
-                                usage_tracker.record_request(
-                                    user_id=user_id,
-                                    db=db,
-                                    llm_provider=llm_config.get("type"),
-                                    llm_model=llm_config.get("model"),
-                                    input_tokens=input_tokens,
-                                    output_tokens=output_tokens,
-                                    embedding_tokens=0,
-                                    mode=chat_request.mode,
-                                    session_id=chat_request.session_id,
-                                    success=True
-                                )
+                                # Only record usage if llm_config exists
+                                if llm_config:
+                                    usage_tracker.record_request(
+                                        user_id=user_id,
+                                        db=db,
+                                        llm_provider=llm_config.get("type"),
+                                        llm_model=llm_config.get("model"),
+                                        input_tokens=input_tokens,
+                                        output_tokens=output_tokens,
+                                        embedding_tokens=0,
+                                        mode=chat_request.mode,
+                                        session_id=chat_request.session_id,
+                                        success=True
+                                    )
                             
                             yield f"data: {json.dumps({'chunk': '', 'done': True})}\n\n"
                             stream_completed = True
@@ -1113,18 +1136,20 @@ async def chat_stream(
                                     input_tokens = estimate_tokens(chat_request.message)
                                     output_tokens = estimate_tokens(full_response)
                                 
-                                usage_tracker.record_request(
-                                    user_id=user_id,
-                                    db=db,
-                                    llm_provider=llm_config.get("type"),
-                                    llm_model=llm_config.get("model"),
-                                    input_tokens=input_tokens,
-                                    output_tokens=output_tokens,
-                                    embedding_tokens=embedding_tokens,
-                                    mode=chat_request.mode,
-                                    session_id=chat_request.session_id,
-                                    success=True
-                                )
+                                # Only record usage if llm_config exists
+                                if llm_config:
+                                    usage_tracker.record_request(
+                                        user_id=user_id,
+                                        db=db,
+                                        llm_provider=llm_config.get("type"),
+                                        llm_model=llm_config.get("model"),
+                                        input_tokens=input_tokens,
+                                        output_tokens=output_tokens,
+                                        embedding_tokens=embedding_tokens,
+                                        mode=chat_request.mode,
+                                        session_id=chat_request.session_id,
+                                        success=True
+                                    )
                         
                         yield f"data: {json.dumps({'chunk': '', 'done': True, 'tools_used': tool_calls_made})}\n\n"
                         stream_completed = True

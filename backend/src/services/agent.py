@@ -235,14 +235,18 @@ async def run_agent_mode(
         # Load LLM from config (includes API key)
         from .llm_factory import create_llm_from_config
         llm_config = Config.load_llm_config()
+        if not llm_config:
+            raise ValueError(
+                "No LLM configuration found. Please configure an LLM provider via the superadmin dashboard or create a personal LLM config."
+            )
+        
         try:
             llm = create_llm_from_config(llm_config, streaming=False, temperature=0)
         except Exception as e:
             error_msg = str(e)
             if "api_key" in error_msg.lower() or "OPENAI_API_KEY" in error_msg:
                 raise ValueError(
-                    "OpenAI API key is not set. Please set OPENAI_API_KEY environment variable "
-                    "or configure it in config/llm_config.json"
+                    "LLM API key is invalid or missing. Please configure a valid API key via the superadmin dashboard or create a personal LLM config."
                 ) from e
             raise
         

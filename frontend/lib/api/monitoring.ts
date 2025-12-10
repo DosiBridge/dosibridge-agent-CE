@@ -23,7 +23,7 @@ export interface ApiKeysInfo {
       purpose: string;
       used_for: string;
     };
-    deepseek: {
+    llm: {
       set: boolean;
       purpose: string;
       used_for: string;

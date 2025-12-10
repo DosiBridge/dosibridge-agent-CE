@@ -9,7 +9,7 @@ import {
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useStore } from "@/lib/store";
-import { Bot, ExternalLink, Github, Star, Shield } from "lucide-react";
+import { Activity, Bot, ExternalLink, Github, Star, Shield } from "lucide-react";
 import { getAuthToken } from "@/lib/api/client";
 
 export const FloatingNav = ({
@@ -134,6 +134,17 @@ export const FloatingNav = ({
                     <Github className="w-3.5 h-3.5 sm:w-4 sm:h-4 opacity-70 group-hover:opacity-100 transition-opacity flex-shrink-0" />
                     <span className="hidden sm:inline font-medium">GitHub</span>
                     <Star className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-yellow-400 fill-yellow-400 opacity-70 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                </Link>
+                
+                {/* Monitoring Link - Available to all users */}
+                <div className="h-5 sm:h-6 w-px bg-white/20 flex-shrink-0 hidden sm:block" />
+                <Link 
+                    href="/monitoring" 
+                    className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-white/5 transition-colors group text-xs sm:text-sm text-neutral-300 hover:text-white whitespace-nowrap flex-shrink-0"
+                    title="API Usage Monitoring"
+                >
+                    <Activity className="w-3.5 h-3.5 sm:w-4 sm:h-4 opacity-70 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                    <span className="hidden sm:inline font-medium">Monitoring</span>
                 </Link>
                 
                 {/* Admin Dashboard Link - Only for superadmin */}

@@ -42,7 +42,7 @@ export default function AdminUserTable() {
             
             // Only log non-permission errors or if not impersonating
             if (!isPermissionError || !isImpersonatingNonAdmin) {
-                console.error("Failed to list users:", error);
+            console.error("Failed to list users:", error);
             }
             
             const errorMessage = error?.message || error?.detail || "Failed to load users";

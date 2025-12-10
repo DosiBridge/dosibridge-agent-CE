@@ -64,6 +64,12 @@ class HealthWebSocketClient {
       }`;
 
       this.url = url;
+      
+      // Validate URL before creating WebSocket
+      if (!url || (!url.startsWith('ws://') && !url.startsWith('wss://'))) {
+        throw new Error(`Invalid WebSocket URL: ${url}`);
+      }
+      
       this.ws = new WebSocket(url);
 
       this.ws.onopen = () => {
@@ -83,28 +89,63 @@ class HealthWebSocketClient {
         }
       };
 
-      this.ws.onerror = (error) => {
-        console.error("WebSocket error:", error);
+      this.ws.onerror = (event: Event) => {
+        // WebSocket error events don't provide detailed error information
+        // The actual error details are in the onclose event
+        const errorInfo: any = {
+          type: event.type,
+          target: event.target instanceof WebSocket ? {
+            url: this.url,
+            readyState: event.target.readyState,
+            readyStateText: ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'][event.target.readyState] || 'UNKNOWN'
+          } : null
+        };
+        
+        // Only log if there's meaningful information or in development
+        if (process.env.NODE_ENV === 'development') {
+          console.warn("WebSocket error event:", errorInfo);
+        }
+        
         this.isConnecting = false;
         this.notifyConnectionState(false);
       };
 
       this.ws.onclose = (event) => {
-        console.log("WebSocket closed:", event.code, event.reason);
+        const closeInfo = {
+          code: event.code,
+          reason: event.reason || 'No reason provided',
+          wasClean: event.wasClean,
+          url: this.url
+        };
+        
+        // Log close event with details
+        if (event.code !== 1000 && event.code !== 1001) {
+          // Not a normal closure - log as warning
+          console.warn("WebSocket closed unexpectedly:", closeInfo);
+        } else {
+          console.log("WebSocket closed:", closeInfo);
+        }
+        
         this.isConnecting = false;
         this.ws = null;
         this.notifyConnectionState(false);
 
-        // Attempt to reconnect if not intentionally closed
+        // Attempt to reconnect if not intentionally closed and not a normal closure
         if (
           !this.isIntentionallyClosed &&
-          this.reconnectAttempts < this.maxReconnectAttempts
+          this.reconnectAttempts < this.maxReconnectAttempts &&
+          event.code !== 1000 // Don't reconnect on normal closure
         ) {
           this.scheduleReconnect();
         }
       };
     } catch (error) {
-      console.error("Failed to create WebSocket connection:", error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("Failed to create WebSocket connection:", {
+        error: errorMessage,
+        url: this.url,
+        stack: error instanceof Error ? error.stack : undefined
+      });
       this.isConnecting = false;
       this.notifyConnectionState(false);
       this.scheduleReconnect();

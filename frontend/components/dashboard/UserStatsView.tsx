@@ -251,14 +251,14 @@ export default function UserStatsView() {
                     <div className="flex items-center justify-between p-3 bg-zinc-950/50 rounded-lg border border-zinc-800">
                         <div>
                             <div className="flex items-center gap-2">
-                                <span className="text-white font-medium">DeepSeek</span>
-                                {keysInfo.keys_configured.deepseek.set ? (
+                                <span className="text-white font-medium">LLM Provider</span>
+                                {keysInfo.keys_configured.llm.set ? (
                                     <span className="text-[10px] bg-green-500/10 text-green-400 px-1.5 py-0.5 rounded">Configured</span>
                                 ) : (
-                                    <span className="text-[10px] bg-zinc-800 text-zinc-500 px-1.5 py-0.5 rounded">Default</span>
+                                    <span className="text-[10px] bg-zinc-800 text-zinc-500 px-1.5 py-0.5 rounded">Not Configured</span>
                                 )}
                             </div>
-                            <p className="text-xs text-zinc-500 mt-0.5">{keysInfo.keys_configured.deepseek.purpose}</p>
+                            <p className="text-xs text-zinc-500 mt-0.5">{keysInfo.keys_configured.llm.purpose}</p>
                         </div>
                         <div className="text-right">
                             <Cpu className="w-4 h-4 text-zinc-600 ml-auto" />

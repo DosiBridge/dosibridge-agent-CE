@@ -85,7 +85,7 @@ export default function SettingsPanel() {
   }>({
     name: "",
     url: "",
-    connection_type: "sse",
+    connection_type: "http",
     headers: {},
   });
 
@@ -176,7 +176,7 @@ export default function SettingsPanel() {
       setServerForm({
         name: "",
         url: "",
-        connection_type: "sse",
+        connection_type: "http",
         headers: {},
       });
     } catch (error) {
@@ -263,7 +263,7 @@ export default function SettingsPanel() {
     setServerForm({
       name: server.name,
       url: server.url,
-      connection_type: server.connection_type || "sse",
+      connection_type: server.connection_type || "http",
       headers: server.headers || {},
       api_key: "", // Security: Don't populate API key back
     });
@@ -654,7 +654,7 @@ export default function SettingsPanel() {
                     <div>
                       <h3 className="text-lg font-semibold text-white mb-1">Available LLM Configurations</h3>
                       <p className="text-sm text-zinc-400">
-                        Switch between your personal configs or use global defaults. Global configs (marked with 🔒) are available to all users and can be used as defaults when you don't have a personal config active.
+                        Switch between your personal configs or use global defaults. Global configs (marked with 🔒) that are both active and set as default are available to all users. Only superadmins can see and manage non-default global configs.
                       </p>
                     </div>
 
@@ -669,118 +669,118 @@ export default function SettingsPanel() {
                           const canModify = isSuperAdmin || !isGlobal;
                           
                           return (
-                            <div
-                              key={config.id}
-                              className={cn(
-                                "p-4 rounded-lg border",
-                                config.active
-                                  ? "bg-indigo-500/10 border-indigo-500"
-                                  : "bg-zinc-900/30 border-zinc-800"
-                              )}
-                            >
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <span className="text-sm font-semibold text-white capitalize">
-                                      {config.type}
-                                    </span>
+                          <div
+                            key={config.id}
+                            className={cn(
+                              "p-4 rounded-lg border",
+                              config.active
+                                ? "bg-indigo-500/10 border-indigo-500"
+                                : "bg-zinc-900/30 border-zinc-800"
+                            )}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <span className="text-sm font-semibold text-white capitalize">
+                                    {config.type}
+                                  </span>
                                     {isGlobal && (
                                       <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded-full flex items-center gap-1">
                                         <Lock className="w-3 h-3" />
                                         Global
                                       </span>
                                     )}
-                                    {config.active && (
-                                      <span className="px-2 py-0.5 bg-indigo-500 text-white text-xs rounded-full flex items-center gap-1">
-                                        <Power className="w-3 h-3" />
-                                        Active
-                                      </span>
-                                    )}
-                                    {config.is_default && (
-                                      <span className="px-2 py-0.5 bg-amber-500/20 text-amber-500 text-xs rounded-full">
-                                        Default
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="text-sm text-zinc-300 mb-1">
-                                    Model: <span className="font-medium">{config.model}</span>
-                                  </div>
-                                  <div className="flex items-center gap-4 text-xs text-zinc-500">
-                                    <span>
-                                      API Key:{" "}
-                                      {config.has_api_key ? (
-                                        <span className="text-green-400">✓ Set</span>
-                                      ) : (
-                                        <span className="text-red-500">✗ Not set</span>
-                                      )}
+                                  {config.active && (
+                                    <span className="px-2 py-0.5 bg-indigo-500 text-white text-xs rounded-full flex items-center gap-1">
+                                      <Power className="w-3 h-3" />
+                                      Active
                                     </span>
-                                    {config.api_base && (
-                                      <span>API Base: {config.api_base}</span>
+                                  )}
+                                  {config.is_default && (
+                                    <span className="px-2 py-0.5 bg-amber-500/20 text-amber-500 text-xs rounded-full">
+                                      Default
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-sm text-zinc-300 mb-1">
+                                  Model: <span className="font-medium">{config.model}</span>
+                                </div>
+                                <div className="flex items-center gap-4 text-xs text-zinc-500">
+                                  <span>
+                                    API Key:{" "}
+                                    {config.has_api_key ? (
+                                      <span className="text-green-400">✓ Set</span>
+                                    ) : (
+                                      <span className="text-red-500">✗ Not set</span>
                                     )}
-                                    {config.created_at && (
-                                      <span>
-                                        Created:{" "}
-                                        {new Date(config.created_at).toLocaleDateString()}
-                                      </span>
-                                    )}
-                                  </div>
+                                  </span>
+                                  {config.api_base && (
+                                    <span>API Base: {config.api_base}</span>
+                                  )}
+                                  {config.created_at && (
+                                    <span>
+                                      Created:{" "}
+                                      {new Date(config.created_at).toLocaleDateString()}
+                                    </span>
+                                  )}
+                                </div>
                                   {isGlobal && !isSuperAdmin && (
                                     <p className="text-xs text-blue-400 mt-2 flex items-center gap-1">
                                       <Lock className="w-3 h-3" />
                                       Read-only: Only superadmins can modify global configs
                                     </p>
                                   )}
-                                </div>
-                                <div className="flex items-center gap-2 ml-4">
+                              </div>
+                              <div className="flex items-center gap-2 ml-4">
                                   {canModify && !config.is_default && (
-                                    <button
-                                      onClick={() => startEditingLLMConfig(config)}
-                                      className="p-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg transition-colors"
-                                      title="Edit this LLM configuration"
-                                    >
-                                      <Edit2 className="w-4 h-4 text-indigo-400" />
-                                    </button>
-                                  )}
-                                  {!config.active && (
-                                    <button
-                                      onClick={() => handleSwitchConfig(config.id)}
-                                      className="p-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg transition-colors"
+                                  <button
+                                    onClick={() => startEditingLLMConfig(config)}
+                                    className="p-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg transition-colors"
+                                    title="Edit this LLM configuration"
+                                  >
+                                    <Edit2 className="w-4 h-4 text-indigo-400" />
+                                  </button>
+                                )}
+                                {!config.active && (
+                                  <button
+                                    onClick={() => handleSwitchConfig(config.id)}
+                                    className="p-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg transition-colors"
                                       title={isGlobal ? "Switch to this global LLM (default)" : "Switch to this LLM"}
-                                      disabled={switchingConfigId === config.id}
-                                    >
-                                      {switchingConfigId === config.id ? (
-                                        <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
-                                      ) : (
-                                        <Power className="w-4 h-4 text-indigo-400" />
-                                      )}
-                                    </button>
-                                  )}
+                                    disabled={switchingConfigId === config.id}
+                                  >
+                                    {switchingConfigId === config.id ? (
+                                      <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
+                                    ) : (
+                                      <Power className="w-4 h-4 text-indigo-400" />
+                                    )}
+                                  </button>
+                                )}
                                   {config.active && isGlobal && (
                                     <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded-full">
                                       Using Global Default
                                     </span>
                                   )}
                                   {canModify && !config.active && !config.is_default && (
-                                    <button
-                                      onClick={() => handleDeleteConfig(config.id)}
-                                      className="p-2 bg-zinc-800 hover:bg-red-500/10 border border-zinc-700 rounded-lg transition-colors"
-                                      title="Delete this LLM configuration"
-                                      disabled={deletingConfigId === config.id}
-                                    >
-                                      {deletingConfigId === config.id ? (
-                                        <Loader2 className="w-4 h-4 animate-spin text-red-500" />
-                                      ) : (
-                                        <Trash2 className="w-4 h-4 text-red-500" />
-                                      )}
-                                    </button>
-                                  )}
+                                  <button
+                                    onClick={() => handleDeleteConfig(config.id)}
+                                    className="p-2 bg-zinc-800 hover:bg-red-500/10 border border-zinc-700 rounded-lg transition-colors"
+                                    title="Delete this LLM configuration"
+                                    disabled={deletingConfigId === config.id}
+                                  >
+                                    {deletingConfigId === config.id ? (
+                                      <Loader2 className="w-4 h-4 animate-spin text-red-500" />
+                                    ) : (
+                                      <Trash2 className="w-4 h-4 text-red-500" />
+                                    )}
+                                  </button>
+                                )}
                                   {!canModify && (
                                     <div className="p-2 text-zinc-500" title="Only superadmins can modify global configs">
                                       <Lock className="w-4 h-4" />
-                                    </div>
-                                  )}
-                                </div>
                               </div>
+                                  )}
+                            </div>
+                          </div>
                             </div>
                           );
                         })}
@@ -839,6 +839,7 @@ export default function SettingsPanel() {
                           onChange={(e) => setServerForm({ ...serverForm, connection_type: e.target.value as any })}
                           className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white text-sm"
                         >
+                          <option value="http">HTTP</option>
                           <option value="sse">SSE (Server-Sent Events)</option>
                           <option value="stdio">Stdio (Local Process)</option>
                         </select>
@@ -851,8 +852,24 @@ export default function SettingsPanel() {
                         value={serverForm.url}
                         onChange={(e) => setServerForm({ ...serverForm, url: e.target.value })}
                         className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white text-sm"
-                        placeholder={serverForm.connection_type === 'stdio' ? "npx -y @modelcontextprotocol/server-filesystem ..." : "http://localhost:3000/sse"}
+                        placeholder={
+                          serverForm.connection_type === 'stdio' 
+                            ? "npx -y @modelcontextprotocol/server-filesystem ..." 
+                            : serverForm.connection_type === 'http'
+                            ? "http://localhost:8000/api/mcp/people/mcp"
+                            : "http://localhost:3000/sse"
+                        }
                       />
+                      {serverForm.connection_type === 'http' && (
+                        <p className="text-xs text-zinc-500 mt-1">
+                          HTTP URLs should end with <code className="bg-zinc-800 px-1 rounded">/mcp</code> (e.g., <code className="bg-zinc-800 px-1 rounded">http://localhost:8000/api/mcp/people/mcp</code>)
+                        </p>
+                      )}
+                      {serverForm.connection_type === 'sse' && (
+                        <p className="text-xs text-zinc-500 mt-1">
+                          SSE URLs should end with <code className="bg-zinc-800 px-1 rounded">/sse</code> (e.g., <code className="bg-zinc-800 px-1 rounded">http://localhost:3000/sse</code>)
+                        </p>
+                      )}
                     </div>
 
                     <div className="pt-4 flex gap-3">
@@ -890,20 +907,20 @@ export default function SettingsPanel() {
                       const canModify = isSuperAdmin || !isGlobal;
                       
                       return (
-                        <div key={server.name} className={cn(
-                          "bg-zinc-900/30 border rounded-xl p-4 flex items-center justify-between transition-all",
-                          server.enabled ? "border-zinc-800" : "border-zinc-800/50 opacity-60 hover:opacity-100"
-                        )}>
-                          <div className="flex items-center gap-4">
-                            <div className={cn(
-                              "w-10 h-10 rounded-full flex items-center justify-center",
-                              server.enabled ? "bg-zinc-800 text-zinc-400" : "bg-zinc-800/50 text-zinc-600"
-                            )}>
-                              <Server className="w-5 h-5" />
-                            </div>
-                            <div>
+                      <div key={server.name} className={cn(
+                        "bg-zinc-900/30 border rounded-xl p-4 flex items-center justify-between transition-all",
+                        server.enabled ? "border-zinc-800" : "border-zinc-800/50 opacity-60 hover:opacity-100"
+                      )}>
+                        <div className="flex items-center gap-4">
+                          <div className={cn(
+                            "w-10 h-10 rounded-full flex items-center justify-center",
+                            server.enabled ? "bg-zinc-800 text-zinc-400" : "bg-zinc-800/50 text-zinc-600"
+                          )}>
+                            <Server className="w-5 h-5" />
+                          </div>
+                          <div>
                               <div className="flex items-center gap-2">
-                                <h4 className="text-white font-medium">{server.name}</h4>
+                            <h4 className="text-white font-medium">{server.name}</h4>
                                 {isGlobal && (
                                   <span className="px-1.5 py-0.5 bg-blue-500/20 text-blue-400 text-[10px] rounded flex items-center gap-1">
                                     <Lock className="w-3 h-3" />
@@ -911,67 +928,67 @@ export default function SettingsPanel() {
                                   </span>
                                 )}
                               </div>
-                              <div className="flex items-center gap-2 text-xs text-zinc-500">
-                                <span className="uppercase bg-zinc-800 px-1.5 py-0.5 rounded text-[10px]">{server.connection_type || 'SSE'}</span>
-                                {!server.enabled && (
-                                  <span className="uppercase bg-zinc-800/50 text-zinc-500 px-1.5 py-0.5 rounded text-[10px]">Disabled</span>
-                                )}
-                                <span className="truncate max-w-[200px]">{server.url}</span>
-                              </div>
+                            <div className="flex items-center gap-2 text-xs text-zinc-500">
+                              <span className="uppercase bg-zinc-800 px-1.5 py-0.5 rounded text-[10px]">{server.connection_type || 'SSE'}</span>
+                              {!server.enabled && (
+                                <span className="uppercase bg-zinc-800/50 text-zinc-500 px-1.5 py-0.5 rounded text-[10px]">Disabled</span>
+                              )}
+                              <span className="truncate max-w-[200px]">{server.url}</span>
+                            </div>
                               {isGlobal && !isSuperAdmin && (
                                 <p className="text-xs text-blue-400 mt-1 flex items-center gap-1">
                                   <Lock className="w-3 h-3" />
                                   Read-only: Only superadmins can modify
                                 </p>
                               )}
-                            </div>
                           </div>
+                        </div>
 
-                          <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2">
                             {canModify ? (
                               <>
-                                <button
-                                  onClick={() => handleToggleServer(server.name)}
-                                  className={cn(
-                                    "p-2 rounded-lg transition-colors",
-                                    server.enabled
-                                      ? "text-green-400 hover:bg-green-500/10"
-                                      : "text-zinc-500 hover:text-green-400 hover:bg-zinc-800"
-                                  )}
-                                  title={server.enabled ? "Disable server" : "Enable server"}
-                                  disabled={togglingServerName === server.name}
-                                >
-                                  {togglingServerName === server.name ? (
-                                    <Loader2 className="w-4 h-4 animate-spin text-zinc-500" />
-                                  ) : (
-                                    <Power className="w-4 h-4" />
-                                  )}
-                                </button>
-                                <button
-                                  onClick={() => startEditing(server)}
-                                  className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
-                                >
-                                  <Edit2 className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteServer(server.name)}
-                                  className="p-2 hover:bg-red-500/10 hover:text-red-400 text-zinc-500 rounded-lg transition-colors"
-                                  title="Remove server"
-                                  disabled={deletingServerName === server.name}
-                                >
-                                  {deletingServerName === server.name ? (
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                  ) : (
-                                    <Trash2 className="w-4 h-4" />
-                                  )}
-                                </button>
+                          <button
+                            onClick={() => handleToggleServer(server.name)}
+                            className={cn(
+                              "p-2 rounded-lg transition-colors",
+                              server.enabled
+                                ? "text-green-400 hover:bg-green-500/10"
+                                : "text-zinc-500 hover:text-green-400 hover:bg-zinc-800"
+                            )}
+                            title={server.enabled ? "Disable server" : "Enable server"}
+                            disabled={togglingServerName === server.name}
+                          >
+                            {togglingServerName === server.name ? (
+                              <Loader2 className="w-4 h-4 animate-spin text-zinc-500" />
+                            ) : (
+                              <Power className="w-4 h-4" />
+                            )}
+                          </button>
+                          <button
+                            onClick={() => startEditing(server)}
+                            className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteServer(server.name)}
+                            className="p-2 hover:bg-red-500/10 hover:text-red-400 text-zinc-500 rounded-lg transition-colors"
+                            title="Remove server"
+                            disabled={deletingServerName === server.name}
+                          >
+                            {deletingServerName === server.name ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-4 h-4" />
+                            )}
+                          </button>
                               </>
                             ) : (
                               <div className="p-2 text-zinc-500" title="Only superadmins can modify global servers">
                                 <Lock className="w-4 h-4" />
-                              </div>
+                        </div>
                             )}
-                          </div>
+                      </div>
                         </div>
                       );
                     })}

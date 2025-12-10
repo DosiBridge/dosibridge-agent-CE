@@ -262,6 +262,68 @@ export const toggleGlobalLLMConfig = async (id: number): Promise<{ status: strin
   return handleResponse(response);
 };
 
+// Embedding Configuration Management
+export const createGlobalEmbeddingConfig = async (config: {
+  provider: string;
+  model: string;
+  api_key?: string;
+  base_url?: string;
+  is_default?: boolean;
+}): Promise<{ status: string; config: any }> => {
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/admin/global-config/embedding`, {
+    method: "POST",
+    headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify(config),
+  });
+  return handleResponse(response);
+};
+
+export const listGlobalEmbeddingConfigs = async (): Promise<{ status: string; configs: any[] }> => {
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/admin/global-config/embedding`, {
+    headers: getAuthHeaders(),
+  });
+  return handleResponse(response);
+};
+
+export const updateGlobalEmbeddingConfig = async (
+  id: number,
+  config: {
+    provider: string;
+    model: string;
+    api_key?: string;
+    base_url?: string;
+    is_default?: boolean;
+  }
+): Promise<{ status: string; config: any }> => {
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/admin/global-config/embedding/${id}`, {
+    method: "PUT",
+    headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify(config),
+  });
+  return handleResponse(response);
+};
+
+export const deleteGlobalEmbeddingConfig = async (id: number): Promise<{ status: string; message: string }> => {
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/admin/global-config/embedding/${id}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+  return handleResponse(response);
+};
+
+export const toggleGlobalEmbeddingConfig = async (id: number): Promise<{ status: string; config: any }> => {
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/admin/global-config/embedding/${id}/toggle`, {
+    method: "PATCH",
+    headers: getAuthHeaders(),
+  });
+  return handleResponse(response);
+};
+
 // --- Advanced User Management ---
 
 export const deleteUserPermanently = async (userId: number): Promise<{ status: string; message: string }> => {

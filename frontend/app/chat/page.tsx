@@ -18,6 +18,7 @@ import ImpersonationBanner from "@/components/ImpersonationBanner";
 import { useStore } from "@/lib/store";
 import { healthWebSocket } from "@/lib/websocket";
 import {
+  Activity,
   ArrowLeft,
   ChevronDown,
   LayoutDashboard,
@@ -392,6 +393,17 @@ export default function ChatPage() {
               <div>
                 <UsageIndicator />
               </div>
+              <Link
+                href="/monitoring"
+                className="p-1.5 bg-white/5 hover:bg-white/10 backdrop-blur-sm rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 active:scale-95 touch-manipulation flex items-center justify-center"
+                aria-label="View monitoring"
+                title="API Usage Monitoring"
+              >
+                <Activity
+                  className="w-4 h-4 text-white"
+                  aria-hidden="true"
+                />
+              </Link>
               {isAuthenticated && (
                 <>
                   <button

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
 from src.core import get_db, User, LLMConfig, DB_AVAILABLE
-from src.core.models import User as UserModel
+from src.core.models import User as UserModel, EmbeddingConfig
 from src.core.auth import get_current_active_user
 from src.services.usage_tracker import usage_tracker
 from sqlalchemy.sql import func
@@ -43,12 +43,18 @@ class SystemStatsResponse(BaseModel):
 def get_current_superadmin(
     current_user: User = Depends(get_current_active_user)
 ) -> User:
-    """Get the current superadmin user (requires superadmin role)"""
+    """Get the current superadmin user (requires superadmin role and ID=1)"""
     # Check if user has superadmin role
     if not hasattr(current_user, 'role') or getattr(current_user, 'role', 'user') != "superadmin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Superadmin access required"
+        )
+    # Ensure superadmin has ID=1 (only superadmin ID=1 can manage global configs)
+    if current_user.id != 1:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only superadmin with ID=1 can manage global configurations"
         )
     return current_user
 
@@ -177,6 +183,13 @@ class GlobalLLMConfigRequest(BaseModel):
     base_url: Optional[str] = None
     is_default: bool = False
 
+class GlobalEmbeddingConfigRequest(BaseModel):
+    provider: str = "openai"
+    model: str = "text-embedding-3-small"
+    api_key: Optional[str] = None
+    base_url: Optional[str] = None
+    is_default: bool = False
+
 class GlobalMCPRequest(BaseModel):
     name: str
     url: str
@@ -190,17 +203,32 @@ async def create_global_llm_config(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_superadmin)
 ):
-    """Create a global LLM configuration (superadmin only)"""
+    """Create a global LLM configuration (superadmin ID=1 only). Only superadmin ID=1 can set is_default."""
     if not DB_AVAILABLE:
         raise HTTPException(status_code=503, detail="Database not available")
 
-    # Create new config with user_id = None
+    # Ensure current_user is superadmin with ID=1
+    if current_user.id != 1:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only superadmin with ID=1 can manage global configurations"
+        )
+
+    # If setting this as default, unset other global defaults first
+    # Global configs are owned by superadmin (user_id=1) or None (for backward compatibility)
+    if config.is_default:
+        db.query(LLMConfig).filter(
+            ((LLMConfig.user_id == 1) | (LLMConfig.user_id.is_(None))),
+            LLMConfig.is_default == True
+        ).update({LLMConfig.is_default: False})
+
+    # Create new config with user_id = 1 (superadmin)
     new_config = LLMConfig(
-        user_id=None,  # Global
+        user_id=1,  # Owned by superadmin (ID=1)
         type=config.type,
         model=config.model,
         base_url=config.base_url,
-        is_default=config.is_default
+        is_default=config.is_default  # Only superadmin ID=1 can set this via this endpoint
     )
     
     if config.api_key:
@@ -219,19 +247,29 @@ async def create_global_mcp_server(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_superadmin)
 ):
-    """Add a global MCP server (superadmin only)"""
+    """Add a global MCP server (superadmin ID=1 only)"""
     if not DB_AVAILABLE:
         raise HTTPException(status_code=503, detail="Database not available")
+    
+    # Ensure current_user is superadmin with ID=1
+    if current_user.id != 1:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only superadmin with ID=1 can manage global configurations"
+        )
         
     from src.core.models import MCPServer
     
-    # Check if name already exists globally
-    existing = db.query(MCPServer).filter(MCPServer.user_id.is_(None), MCPServer.name == server.name).first()
+    # Check if name already exists globally (user_id=1 or None for backward compatibility)
+    existing = db.query(MCPServer).filter(
+        ((MCPServer.user_id == 1) | (MCPServer.user_id.is_(None))),
+        MCPServer.name == server.name
+    ).first()
     if existing:
         raise HTTPException(status_code=400, detail="Global MCP server with this name already exists")
         
     new_server = MCPServer(
-        user_id=None,  # Global
+        user_id=1,  # Owned by superadmin (ID=1)
         name=server.name,
         url=server.url,
         connection_type=server.connection_type,
@@ -252,12 +290,28 @@ async def list_global_llm_configs(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_superadmin)
 ):
-    """List all global LLM configurations (superadmin only)"""
+    """List all global LLM configurations (superadmin ID=1 only) - includes auto-initialized configs"""
     if not DB_AVAILABLE:
         raise HTTPException(status_code=503, detail="Database not available")
     
-    configs = db.query(LLMConfig).filter(LLMConfig.user_id.is_(None)).order_by(LLMConfig.created_at.desc()).all()
-    return {"status": "success", "configs": [c.to_dict() for c in configs]}
+    # Get ALL global LLM configs (user_id=1 or None for backward compatibility)
+    configs = db.query(LLMConfig).filter(
+        (LLMConfig.user_id == 1) | (LLMConfig.user_id.is_(None))
+    ).order_by(
+        LLMConfig.is_default.desc(),  # Default configs first
+        LLMConfig.active.desc(),       # Then active configs
+        LLMConfig.created_at.desc()     # Then newest first
+    ).all()
+    
+    # Convert to dict format for frontend
+    config_dicts = []
+    for config in configs:
+        config_dict = config.to_dict(include_api_key=False)
+        config_dict['user_id'] = config.user_id  # Should be 1 or None for global configs
+        config_dict['is_global'] = True  # Mark as global
+        config_dicts.append(config_dict)
+    
+    return {"status": "success", "configs": config_dicts}
 
 @router.put("/global-config/llm/{config_id}")
 async def update_global_llm_config(
@@ -266,18 +320,40 @@ async def update_global_llm_config(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_superadmin)
 ):
-    """Update a global LLM configuration (superadmin only)"""
+    """Update a global LLM configuration (superadmin ID=1 only)"""
     if not DB_AVAILABLE:
         raise HTTPException(status_code=503, detail="Database not available")
     
-    llm_config = db.query(LLMConfig).filter(LLMConfig.id == config_id, LLMConfig.user_id.is_(None)).first()
+    # Ensure current_user is superadmin with ID=1
+    if current_user.id != 1:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only superadmin with ID=1 can manage global configurations"
+        )
+    
+    llm_config = db.query(LLMConfig).filter(
+        LLMConfig.id == config_id,
+        ((LLMConfig.user_id == 1) | (LLMConfig.user_id.is_(None)))
+    ).first()
     if not llm_config:
         raise HTTPException(status_code=404, detail="Global LLM config not found")
+    
+    # Migrate old configs (user_id=None) to user_id=1
+    if llm_config.user_id is None:
+        llm_config.user_id = 1
+    
+    # If setting this as default, unset other global defaults first
+    if config.is_default:
+        db.query(LLMConfig).filter(
+            ((LLMConfig.user_id == 1) | (LLMConfig.user_id.is_(None))),
+            LLMConfig.id != config_id,
+            LLMConfig.is_default == True
+        ).update({LLMConfig.is_default: False})
     
     llm_config.type = config.type
     llm_config.model = config.model
     llm_config.base_url = config.base_url
-    llm_config.is_default = config.is_default
+    llm_config.is_default = config.is_default  # Only superadmin ID=1 can set this via this endpoint
     
     if config.api_key:
         from src.utils.encryption import encrypt_value
@@ -294,16 +370,89 @@ async def delete_global_llm_config(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_superadmin)
 ):
-    """Delete a global LLM configuration (superadmin only)"""
+    """Delete a global LLM configuration (superadmin ID=1 only). 
+    If deleting the default config, ensures another default exists or creates DeepSeek fallback."""
     if not DB_AVAILABLE:
         raise HTTPException(status_code=503, detail="Database not available")
     
-    llm_config = db.query(LLMConfig).filter(LLMConfig.id == config_id, LLMConfig.user_id.is_(None)).first()
+    # Ensure current_user is superadmin with ID=1
+    if current_user.id != 1:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only superadmin with ID=1 can manage global configurations"
+        )
+    
+    llm_config = db.query(LLMConfig).filter(
+        LLMConfig.id == config_id,
+        ((LLMConfig.user_id == 1) | (LLMConfig.user_id.is_(None)))
+    ).first()
     if not llm_config:
         raise HTTPException(status_code=404, detail="Global LLM config not found")
     
+    was_default = llm_config.is_default
+    
+    # Delete the config
     db.delete(llm_config)
     db.commit()
+    
+    # If we deleted the default config, ensure another default exists
+    if was_default:
+        # Check if any other default global config exists (user_id=1 or None)
+        remaining_default = db.query(LLMConfig).filter(
+            ((LLMConfig.user_id == 1) | (LLMConfig.user_id.is_(None))),
+            LLMConfig.is_default == True
+        ).first()
+        
+        if not remaining_default:
+            # No default exists - create DeepSeek fallback or set first available as default
+            import os
+            deepseek_api_key = os.getenv("DEEPSEEK_KEY")
+            
+            # Try to find existing DeepSeek config
+            deepseek_config = db.query(LLMConfig).filter(
+                ((LLMConfig.user_id == 1) | (LLMConfig.user_id.is_(None))),
+                LLMConfig.type == "deepseek",
+                LLMConfig.model == "deepseek-chat"
+            ).first()
+            
+            if deepseek_config:
+                # Set existing DeepSeek as default
+                deepseek_config.is_default = True
+                deepseek_config.active = True
+                if deepseek_api_key:
+                    from src.utils.encryption import encrypt_value
+                    deepseek_config.api_key = encrypt_value(deepseek_api_key)
+                # Ensure it's owned by superadmin
+                if deepseek_config.user_id is None:
+                    deepseek_config.user_id = 1
+                db.commit()
+            elif deepseek_api_key:
+                # Create new DeepSeek default config (encrypt API key)
+                from src.utils.encryption import encrypt_value
+                new_default = LLMConfig(
+                    type="deepseek",
+                    model="deepseek-chat",
+                    api_key=encrypt_value(deepseek_api_key),
+                    api_base="https://api.deepseek.com",
+                    active=True,
+                    is_default=True,
+                    user_id=1  # Owned by superadmin
+                )
+                db.add(new_default)
+                db.commit()
+            else:
+                # No DeepSeek API key - set first available global config as default
+                first_global = db.query(LLMConfig).filter(
+                    ((LLMConfig.user_id == 1) | (LLMConfig.user_id.is_(None))),
+                    LLMConfig.active == True
+                ).order_by(LLMConfig.created_at.asc()).first()
+                
+                if first_global:
+                    first_global.is_default = True
+                    # Migrate to user_id=1 if needed
+                    if first_global.user_id is None:
+                        first_global.user_id = 1
+                    db.commit()
     
     return {"status": "success", "message": "Global LLM config deleted"}
 
@@ -313,13 +462,20 @@ async def toggle_global_llm_config(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_superadmin)
 ):
-    """Toggle active status of a global LLM configuration (superadmin only)"""
+    """Toggle active status of a global LLM configuration (superadmin ID=1 only)"""
     if not DB_AVAILABLE:
         raise HTTPException(status_code=503, detail="Database not available")
     
-    llm_config = db.query(LLMConfig).filter(LLMConfig.id == config_id, LLMConfig.user_id.is_(None)).first()
+    llm_config = db.query(LLMConfig).filter(
+        LLMConfig.id == config_id,
+        ((LLMConfig.user_id == 1) | (LLMConfig.user_id.is_(None)))
+    ).first()
     if not llm_config:
         raise HTTPException(status_code=404, detail="Global LLM config not found")
+    
+    # Migrate old configs (user_id=None) to user_id=1
+    if llm_config.user_id is None:
+        llm_config.user_id = 1
     
     llm_config.active = not llm_config.active
     db.commit()
@@ -332,12 +488,14 @@ async def list_global_mcp_servers(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_superadmin)
 ):
-    """List all global MCP servers (superadmin only)"""
+    """List all global MCP servers (superadmin ID=1 only)"""
     if not DB_AVAILABLE:
         raise HTTPException(status_code=503, detail="Database not available")
     
     from src.core.models import MCPServer
-    servers = db.query(MCPServer).filter(MCPServer.user_id.is_(None)).order_by(MCPServer.created_at.desc()).all()
+    servers = db.query(MCPServer).filter(
+        (MCPServer.user_id == 1) | (MCPServer.user_id.is_(None))
+    ).order_by(MCPServer.created_at.desc()).all()
     return {"status": "success", "servers": [s.to_dict() for s in servers]}
 
 @router.put("/global-config/mcp/{server_id}")
@@ -347,19 +505,26 @@ async def update_global_mcp_server(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_superadmin)
 ):
-    """Update a global MCP server (superadmin only)"""
+    """Update a global MCP server (superadmin ID=1 only)"""
     if not DB_AVAILABLE:
         raise HTTPException(status_code=503, detail="Database not available")
     
     from src.core.models import MCPServer
     
-    mcp_server = db.query(MCPServer).filter(MCPServer.id == server_id, MCPServer.user_id.is_(None)).first()
+    mcp_server = db.query(MCPServer).filter(
+        MCPServer.id == server_id,
+        ((MCPServer.user_id == 1) | (MCPServer.user_id.is_(None)))
+    ).first()
     if not mcp_server:
         raise HTTPException(status_code=404, detail="Global MCP server not found")
     
+    # Migrate old configs (user_id=None) to user_id=1
+    if mcp_server.user_id is None:
+        mcp_server.user_id = 1
+    
     # Check if name already exists globally (excluding current server)
     existing = db.query(MCPServer).filter(
-        MCPServer.user_id.is_(None),
+        ((MCPServer.user_id == 1) | (MCPServer.user_id.is_(None))),
         MCPServer.name == server.name,
         MCPServer.id != server_id
     ).first()
@@ -383,13 +548,16 @@ async def delete_global_mcp_server(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_superadmin)
 ):
-    """Delete a global MCP server (superadmin only)"""
+    """Delete a global MCP server (superadmin ID=1 only)"""
     if not DB_AVAILABLE:
         raise HTTPException(status_code=503, detail="Database not available")
         
     from src.core.models import MCPServer
     
-    server = db.query(MCPServer).filter(MCPServer.id == server_id, MCPServer.user_id.is_(None)).first()
+    server = db.query(MCPServer).filter(
+        MCPServer.id == server_id,
+        ((MCPServer.user_id == 1) | (MCPServer.user_id.is_(None)))
+    ).first()
     if not server:
         raise HTTPException(status_code=404, detail="Global MCP server not found")
         
@@ -404,15 +572,22 @@ async def toggle_global_mcp_server(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_superadmin)
 ):
-    """Toggle enabled status of a global MCP server (superadmin only)"""
+    """Toggle enabled status of a global MCP server (superadmin ID=1 only)"""
     if not DB_AVAILABLE:
         raise HTTPException(status_code=503, detail="Database not available")
     
     from src.core.models import MCPServer
     
-    server = db.query(MCPServer).filter(MCPServer.id == server_id, MCPServer.user_id.is_(None)).first()
+    server = db.query(MCPServer).filter(
+        MCPServer.id == server_id,
+        ((MCPServer.user_id == 1) | (MCPServer.user_id.is_(None)))
+    ).first()
     if not server:
         raise HTTPException(status_code=404, detail="Global MCP server not found")
+    
+    # Migrate old configs (user_id=None) to user_id=1
+    if server.user_id is None:
+        server.user_id = 1
     
     server.enabled = not server.enabled
     db.commit()
@@ -420,6 +595,249 @@ async def toggle_global_mcp_server(
     
     return {"status": "success", "server": server.to_dict()}
 
+# --- Global Embedding Configuration Routes ---
+
+@router.post("/global-config/embedding")
+async def create_global_embedding_config(
+    config: GlobalEmbeddingConfigRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_superadmin)
+):
+    """Create a global embedding configuration (superadmin ID=1 only). Only superadmin ID=1 can set is_default."""
+    if not DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Database not available")
+
+    # Ensure current_user is superadmin with ID=1
+    if current_user.id != 1:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only superadmin with ID=1 can manage global configurations"
+        )
+
+    # If setting this as default, unset other global defaults first
+    if config.is_default:
+        db.query(EmbeddingConfig).filter(
+            ((EmbeddingConfig.user_id == 1) | (EmbeddingConfig.user_id.is_(None))),
+            EmbeddingConfig.is_default == True
+        ).update({EmbeddingConfig.is_default: False})
+
+    # Create new config with user_id = 1 (superadmin)
+    new_config = EmbeddingConfig(
+        user_id=1,  # Owned by superadmin (ID=1)
+        provider=config.provider,
+        model=config.model,
+        base_url=config.base_url,
+        is_default=config.is_default
+    )
+    
+    if config.api_key:
+        from src.utils.encryption import encrypt_value
+        new_config.api_key = encrypt_value(config.api_key)
+        
+    db.add(new_config)
+    db.commit()
+    db.refresh(new_config)
+    
+    return {"status": "success", "config": new_config.to_dict()}
+
+@router.get("/global-config/embedding")
+async def list_global_embedding_configs(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_superadmin)
+):
+    """List all global embedding configurations (superadmin ID=1 only) - includes auto-initialized configs"""
+    if not DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    # Get ALL global embedding configs (user_id=1 or None for backward compatibility)
+    configs = db.query(EmbeddingConfig).filter(
+        (EmbeddingConfig.user_id == 1) | (EmbeddingConfig.user_id.is_(None))
+    ).order_by(
+        EmbeddingConfig.is_default.desc(),  # Default configs first
+        EmbeddingConfig.active.desc(),       # Then active configs
+        EmbeddingConfig.created_at.desc()     # Then newest first
+    ).all()
+    
+    # Convert to dict format for frontend
+    config_dicts = []
+    for config in configs:
+        config_dict = config.to_dict(include_api_key=False)
+        config_dict['user_id'] = config.user_id  # Should be 1 or None for global configs
+        config_dict['is_global'] = True  # Mark as global
+        config_dicts.append(config_dict)
+    
+    return {"status": "success", "configs": config_dicts}
+
+@router.put("/global-config/embedding/{config_id}")
+async def update_global_embedding_config(
+    config_id: int,
+    config: GlobalEmbeddingConfigRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_superadmin)
+):
+    """Update a global embedding configuration (superadmin ID=1 only)"""
+    if not DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    # Ensure current_user is superadmin with ID=1
+    if current_user.id != 1:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only superadmin with ID=1 can manage global configurations"
+        )
+    
+    embedding_config = db.query(EmbeddingConfig).filter(
+        EmbeddingConfig.id == config_id,
+        ((EmbeddingConfig.user_id == 1) | (EmbeddingConfig.user_id.is_(None)))
+    ).first()
+    if not embedding_config:
+        raise HTTPException(status_code=404, detail="Global embedding config not found")
+    
+    # Migrate old configs (user_id=None) to user_id=1
+    if embedding_config.user_id is None:
+        embedding_config.user_id = 1
+    
+    # If setting this as default, unset other global defaults first
+    if config.is_default:
+        db.query(EmbeddingConfig).filter(
+            ((EmbeddingConfig.user_id == 1) | (EmbeddingConfig.user_id.is_(None))),
+            EmbeddingConfig.id != config_id,
+            EmbeddingConfig.is_default == True
+        ).update({EmbeddingConfig.is_default: False})
+    
+    embedding_config.provider = config.provider
+    embedding_config.model = config.model
+    embedding_config.base_url = config.base_url
+    embedding_config.is_default = config.is_default
+    
+    if config.api_key:
+        from src.utils.encryption import encrypt_value
+        embedding_config.api_key = encrypt_value(config.api_key)
+    # If api_key is not provided, keep existing API key (don't clear it)
+    
+    db.commit()
+    db.refresh(embedding_config)
+    
+    return {"status": "success", "config": embedding_config.to_dict()}
+
+@router.delete("/global-config/embedding/{config_id}")
+async def delete_global_embedding_config(
+    config_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_superadmin)
+):
+    """Delete a global embedding configuration (superadmin ID=1 only). 
+    If deleting the default config, ensures another default exists or creates OpenAI fallback."""
+    if not DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    # Ensure current_user is superadmin with ID=1
+    if current_user.id != 1:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only superadmin with ID=1 can manage global configurations"
+        )
+    
+    embedding_config = db.query(EmbeddingConfig).filter(
+        EmbeddingConfig.id == config_id,
+        ((EmbeddingConfig.user_id == 1) | (EmbeddingConfig.user_id.is_(None)))
+    ).first()
+    if not embedding_config:
+        raise HTTPException(status_code=404, detail="Global embedding config not found")
+    
+    was_default = embedding_config.is_default
+    
+    # Delete the config
+    db.delete(embedding_config)
+    db.commit()
+    
+    # If we deleted the default config, ensure another default exists
+    if was_default:
+        # Check if any other default global config exists (user_id=1 or None)
+        remaining_default = db.query(EmbeddingConfig).filter(
+            ((EmbeddingConfig.user_id == 1) | (EmbeddingConfig.user_id.is_(None))),
+            EmbeddingConfig.is_default == True
+        ).first()
+        
+        if not remaining_default:
+            # No default exists - create OpenAI fallback or set first available as default
+            import os
+            openai_api_key = os.getenv("OPENAI_API_KEY")
+            
+            # Try to find existing OpenAI config
+            openai_config = db.query(EmbeddingConfig).filter(
+                ((EmbeddingConfig.user_id == 1) | (EmbeddingConfig.user_id.is_(None))),
+                EmbeddingConfig.provider == "openai",
+                EmbeddingConfig.model == "text-embedding-3-small"
+            ).first()
+            
+            if openai_config:
+                # Set existing OpenAI as default
+                openai_config.is_default = True
+                openai_config.active = True
+                if openai_api_key:
+                    from src.utils.encryption import encrypt_value
+                    openai_config.api_key = encrypt_value(openai_api_key)
+                # Ensure it's owned by superadmin
+                if openai_config.user_id is None:
+                    openai_config.user_id = 1
+                db.commit()
+            elif openai_api_key:
+                # Create new OpenAI default config (encrypt API key)
+                from src.utils.encryption import encrypt_value
+                new_default = EmbeddingConfig(
+                    provider="openai",
+                    model="text-embedding-3-small",
+                    api_key=encrypt_value(openai_api_key),
+                    base_url=None,
+                    active=True,
+                    is_default=True,
+                    user_id=1  # Owned by superadmin
+                )
+                db.add(new_default)
+                db.commit()
+            else:
+                # No OpenAI API key - set first available global config as default
+                first_global = db.query(EmbeddingConfig).filter(
+                    ((EmbeddingConfig.user_id == 1) | (EmbeddingConfig.user_id.is_(None))),
+                    EmbeddingConfig.active == True
+                ).order_by(EmbeddingConfig.created_at.asc()).first()
+                
+                if first_global:
+                    first_global.is_default = True
+                    # Migrate to user_id=1 if needed
+                    if first_global.user_id is None:
+                        first_global.user_id = 1
+                    db.commit()
+    
+    return {"status": "success", "message": "Global embedding config deleted"}
+
+@router.patch("/global-config/embedding/{config_id}/toggle")
+async def toggle_global_embedding_config(
+    config_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_superadmin)
+):
+    """Toggle active status of a global embedding configuration (superadmin ID=1 only)"""
+    if not DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    embedding_config = db.query(EmbeddingConfig).filter(
+        EmbeddingConfig.id == config_id,
+        ((EmbeddingConfig.user_id == 1) | (EmbeddingConfig.user_id.is_(None)))
+    ).first()
+    if not embedding_config:
+        raise HTTPException(status_code=404, detail="Global embedding config not found")
+    
+    # Migrate old configs (user_id=None) to user_id=1
+    if embedding_config.user_id is None:
+        embedding_config.user_id = 1
+    
+    embedding_config.active = not embedding_config.active
+    db.commit()
+    db.refresh(embedding_config)
+    
+    return {"status": "success", "config": embedding_config.to_dict()}
 
 # --- User Inspection & Enhanced Management ---
 

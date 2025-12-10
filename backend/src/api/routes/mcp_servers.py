@@ -27,18 +27,42 @@ async def list_mcp_servers(
     try:
         app_logger.info("Listing MCP servers", {"user_id": current_user.id})
         
-        # Load ALL servers for the current user AND global servers (including disabled ones) for management UI
-        # This is different from Config.load_mcp_servers which filters by enabled=True
-        from sqlalchemy import or_
-        db_servers = db.query(MCPServer).filter(
-            or_(
-                MCPServer.user_id == current_user.id,  # User's own servers
-                MCPServer.user_id.is_(None)             # Global servers (available to all)
-            )
-        ).order_by(
-            MCPServer.user_id.asc(),  # User servers first, then global (None comes after)
-            MCPServer.created_at.desc()
-        ).all()
+        # Check if user is superadmin
+        is_superadmin = current_user.role == "superadmin" if current_user else False
+        
+        # Load servers for the current user AND global servers
+        # - Superadmins see ALL global servers (enabled and disabled)
+        # - Regular users see ONLY ENABLED global servers
+        from sqlalchemy import or_, and_
+        
+        if is_superadmin:
+            # Superadmin sees ALL global servers (enabled and disabled)
+            # Global servers are owned by superadmin (user_id=1) or None (for backward compatibility)
+            db_servers = db.query(MCPServer).filter(
+                or_(
+                    MCPServer.user_id == current_user.id,  # User's own servers (all)
+                    MCPServer.user_id == 1,                # Global servers owned by superadmin
+                    MCPServer.user_id.is_(None)             # Global servers (backward compatibility)
+                )
+            ).order_by(
+                MCPServer.user_id.asc(),  # User servers first, then global (1 and None come after)
+                MCPServer.created_at.desc()
+            ).all()
+        else:
+            # Regular users see ONLY ENABLED global servers
+            # Global servers are owned by superadmin (user_id=1) or None (for backward compatibility)
+            db_servers = db.query(MCPServer).filter(
+                or_(
+                    MCPServer.user_id == current_user.id,  # User's own servers (all, including disabled)
+                    and_(
+                        or_(MCPServer.user_id == 1, MCPServer.user_id.is_(None)),  # Global servers (user_id=1 or None)
+                        MCPServer.enabled == True      # But only enabled ones
+                    )
+                )
+            ).order_by(
+                MCPServer.user_id.asc(),  # User servers first, then global (1 and None come after)
+                MCPServer.created_at.desc()
+            ).all()
         
         # Don't send api_key in response for security
         safe_servers = []
@@ -46,7 +70,7 @@ async def list_mcp_servers(
             safe_server = server.to_dict(include_api_key=False)
             safe_server["has_api_key"] = bool(server.api_key)
             safe_server["user_id"] = server.user_id  # Include user_id to identify global servers
-            safe_server["is_global"] = server.user_id is None  # Mark global servers
+            safe_server["is_global"] = (server.user_id == 1 or server.user_id is None)  # Mark global servers (user_id=1 or None)
             # Ensure enabled field exists (default to True if not present)
             if "enabled" not in safe_server:
                 safe_server["enabled"] = True
@@ -411,18 +435,29 @@ async def toggle_mcp_server(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """Toggle enabled/disabled status of an MCP server. Requires authentication - users can only toggle their own servers."""
+    """Toggle enabled/disabled status of an MCP server. Requires authentication - users can only toggle their own servers, NOT global servers."""
     if not server_name or not server_name.strip():
         raise HTTPException(status_code=400, detail="Server name is required")
     
     try:
-        # Find server owned by this user
+        # Find server owned by this user (NOT global servers)
         mcp_server = db.query(MCPServer).filter(
-            MCPServer.user_id == current_user.id,
+            MCPServer.user_id == current_user.id,  # Only user's own servers
             MCPServer.name == server_name
         ).first()
         
         if not mcp_server:
+            # Check if it's a global server (owned by superadmin ID=1 or None for backward compatibility)
+            from sqlalchemy import or_
+            global_server = db.query(MCPServer).filter(
+                or_(MCPServer.user_id == 1, MCPServer.user_id.is_(None)),
+                MCPServer.name == server_name
+            ).first()
+            if global_server:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Cannot toggle global MCP servers. Only superadmin (ID=1) can enable/disable global servers."
+                )
             raise HTTPException(status_code=404, detail=f"MCP server '{server_name}' not found")
         
         # If enabling, test connection first

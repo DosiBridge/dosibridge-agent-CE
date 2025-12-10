@@ -219,7 +219,24 @@ class ChatService:
             all_tools = [retrieve_dosiblog_context, appointment_tool] + custom_rag_tools + mcp_tools
             
             llm_config = Config.load_llm_config(db=db, user_id=user_id)
-            llm = create_llm_from_config(llm_config, streaming=False, temperature=0)
+            if not llm_config:
+                return {
+                    "answer": "No LLM configuration found. Please configure an LLM provider via the superadmin dashboard or create a personal LLM config.",
+                    "tools_used": [],
+                    "token_usage": {}
+                }
+            
+            try:
+                llm = create_llm_from_config(llm_config, streaming=False, temperature=0)
+            except Exception as e:
+                error_msg = f"Failed to initialize LLM: {str(e)}"
+                if "api_key" in str(e).lower():
+                    error_msg = "LLM API key is invalid or missing. Please configure a valid API key via the superadmin dashboard or create a personal LLM config."
+                return {
+                    "answer": error_msg,
+                    "tools_used": [],
+                    "token_usage": {}
+                }
             
             # Check if LLM is Ollama (doesn't support bind_tools)
             is_ollama = llm_config.get("type", "").lower() == "ollama"

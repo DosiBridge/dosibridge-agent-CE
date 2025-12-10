@@ -54,7 +54,7 @@ export default function AdminStatsView() {
                 
                 // Only log non-permission errors or if not impersonating
                 if (!isPermissionError || !isImpersonatingNonAdmin) {
-                    console.error("Failed to load admin dashboard data:", error);
+                console.error("Failed to load admin dashboard data:", error);
                 }
                 
                 const errorMessage = error?.message || error?.detail || "Failed to load dashboard data";

@@ -106,7 +106,7 @@ export default function DashboardModal({ isOpen, onClose }: DashboardModalProps)
                                     {canAccessAdmin && (
                                         <div className="flex items-center gap-2 ml-auto">
                                             <Link
-                                                href="/admin"
+                                            href="/admin"
                                                 className="px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors flex items-center gap-1.5"
                                             >
                                                 <LayoutDashboard className="w-3.5 h-3.5" />

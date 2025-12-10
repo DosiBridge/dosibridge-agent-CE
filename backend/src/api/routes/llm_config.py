@@ -121,6 +121,11 @@ async def get_llm_config(
     try:
         user_id = current_user.id if current_user else None
         config = Config.load_llm_config(db=db, user_id=user_id)
+        if not config:
+            raise HTTPException(
+                status_code=404,
+                detail="No LLM configuration found. Please configure an LLM provider via the superadmin dashboard or create a personal LLM config."
+            )
         # Don't send API key in response for security
         safe_config = {k: v for k, v in config.items() if k != "api_key" or not v}
         # Include has_api_key in the config object for frontend compatibility
@@ -277,6 +282,13 @@ async def set_llm_config(
         else:
             db.query(LLMConfig).filter(LLMConfig.user_id.is_(None)).update({LLMConfig.active: False})
         
+        # Ensure only superadmins can set is_default=True
+        is_superadmin = current_user and current_user.role == "superadmin" if current_user else False
+        is_default_value = config_dict.get("is_default", False)
+        if is_default_value and not is_superadmin:
+            # Regular users cannot set is_default=True
+            is_default_value = False
+        
         # Create new active config for user
         llm_config = LLMConfig(
             user_id=user_id,
@@ -286,7 +298,7 @@ async def set_llm_config(
             base_url=config_dict.get("base_url"),
             api_base=config_dict.get("api_base"),
             active=True,
-            is_default=config_dict.get("is_default", False)
+            is_default=is_default_value
         )
         db.add(llm_config)
         
@@ -479,57 +491,91 @@ async def list_llm_configs(
     """
     List all LLM configurations for the authenticated user.
     Shows user-specific configs AND global configs (user_id=None).
+    - Superadmins see ALL global configs (active and inactive, default and non-default)
+    - Regular users see ONLY global configs that are BOTH active AND default (active=True AND is_default=True)
     Always ensures default DeepSeek config is shown (creates it if missing).
     """
     try:
         user_id = current_user.id if current_user else None
+        is_superadmin = current_user and current_user.role == "superadmin" if current_user else False
         
-        from sqlalchemy import or_
+        from sqlalchemy import or_, and_
         
-        # Get all configs for this user AND global configs
-        configs = db.query(LLMConfig).filter(
-            or_(
-                LLMConfig.user_id == user_id,  # User's own configs
-                LLMConfig.user_id.is_(None)     # Global configs (available to all)
-            )
-        ).order_by(
-            LLMConfig.user_id.asc(),  # User configs first, then global (None comes after)
-            LLMConfig.active.desc(),
-            LLMConfig.is_default.desc(),  # Default configs first
-            LLMConfig.created_at.desc()
-        ).all()
-        
-        # Check if active default DeepSeek exists (user-specific or global)
-        has_active_default = any(
-            config.active and config.is_default and config.type == "deepseek" 
-            for config in configs
-        )
-        
-        # If no active default DeepSeek, load config to ensure it's created in DB
-        if not has_active_default and user_id is not None:
-            from src.core import Config
-            # This will auto-create default DeepSeek config in database if missing
-            current_config = Config.load_llm_config(db=db, user_id=user_id)
-            
-            # Refresh configs list after potential creation
+        # Build query: user's own configs + global configs
+        # Global configs are owned by superadmin (user_id=1) or None (for backward compatibility)
+        if is_superadmin:
+            # Superadmin sees ALL global configs (enabled and disabled)
             configs = db.query(LLMConfig).filter(
                 or_(
                     LLMConfig.user_id == user_id,  # User's own configs
-                    LLMConfig.user_id.is_(None)     # Global configs (available to all)
+                    LLMConfig.user_id == 1,        # Global configs owned by superadmin
+                    LLMConfig.user_id.is_(None)    # Global configs (backward compatibility)
                 )
             ).order_by(
-                LLMConfig.user_id.asc(),
+                LLMConfig.user_id.asc(),  # User configs first, then global (1 and None come after)
                 LLMConfig.active.desc(),
-                LLMConfig.is_default.desc(),
+                LLMConfig.is_default.desc(),  # Default configs first
                 LLMConfig.created_at.desc()
             ).all()
+        else:
+            # Regular users see ONLY global configs that are BOTH active AND default
+            configs = db.query(LLMConfig).filter(
+                or_(
+                    LLMConfig.user_id == user_id,  # User's own configs (all, including inactive)
+                    and_(
+                        or_(LLMConfig.user_id == 1, LLMConfig.user_id.is_(None)),  # Global configs (user_id=1 or None)
+                        LLMConfig.active == True,      # Must be active
+                        LLMConfig.is_default == True   # AND must be default
+                    )
+                )
+            ).order_by(
+                LLMConfig.user_id.asc(),  # User configs first, then global (1 and None come after)
+                LLMConfig.active.desc(),
+                LLMConfig.is_default.desc(),  # Default configs first
+                LLMConfig.created_at.desc()
+            ).all()
+        
+        # No automatic creation of LLM configs from environment variables
+        # All LLM configs must be configured via superadmin dashboard or user settings
+        # If user has no configs, they should configure one via the UI
+            
+            # Refresh configs list after potential creation
+            if is_superadmin:
+                configs = db.query(LLMConfig).filter(
+                    or_(
+                        LLMConfig.user_id == user_id,  # User's own configs
+                        LLMConfig.user_id == 1,        # Global configs owned by superadmin
+                        LLMConfig.user_id.is_(None)    # Global configs (backward compatibility)
+                    )
+                ).order_by(
+                    LLMConfig.user_id.asc(),
+                    LLMConfig.active.desc(),
+                    LLMConfig.is_default.desc(),
+                    LLMConfig.created_at.desc()
+                ).all()
+            else:
+                configs = db.query(LLMConfig).filter(
+                    or_(
+                        LLMConfig.user_id == user_id,  # User's own configs
+                        and_(
+                            or_(LLMConfig.user_id == 1, LLMConfig.user_id.is_(None)),  # Global configs (user_id=1 or None)
+                            LLMConfig.active == True,      # Must be active
+                            LLMConfig.is_default == True   # AND must be default
+                        )
+                    )
+                ).order_by(
+                    LLMConfig.user_id.asc(),
+                    LLMConfig.active.desc(),
+                    LLMConfig.is_default.desc(),
+                    LLMConfig.created_at.desc()
+                ).all()
         
         # Convert to dict and mark global configs
         config_dicts = []
         for config in configs:
             config_dict = config.to_dict(include_api_key=False)
             config_dict['user_id'] = config.user_id  # Include user_id to identify global configs
-            config_dict['is_global'] = config.user_id is None  # Mark global configs
+            config_dict['is_global'] = (config.user_id == 1 or config.user_id is None)  # Mark global configs (user_id=1 or None)
             config_dicts.append(config_dict)
         
         return {
@@ -562,12 +608,19 @@ async def update_llm_config(
         if not llm_config:
             raise HTTPException(status_code=404, detail="LLM configuration not found")
         
-        # Prevent editing default LLM configurations
+        # Prevent editing default LLM configurations (only superadmins can manage defaults)
         if llm_config.is_default:
-            raise HTTPException(
-                status_code=403,
-                detail="Cannot edit default LLM configuration. Default configurations are read-only."
-            )
+            is_superadmin = current_user and current_user.role == "superadmin" if current_user else False
+            if not is_superadmin:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Cannot edit default LLM configuration. Only superadmins can manage default configurations."
+                )
+        
+        # Ensure only superadmins can set is_default=True
+        is_superadmin = current_user and current_user.role == "superadmin" if current_user else False
+        # Users cannot change is_default status - only superadmins can set defaults
+        # Keep existing is_default value, don't allow users to change it
         
         # Use existing config values as defaults if not provided
         update_type = (config.type or llm_config.type).lower()
@@ -726,8 +779,10 @@ async def switch_llm_config(
     """
     Switch to/activate a specific LLM configuration.
     Users can switch to their own configs OR global configs (user_id=None).
-    When switching to a global config, deactivates user's personal configs.
-    When switching to a user config, deactivates other user configs.
+    - When switching to a global config: deactivates user's personal configs (global remains active for others)
+    - When switching to a user config: deactivates other user configs and activates selected one
+    - Regular users can only switch to global configs that are BOTH active AND default (active=True AND is_default=True)
+    - Superadmins can switch to any global config (active or inactive, default or non-default)
     """
     try:
         user_id = current_user.id if current_user else None
@@ -735,29 +790,53 @@ async def switch_llm_config(
         if not user_id:
             raise HTTPException(status_code=401, detail="Authentication required")
         
-        from sqlalchemy import or_
+        is_superadmin = current_user.role == "superadmin" if current_user else False
+        
+        from sqlalchemy import or_, and_
         
         # Find the config - can be user-specific OR global
-        llm_config = db.query(LLMConfig).filter(
-            LLMConfig.id == config_id,
-            or_(
-                LLMConfig.user_id == user_id,  # User's own config
-                LLMConfig.user_id.is_(None)     # Global config (available to all)
-            )
-        ).first()
+        # Regular users can only switch to enabled global configs
+        if is_superadmin:
+            # Superadmin can switch to any global config
+            # Global configs are owned by superadmin (user_id=1) or None (for backward compatibility)
+            llm_config = db.query(LLMConfig).filter(
+                LLMConfig.id == config_id,
+                or_(
+                    LLMConfig.user_id == user_id,  # User's own config
+                    LLMConfig.user_id == 1,        # Global configs owned by superadmin
+                    LLMConfig.user_id.is_(None)    # Global configs (backward compatibility)
+                )
+            ).first()
+        else:
+            # Regular users can only switch to global configs that are BOTH active AND default
+            # Global configs are owned by superadmin (user_id=1) or None (for backward compatibility)
+            llm_config = db.query(LLMConfig).filter(
+                LLMConfig.id == config_id,
+                or_(
+                    LLMConfig.user_id == user_id,  # User's own config
+                    and_(
+                        or_(LLMConfig.user_id == 1, LLMConfig.user_id.is_(None)),  # Global configs (user_id=1 or None)
+                        LLMConfig.active == True,      # Must be active
+                        LLMConfig.is_default == True   # AND must be default
+                    )
+                )
+            ).first()
         
         if not llm_config:
-            raise HTTPException(status_code=404, detail="LLM configuration not found or not accessible")
+            raise HTTPException(status_code=404, detail="LLM configuration not found, not accessible, or disabled")
         
-        # If switching to a global config, deactivate all user's personal configs
-        # If switching to a user config, deactivate all other user configs
-        if llm_config.user_id is None:
-            # Switching to global config - deactivate user's personal configs
+        # When switching to a global config: deactivate ONLY user's personal configs
+        # When switching to a user config: deactivate other user configs and activate selected one
+        # Note: Global configs are shared - deactivating user's personal configs doesn't affect global config status
+        # Global configs are owned by superadmin (user_id=1) or None (for backward compatibility)
+        if llm_config.user_id == 1 or llm_config.user_id is None:
+            # Switching to global config - deactivate ONLY user's personal configs
+            # Global config remains active for all users (shared state, not modified)
             db.query(LLMConfig).filter(LLMConfig.user_id == user_id).update({LLMConfig.active: False})
-            # Note: Global configs remain active for all users, we just deactivate user's personal ones
+            # Don't modify global config's active status - it's shared across all users
             # The system will automatically use the global config when no user config is active
         else:
-            # Switching to user's own config - deactivate other user configs
+            # Switching to user's own config - deactivate other user configs and activate selected one
             db.query(LLMConfig).filter(LLMConfig.user_id == user_id).update({LLMConfig.active: False})
             # Activate the selected user config
             llm_config.active = True

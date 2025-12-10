@@ -38,6 +38,8 @@ if Base is not None:
         
         def to_dict(self, include_api_key: bool = False) -> dict:
             """Convert model to dictionary"""
+            from src.utils.encryption import decrypt_value
+            
             result = {
                 "id": self.id,
                 "user_id": self.user_id,
@@ -51,8 +53,48 @@ if Base is not None:
                 "created_at": self.created_at.isoformat() if self.created_at else None,
                 "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             }
-            if include_api_key:
-                result["api_key"] = self.api_key
+            if include_api_key and self.api_key:
+                # Decrypt API key when returning
+                result["api_key"] = decrypt_value(self.api_key)
+            return result
+
+    class EmbeddingConfig(Base):
+        """Embedding Configuration model for RAG/document embeddings"""
+        __tablename__ = "embedding_config"
+        
+        id = Column(Integer, primary_key=True, index=True)
+        user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)  # None for global
+        provider = Column(String(50), nullable=False, default="openai")  # openai, etc.
+        model = Column(String(200), nullable=False, default="text-embedding-3-small")
+        api_key = Column(Text, nullable=True)  # Encrypted or stored securely
+        base_url = Column(String(500), nullable=True)  # For custom API endpoints
+        active = Column(Boolean, default=True, nullable=False)
+        is_default = Column(Boolean, default=False, nullable=False)  # True if this is the default embedding config
+        created_at = Column(DateTime(timezone=True), server_default=func.now())
+        updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+        
+        # Relationship
+        user = relationship("User", backref="embedding_configs")
+        
+        def to_dict(self, include_api_key: bool = False) -> dict:
+            """Convert model to dictionary"""
+            from src.utils.encryption import decrypt_value
+            
+            result = {
+                "id": self.id,
+                "user_id": self.user_id,
+                "provider": self.provider,
+                "model": self.model,
+                "base_url": self.base_url,
+                "active": self.active,
+                "is_default": self.is_default,
+                "has_api_key": bool(self.api_key),
+                "created_at": self.created_at.isoformat() if self.created_at else None,
+                "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            }
+            if include_api_key and self.api_key:
+                # Decrypt API key when returning
+                result["api_key"] = decrypt_value(self.api_key)
             return result
 
     class MCPServer(Base):

@@ -75,9 +75,10 @@ async def get_today_usage(
         # Check if user is using default LLM
         from src.core import Config
         llm_config = Config.load_llm_config(db=db, user_id=user_id)
-        # Check if it's default DeepSeek: either marked as is_default=True, or
-        # it's DeepSeek with is_default=True from database, or fallback DeepSeek
-        is_default_llm = llm_config.get("is_default", False)
+        # Check if it's default: either marked as is_default=True, or using global default
+        is_default_llm = False
+        if llm_config:
+            is_default_llm = llm_config.get("is_default", False)
         
         # Also check if it's a DeepSeek config from database with is_default flag
         if not is_default_llm and user_id:
@@ -149,32 +150,57 @@ async def get_api_keys_info(
         
         # Get LLM config to see which provider is active
         from src.core import Config
-        llm_config = Config.load_llm_config(db=db)
+        llm_config = Config.load_llm_config(db=db, user_id=current_user.id)
         
         # Get today's usage to see what was actually used
         stats = usage_tracker.get_user_usage_stats(current_user.id, db, days=1)
-        today_stats = stats.get("today", {})
+        today_stats = stats.get("today", {}) if stats else {}
         
         # Check which keys are set
-        # Only show OpenAI (for embeddings, not changeable) and DeepSeek (default LLM)
+        # OpenAI is for embeddings (RAG system), LLM configs are managed via dashboard
         openai_key_set = bool(os.getenv("OPENAI_API_KEY"))
-        deepseek_key_set = bool(os.getenv("DEEPSEEK_KEY"))
+        
+        # Check if user has any LLM configs configured (from database)
+        from src.core.models import LLMConfig
+        from sqlalchemy import or_
+        user_has_llm_config = db.query(LLMConfig).filter(
+            LLMConfig.user_id == current_user.id,
+            LLMConfig.active == True
+        ).first() is not None
+        
+        # Check if there are any global default LLM configs
+        # Global configs are owned by superadmin (user_id=1) or None (for backward compatibility)
+        global_default_config = db.query(LLMConfig).filter(
+            or_(LLMConfig.user_id == 1, LLMConfig.user_id.is_(None)),
+            LLMConfig.active == True,
+            LLMConfig.is_default == True
+        ).first()
+        
+        # Determine active provider and model
+        active_provider = "None"
+        active_model = "No model"
+        if llm_config:
+            active_provider = llm_config.get("type", "unknown")
+            active_model = llm_config.get("model", "unknown")
+        elif global_default_config:
+            active_provider = global_default_config.type
+            active_model = global_default_config.model
         
         return {
             "status": "success",
             "data": {
-                "active_provider": llm_config.get("type"),
-                "active_model": llm_config.get("model"),
+                "active_provider": active_provider,
+                "active_model": active_model,
                 "keys_configured": {
                     "openai": {
                         "set": openai_key_set,
                         "purpose": "Embeddings only (RAG system)",
-                        "used_for": "Document embeddings and vector search (not changeable)"
+                        "used_for": "Document embeddings and vector search (configured via OPENAI_API_KEY env var)"
                     },
-                    "deepseek": {
-                        "set": deepseek_key_set,
-                        "purpose": "Default LLM (agent and RAG)",
-                        "used_for": "Chat responses and agent interactions (users can change/add their own LLM)"
+                    "llm": {
+                        "set": user_has_llm_config or global_default_config is not None,
+                        "purpose": "LLM provider (chat and agent)",
+                        "used_for": "Chat responses and agent interactions (configured via superadmin dashboard)"
                     }
                 },
                 "today_usage": {

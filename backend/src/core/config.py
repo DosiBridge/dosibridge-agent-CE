@@ -77,7 +77,8 @@ class Config:
             print("⚠️  MCP servers require authentication - user_id is required. No MCP access for unauthenticated users.")
             return []
         
-        # Load from database - user-specific servers AND global servers (user_id=None)
+        # Load from database - user-specific servers AND global servers (user_id=1 or None)
+        # Global servers are owned by superadmin (user_id=1) or None (for backward compatibility)
         if DB_AVAILABLE:
             try:
                 if db:
@@ -87,14 +88,16 @@ class Config:
                         MCPServer.enabled == True,
                         or_(
                             MCPServer.user_id == user_id,  # User's own servers
-                            MCPServer.user_id.is_(None)     # Global servers (available to all)
+                            MCPServer.user_id == 1,        # Global servers owned by superadmin
+                            MCPServer.user_id.is_(None)    # Global servers (backward compatibility)
                         )
                     )
                     db_servers = query.all()
                     servers = [s.to_dict(include_api_key=True) for s in db_servers]
-                    # Mark global servers
+                    # Mark global servers (user_id=1 or None)
                     for server in servers:
-                        server['is_global'] = db_servers[servers.index(server)].user_id is None
+                        server_user_id = db_servers[servers.index(server)].user_id
+                        server['is_global'] = (server_user_id == 1 or server_user_id is None)
                 else:
                     # Create new session - get user-specific AND global servers
                     with get_db_context() as session:
@@ -103,14 +106,16 @@ class Config:
                             MCPServer.enabled == True,
                             or_(
                                 MCPServer.user_id == user_id,  # User's own servers
-                                MCPServer.user_id.is_(None)     # Global servers (available to all)
+                                MCPServer.user_id == 1,        # Global servers owned by superadmin
+                                MCPServer.user_id.is_(None)    # Global servers (backward compatibility)
                             )
                         )
                         db_servers = query.all()
                         servers = [s.to_dict(include_api_key=True) for s in db_servers]
-                        # Mark global servers
+                        # Mark global servers (user_id=1 or None)
                         for server in servers:
-                            server['is_global'] = db_servers[servers.index(server)].user_id is None
+                            server_user_id = db_servers[servers.index(server)].user_id
+                            server['is_global'] = (server_user_id == 1 or server_user_id is None)
                 
                 user_servers = [s for s in servers if not s.get('is_global')]
                 global_servers = [s for s in servers if s.get('is_global')]
@@ -138,7 +143,7 @@ class Config:
         return servers
     
     @classmethod
-    def load_llm_config(cls, db: Optional[Session] = None, user_id: Optional[int] = None) -> dict:
+    def load_llm_config(cls, db: Optional[Session] = None, user_id: Optional[int] = None) -> Optional[dict]:
         """
         Load LLM configuration from database for a specific user, with fallback to default DeepSeek.
         Checks database for user's active config first, then falls back to default DeepSeek.
@@ -163,22 +168,28 @@ class Config:
                         ).first()
                         
                         # If no user-specific active config, fall back to global config
-                        # This allows users to use global configs as defaults when they don't have personal configs
+                        # Regular users can only use global configs that are BOTH active AND default
+                        # Global configs are owned by superadmin (user_id=1) or None (for backward compatibility)
                         # Prioritize global configs marked as default, then by creation date
                         if not llm_config:
+                            from sqlalchemy import or_
                             llm_config = db.query(LLMConfig).filter(
-                                LLMConfig.user_id.is_(None),
-                                LLMConfig.active == True
+                                or_(LLMConfig.user_id == 1, LLMConfig.user_id.is_(None)),
+                                LLMConfig.active == True,
+                                LLMConfig.is_default == True  # Must be default for regular users
                             ).order_by(
                                 LLMConfig.is_default.desc(),  # Default configs first
                                 LLMConfig.created_at.desc()    # Then newest first
                             ).first()
                     else:
                         # Load global default config (no user_id)
-                        # Prioritize global configs marked as default, then by creation date
+                        # Only load global configs that are BOTH active AND default
+                        # Global configs are owned by superadmin (user_id=1) or None (for backward compatibility)
+                        from sqlalchemy import or_
                         llm_config = db.query(LLMConfig).filter(
-                            LLMConfig.user_id.is_(None),
-                            LLMConfig.active == True
+                            or_(LLMConfig.user_id == 1, LLMConfig.user_id.is_(None)),
+                            LLMConfig.active == True,
+                            LLMConfig.is_default == True  # Must be default
                         ).order_by(
                             LLMConfig.is_default.desc(),  # Default configs first
                             LLMConfig.created_at.desc()    # Then newest first
@@ -216,20 +227,24 @@ class Config:
                             ).first()
                             
                             # If no user-specific config, fall back to global config
+                            # Global configs are owned by superadmin (user_id=1) or None (for backward compatibility)
                             # Prioritize global configs marked as default, then by creation date
                             if not llm_config:
+                                from sqlalchemy import or_
                                 llm_config = session.query(LLMConfig).filter(
-                                    LLMConfig.user_id.is_(None),
+                                    or_(LLMConfig.user_id == 1, LLMConfig.user_id.is_(None)),
                                     LLMConfig.active == True
                                 ).order_by(
                                     LLMConfig.is_default.desc(),  # Default configs first
                                     LLMConfig.created_at.desc()    # Then newest first
-                                ).first()
+                            ).first()
                         else:
                             # Load global default config (no user_id)
+                            # Global configs are owned by superadmin (user_id=1) or None (for backward compatibility)
                             # Prioritize global configs marked as default, then by creation date
+                            from sqlalchemy import or_
                             llm_config = session.query(LLMConfig).filter(
-                                LLMConfig.user_id.is_(None),
+                                or_(LLMConfig.user_id == 1, LLMConfig.user_id.is_(None)),
                                 LLMConfig.active == True
                             ).order_by(
                                 LLMConfig.is_default.desc(),  # Default configs first
@@ -238,7 +253,9 @@ class Config:
                         
                         if llm_config:
                             config = llm_config.to_dict(include_api_key=True)
-                            # Ensure API key is loaded from environment if not in database
+                            # Fallback: Load API key from environment if missing in database
+                            # This is only a fallback - superadmin should configure API keys via dashboard
+                            # Note: OPENAI_API_KEY is ONLY for embeddings, not for LLM
                             if not config.get('api_key'):
                                 if config.get('type', '').lower() == 'gemini':
                                     config['api_key'] = os.getenv("GOOGLE_API_KEY")
@@ -253,92 +270,25 @@ class Config:
                                     config['api_key'] = os.getenv("OPENROUTER_API_KEY")
                                 elif config.get('type', '').lower() == 'ollama':
                                     pass
+                                # If still no API key, warn but don't fail (superadmin should configure via dashboard)
+                                if not config.get('api_key'):
+                                    print(f"⚠️  No API key found for {config.get('type')} config. Please configure via superadmin dashboard.")
                             
                             print(f"📝 Loaded LLM config from database (user_id={user_id}): {config.get('type', 'unknown')} - {config.get('model', 'unknown')}")
                             return config
             except Exception as e:
                 print(f"⚠️  Failed to load LLM config from database: {e}")
         
-        # Fallback to default DeepSeek from environment
-        # Note: OPENAI_API_KEY is ONLY for embeddings, not for LLM responses
-        deepseek_api_key = os.getenv("DEEPSEEK_KEY")
-        
-        # Try to save default DeepSeek config to database if DB is available and user_id is set
-        if DB_AVAILABLE and user_id is not None and db:
-            try:
-                # Check if default DeepSeek config exists for this user
-                existing_default = db.query(LLMConfig).filter(
-                    LLMConfig.user_id == user_id,
-                    LLMConfig.type == "deepseek",
-                    LLMConfig.model == "deepseek-chat",
-                    LLMConfig.is_default == True
-                ).first()
-                
-                if not existing_default:
-                    # Create default DeepSeek config in database for this user
-                    default_llm_config = LLMConfig(
-                        user_id=user_id,
-                        type="deepseek",
-                        model="deepseek-chat",
-                        api_key=deepseek_api_key,
-                        api_base="https://api.deepseek.com",
-                        active=True,
-                        is_default=True
-                    )
-                    db.add(default_llm_config)
-                    try:
-                        db.commit()
-                        db.refresh(default_llm_config)
-                        print(f"✓ Created default DeepSeek LLM config in database for user {user_id}")
-                        return default_llm_config.to_dict(include_api_key=True)
-                    except Exception as commit_error:
-                        db.rollback()
-                        print(f"⚠️  Failed to save default DeepSeek config to database: {commit_error}")
-                elif not existing_default.active:
-                    # Reactivate existing default config
-                    existing_default.active = True
-                    if deepseek_api_key:
-                        existing_default.api_key = deepseek_api_key
-                    try:
-                        db.commit()
-                        db.refresh(existing_default)
-                        print(f"✓ Reactivated default DeepSeek LLM config for user {user_id}")
-                        return existing_default.to_dict(include_api_key=True)
-                    except Exception as commit_error:
-                        db.rollback()
-                        print(f"⚠️  Failed to reactivate default DeepSeek config: {commit_error}")
-                else:
-                    # Use existing active default config
-                    if deepseek_api_key and not existing_default.api_key:
-                        existing_default.api_key = deepseek_api_key
-                        try:
-                            db.commit()
-                        except:
-                            db.rollback()
-                    return existing_default.to_dict(include_api_key=True)
-            except Exception as e:
-                print(f"⚠️  Error managing default DeepSeek config in database: {e}")
-        
-        # Fallback: return config dict (not in database)
-        default_config = {
-            "type": "deepseek",
-            "model": "deepseek-chat",
-            "api_key": deepseek_api_key,  # Get from environment (may be None)
-            "api_base": "https://api.deepseek.com",
-            "active": True,
-            "is_default": True  # Mark as default LLM
-        }
-        
-        # Warn if API key is missing
-        if not default_config["api_key"]:
-            print("⚠️  Warning: DEEPSEEK_KEY not set. Please set it as an environment variable or configure in database")
-            print("   Set it with: export DEEPSEEK_KEY='your-api-key'")
-            print("   Or configure it in the frontend Settings panel")
-            print("   Note: OPENAI_API_KEY is only used for embeddings, not for LLM responses")
+        # No automatic fallback to environment variables after first initialization
+        # LLM configs must be configured via superadmin dashboard
+        # If no config found, return None - callers should handle this gracefully
+        if DB_AVAILABLE and user_id is not None:
+            print(f"⚠️  No active LLM configuration found for user {user_id}. "
+                  "Please configure LLM providers via the superadmin dashboard or create a personal LLM config.")
         else:
-            print(f"📝 Using fallback LLM config: DeepSeek (deepseek-chat) from environment")
-        
-        return default_config
+            print("⚠️  No active LLM configuration found. "
+                  "Please configure LLM providers via the superadmin dashboard.")
+        return None
     
     @classmethod
     def save_llm_config(cls, config: dict, db: Optional[Session] = None) -> bool:

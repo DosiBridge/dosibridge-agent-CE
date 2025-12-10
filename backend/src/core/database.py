@@ -228,6 +228,35 @@ def init_db():
                     conn.commit()
                     print("✓ Added headers column to mcp_servers table")
                 
+                # Check if embedding_config table exists
+                result = conn.execute(
+                    text("SELECT table_name FROM information_schema.tables "
+                         "WHERE table_name='embedding_config'")
+                )
+                if not result.fetchone():
+                    print("📝 Creating embedding_config table...")
+                    conn.execute(
+                        text("""
+                            CREATE TABLE embedding_config (
+                                id SERIAL PRIMARY KEY,
+                                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                                provider VARCHAR(50) NOT NULL DEFAULT 'openai',
+                                model VARCHAR(200) NOT NULL DEFAULT 'text-embedding-3-small',
+                                api_key TEXT,
+                                base_url VARCHAR(500),
+                                active BOOLEAN NOT NULL DEFAULT TRUE,
+                                is_default BOOLEAN NOT NULL DEFAULT FALSE,
+                                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                                updated_at TIMESTAMP WITH TIME ZONE
+                            )
+                        """)
+                    )
+                    conn.execute(text("CREATE INDEX idx_embedding_config_user_id ON embedding_config(user_id)"))
+                    conn.execute(text("CREATE INDEX idx_embedding_config_active ON embedding_config(active)"))
+                    conn.execute(text("CREATE INDEX idx_embedding_config_is_default ON embedding_config(is_default)"))
+                    conn.commit()
+                    print("✓ Created embedding_config table")
+                
                 # Check if conversations table exists
                 result = conn.execute(
                     text("SELECT table_name FROM information_schema.tables "

@@ -194,9 +194,9 @@ export default function AnalyticsView() {
                                 No usage data available
                             </div>
                         ) : (
-                            <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={usageData}>
-                                    <defs>
+                        <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={usageData}>
+                                <defs>
                                         <linearGradient id="colorInput" x1="0" y1="0" x2="0" y2="1">
                                             <stop offset="5%" stopColor="#34d399" stopOpacity={0.3} />
                                             <stop offset="95%" stopColor="#34d399" stopOpacity={0} />
@@ -204,15 +204,15 @@ export default function AnalyticsView() {
                                         <linearGradient id="colorOutput" x1="0" y1="0" x2="0" y2="1">
                                             <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
                                             <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                                        </linearGradient>
-                                    </defs>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                                    <XAxis dataKey="date" hide />
-                                    <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 2 }} />
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                                <XAxis dataKey="date" hide />
+                                <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 2 }} />
                                     <Area type="monotone" stackId="1" dataKey="input_tokens" name="Input Tokens" stroke="#34d399" strokeWidth={2} fillOpacity={1} fill="url(#colorInput)" />
                                     <Area type="monotone" stackId="1" dataKey="output_tokens" name="Output Tokens" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorOutput)" />
-                                </AreaChart>
-                            </ResponsiveContainer>
+                            </AreaChart>
+                        </ResponsiveContainer>
                         )}
                     </div>
                 </motion.div>
@@ -235,20 +235,20 @@ export default function AnalyticsView() {
                                 No request data available
                             </div>
                         ) : (
-                            <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={usageData}>
-                                    <defs>
-                                        <linearGradient id="colorRequests" x1="0" y1="0" x2="0" y2="1">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={usageData}>
+                                <defs>
+                                    <linearGradient id="colorRequests" x1="0" y1="0" x2="0" y2="1">
                                             <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
                                             <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-                                        </linearGradient>
-                                    </defs>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                                    <XAxis dataKey="date" hide />
-                                    <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 2 }} />
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                                <XAxis dataKey="date" hide />
+                                <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 2 }} />
                                     <Area type="monotone" dataKey="requests" name="Total Requests" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorRequests)" />
-                                </AreaChart>
-                            </ResponsiveContainer>
+                            </AreaChart>
+                        </ResponsiveContainer>
                         )}
                     </div>
                 </motion.div>

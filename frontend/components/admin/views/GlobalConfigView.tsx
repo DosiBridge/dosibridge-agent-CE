@@ -21,13 +21,18 @@ import {
     listGlobalLLMConfigs,
     updateGlobalLLMConfig,
     deleteGlobalLLMConfig,
-    toggleGlobalLLMConfig
+    toggleGlobalLLMConfig,
+    createGlobalEmbeddingConfig,
+    listGlobalEmbeddingConfigs,
+    updateGlobalEmbeddingConfig,
+    deleteGlobalEmbeddingConfig,
+    toggleGlobalEmbeddingConfig
 } from '@/lib/api/admin';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 
 export default function GlobalConfigView() {
-    const [activeTab, setActiveTab] = useState<'llm' | 'mcp'>('llm');
+    const [activeTab, setActiveTab] = useState<'llm' | 'embedding' | 'mcp'>('llm');
     const [llmForm, setLlmForm] = useState({
         type: 'openai',
         model: 'gpt-4o',
@@ -42,10 +47,19 @@ export default function GlobalConfigView() {
         api_key: ''
     });
     const [editingLLMId, setEditingLLMId] = useState<number | null>(null);
+    const [editingEmbeddingId, setEditingEmbeddingId] = useState<number | null>(null);
     const [editingMCPId, setEditingMCPId] = useState<number | null>(null);
     const [globalLLMConfigs, setGlobalLLMConfigs] = useState<any[]>([]);
+    const [globalEmbeddingConfigs, setGlobalEmbeddingConfigs] = useState<any[]>([]);
     const [globalMCPServers, setGlobalMCPServers] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
+    const [embeddingForm, setEmbeddingForm] = useState({
+        provider: 'openai',
+        model: 'text-embedding-3-small',
+        api_key: '',
+        base_url: '',
+        is_default: true
+    });
 
     useEffect(() => {
         loadGlobalConfigs();
@@ -55,14 +69,28 @@ export default function GlobalConfigView() {
         setLoading(true);
         try {
             if (activeTab === 'llm') {
-                const { configs } = await listGlobalLLMConfigs();
+                const response = await listGlobalLLMConfigs();
+                const configs = response.configs || [];
                 setGlobalLLMConfigs(configs);
+                if (configs.length === 0) {
+                    console.log("No global LLM configs found. Auto-initialized configs should appear here.");
+                }
+            } else if (activeTab === 'embedding') {
+                const response = await listGlobalEmbeddingConfigs();
+                const configs = response.configs || [];
+                setGlobalEmbeddingConfigs(configs);
+                if (configs.length === 0) {
+                    console.log("No global embedding configs found. Auto-initialized configs should appear here.");
+                }
             } else {
-                const { servers } = await listGlobalMCPServers();
+                const response = await listGlobalMCPServers();
+                const servers = response.servers || [];
                 setGlobalMCPServers(servers);
             }
         } catch (error: any) {
-            toast.error(`Failed to load global ${activeTab === 'llm' ? 'LLM configs' : 'MCP servers'}`);
+            const tabName = activeTab === 'llm' ? 'LLM configs' : activeTab === 'embedding' ? 'embedding configs' : 'MCP servers';
+            console.error(`Failed to load global ${tabName}:`, error);
+            toast.error(`Failed to load global ${tabName}: ${error.message || error}`);
         } finally {
             setLoading(false);
         }
@@ -74,7 +102,7 @@ export default function GlobalConfigView() {
                 await updateGlobalLLMConfig(editingLLMId, llmForm);
                 toast.success("Global LLM Configuration updated successfully");
             } else {
-                await createGlobalLLMConfig(llmForm);
+            await createGlobalLLMConfig(llmForm);
                 toast.success("Global LLM Configuration created successfully");
             }
             setLlmForm({ type: 'openai', model: 'gpt-4o', api_key: '', base_url: '', is_default: true });
@@ -91,8 +119,8 @@ export default function GlobalConfigView() {
                 await updateGlobalMCPServer(editingMCPId, mcpForm);
                 toast.success("Global MCP Server updated successfully");
             } else {
-                await createGlobalMCPServer(mcpForm);
-                toast.success("Global MCP Server added");
+            await createGlobalMCPServer(mcpForm);
+            toast.success("Global MCP Server added");
             }
             setMcpForm({ name: '', url: '', connection_type: 'http', api_key: '' });
             setEditingMCPId(null);
@@ -103,10 +131,18 @@ export default function GlobalConfigView() {
     };
 
     const handleDeleteLLM = async (id: number) => {
-        if (!confirm("Are you sure you want to delete this global LLM configuration?")) return;
+        const config = globalLLMConfigs.find(c => c.id === id);
+        const isDefault = config?.is_default;
+        
+        const message = isDefault 
+            ? "Are you sure you want to delete this default LLM configuration? A new default will be automatically created if needed."
+            : "Are you sure you want to delete this global LLM configuration?";
+        
+        if (!confirm(message)) return;
+        
         try {
             await deleteGlobalLLMConfig(id);
-            toast.success("Global LLM configuration deleted");
+            toast.success("Global LLM configuration deleted" + (isDefault ? ". A new default has been set." : ""));
             await loadGlobalConfigs();
         } catch (error: any) {
             toast.error(error.message || "Failed to delete global LLM config");
@@ -155,6 +191,63 @@ export default function GlobalConfigView() {
         });
     };
 
+    const handleEmbeddingSubmit = async () => {
+        try {
+            if (editingEmbeddingId) {
+                await updateGlobalEmbeddingConfig(editingEmbeddingId, embeddingForm);
+                toast.success("Global Embedding Configuration updated successfully");
+            } else {
+                await createGlobalEmbeddingConfig(embeddingForm);
+                toast.success("Global Embedding Configuration created successfully");
+            }
+            setEmbeddingForm({ provider: 'openai', model: 'text-embedding-3-small', api_key: '', base_url: '', is_default: true });
+            setEditingEmbeddingId(null);
+            await loadGlobalConfigs();
+        } catch (error: any) {
+            toast.error(error.message || "Failed to save global embedding config");
+        }
+    };
+
+    const handleDeleteEmbedding = async (id: number) => {
+        const config = globalEmbeddingConfigs.find(c => c.id === id);
+        const isDefault = config?.is_default;
+        
+        const message = isDefault 
+            ? "Are you sure you want to delete this default embedding configuration? A new default will be automatically created if needed."
+            : "Are you sure you want to delete this global embedding configuration?";
+        
+        if (!confirm(message)) return;
+        
+        try {
+            await deleteGlobalEmbeddingConfig(id);
+            toast.success("Global embedding configuration deleted" + (isDefault ? ". A new default has been set." : ""));
+            await loadGlobalConfigs();
+        } catch (error: any) {
+            toast.error(error.message || "Failed to delete global embedding config");
+        }
+    };
+
+    const handleToggleEmbedding = async (id: number) => {
+        try {
+            await toggleGlobalEmbeddingConfig(id);
+            toast.success("Global Embedding Configuration toggled");
+            await loadGlobalConfigs();
+        } catch (error: any) {
+            toast.error(error.message || "Failed to toggle global embedding config");
+        }
+    };
+
+    const startEditEmbedding = (config: any) => {
+        setEditingEmbeddingId(config.id);
+        setEmbeddingForm({
+            provider: config.provider,
+            model: config.model,
+            api_key: '', // Don't populate API key for security
+            base_url: config.base_url || '',
+            is_default: config.is_default || false
+        });
+    };
+
     const startEditMCP = (server: any) => {
         setEditingMCPId(server.id);
         setMcpForm({
@@ -185,6 +278,12 @@ export default function GlobalConfigView() {
                     Global LLM Configs
                 </button>
                 <button
+                    onClick={() => setActiveTab('embedding')}
+                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeTab === 'embedding' ? 'bg-white text-black' : 'text-zinc-400 hover:text-white hover:bg-white/5'}`}
+                >
+                    Global Embeddings
+                </button>
+                <button
                     onClick={() => setActiveTab('mcp')}
                     className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeTab === 'mcp' ? 'bg-white text-black' : 'text-zinc-400 hover:text-white hover:bg-white/5'}`}
                 >
@@ -195,14 +294,14 @@ export default function GlobalConfigView() {
             <div className="max-w-4xl">
                 {activeTab === 'llm' && (
                     <div className="space-y-6">
-                        <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="bg-zinc-900/50 backdrop-blur-sm border border-white/5 rounded-3xl p-8 space-y-6"
-                        >
-                            <div className="flex items-start gap-4 p-4 bg-blue-500/5 border border-blue-500/10 rounded-xl mb-6">
-                                <ShieldAlert className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
-                                <div className="text-sm text-blue-200">
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="bg-zinc-900/50 backdrop-blur-sm border border-white/5 rounded-3xl p-8 space-y-6"
+                    >
+                        <div className="flex items-start gap-4 p-4 bg-blue-500/5 border border-blue-500/10 rounded-xl mb-6">
+                            <ShieldAlert className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
+                            <div className="text-sm text-blue-200">
                                     <strong>Global LLM Configuration:</strong> These configurations are available to all users. Users can use them but cannot modify, delete, or disable them. Only superadmins can manage these.
                                 </div>
                             </div>
@@ -212,53 +311,68 @@ export default function GlobalConfigView() {
                                 {editingLLMId ? 'Edit' : 'Create'} Global LLM Configuration
                             </h3>
 
-                            <div className="grid grid-cols-2 gap-6">
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium text-zinc-300">Provider</label>
-                                    <select
-                                        value={llmForm.type}
-                                        onChange={e => setLlmForm({ ...llmForm, type: e.target.value })}
-                                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-blue-500/50 text-white"
-                                    >
-                                        <option value="openai">OpenAI</option>
-                                        <option value="deepseek">DeepSeek</option>
-                                        <option value="anthropic">Anthropic</option>
+                        <div className="grid grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-zinc-300">Provider</label>
+                                <select
+                                    value={llmForm.type}
+                                    onChange={e => setLlmForm({ ...llmForm, type: e.target.value })}
+                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-blue-500/50 text-white"
+                                >
+                                    <option value="openai">OpenAI</option>
+                                    <option value="deepseek">DeepSeek</option>
+                                    <option value="anthropic">Anthropic</option>
                                         <option value="groq">Groq</option>
                                         <option value="ollama">Ollama</option>
                                         <option value="gemini">Gemini</option>
                                         <option value="openrouter">OpenRouter</option>
-                                    </select>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium text-zinc-300">Model Name</label>
-                                    <input
-                                        type="text"
-                                        value={llmForm.model}
-                                        onChange={e => setLlmForm({ ...llmForm, model: e.target.value })}
-                                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-blue-500/50 text-white"
-                                    />
-                                </div>
-                                <div className="col-span-2 space-y-2">
-                                    <label className="text-sm font-medium text-zinc-300">API Key</label>
-                                    <input
-                                        type="password"
-                                        value={llmForm.api_key}
-                                        onChange={e => setLlmForm({ ...llmForm, api_key: e.target.value })}
-                                        placeholder="sk-... (leave empty to keep existing)"
-                                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-blue-500/50 text-white"
-                                    />
-                                </div>
-                                <div className="col-span-2 space-y-2">
-                                    <label className="text-sm font-medium text-zinc-300">Base URL (Optional)</label>
-                                    <input
-                                        type="text"
-                                        value={llmForm.base_url}
-                                        onChange={e => setLlmForm({ ...llmForm, base_url: e.target.value })}
-                                        placeholder="https://api.openai.com/v1"
-                                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-blue-500/50 text-white"
-                                    />
-                                </div>
+                                </select>
                             </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-zinc-300">Model Name</label>
+                                <input
+                                    type="text"
+                                    value={llmForm.model}
+                                    onChange={e => setLlmForm({ ...llmForm, model: e.target.value })}
+                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-blue-500/50 text-white"
+                                />
+                            </div>
+                            <div className="col-span-2 space-y-2">
+                                <label className="text-sm font-medium text-zinc-300">API Key</label>
+                                <input
+                                    type="password"
+                                    value={llmForm.api_key}
+                                    onChange={e => setLlmForm({ ...llmForm, api_key: e.target.value })}
+                                        placeholder="sk-... (leave empty to keep existing)"
+                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-blue-500/50 text-white"
+                                />
+                            </div>
+                            <div className="col-span-2 space-y-2">
+                                <label className="text-sm font-medium text-zinc-300">Base URL (Optional)</label>
+                                <input
+                                    type="text"
+                                    value={llmForm.base_url}
+                                    onChange={e => setLlmForm({ ...llmForm, base_url: e.target.value })}
+                                    placeholder="https://api.openai.com/v1"
+                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-blue-500/50 text-white"
+                                />
+                            </div>
+                                <div className="col-span-2 flex items-center gap-3 p-4 bg-blue-500/5 border border-blue-500/10 rounded-xl">
+                                    <input
+                                        type="checkbox"
+                                        id="is_default"
+                                        checked={llmForm.is_default}
+                                        onChange={e => setLlmForm({ ...llmForm, is_default: e.target.checked })}
+                                        className="w-4 h-4 text-blue-600 bg-black/40 border-white/20 rounded focus:ring-blue-500"
+                                    />
+                                    <label htmlFor="is_default" className="text-sm font-medium text-zinc-300 cursor-pointer">
+                                        Mark as Default Configuration
+                                    </label>
+                                    <span className="text-xs text-blue-400 ml-auto">
+                                        Only one global config can be default. Setting this will unset others.
+                                    </span>
+                                </div>
+                        </div>
 
                             <div className="pt-4 flex justify-end gap-2">
                                 {editingLLMId && (
@@ -272,15 +386,15 @@ export default function GlobalConfigView() {
                                         Cancel
                                     </button>
                                 )}
-                                <button
-                                    onClick={handleLlmSubmit}
-                                    className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-medium transition-colors flex items-center gap-2"
-                                >
-                                    <Save className="w-4 h-4" />
+                            <button
+                                onClick={handleLlmSubmit}
+                                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-medium transition-colors flex items-center gap-2"
+                            >
+                                <Save className="w-4 h-4" />
                                     {editingLLMId ? 'Update' : 'Create'} Configuration
-                                </button>
-                            </div>
-                        </motion.div>
+                            </button>
+                        </div>
+                    </motion.div>
 
                         {/* List of Global LLM Configs */}
                         <div className="bg-zinc-900/50 backdrop-blur-sm border border-white/5 rounded-3xl p-8">
@@ -306,7 +420,7 @@ export default function GlobalConfigView() {
                                             className="bg-black/40 border border-white/10 rounded-xl p-4 flex items-center justify-between"
                                         >
                                             <div className="flex-1">
-                                                <div className="flex items-center gap-2">
+                                                <div className="flex items-center gap-2 flex-wrap">
                                                     <span className="font-semibold text-white">{config.type} - {config.model}</span>
                                                     {config.active ? (
                                                         <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-full">Active</span>
@@ -315,6 +429,9 @@ export default function GlobalConfigView() {
                                                     )}
                                                     {config.is_default && (
                                                         <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded-full">Default</span>
+                                                    )}
+                                                    {config.has_api_key && (
+                                                        <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 text-xs rounded-full">API Key Set</span>
                                                     )}
                                                 </div>
                                                 {config.base_url && (
@@ -354,9 +471,9 @@ export default function GlobalConfigView() {
 
                 {activeTab === 'mcp' && (
                     <div className="space-y-6">
-                        <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
                             className="bg-zinc-900/50 backdrop-blur-sm border border-white/5 rounded-3xl p-8"
                         >
                             <div className="flex items-start gap-4 p-4 bg-green-500/5 border border-green-500/10 rounded-xl mb-6">
@@ -382,16 +499,6 @@ export default function GlobalConfigView() {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-sm font-medium text-zinc-300">Server URL</label>
-                                    <input
-                                        type="text"
-                                        value={mcpForm.url}
-                                        onChange={e => setMcpForm({ ...mcpForm, url: e.target.value })}
-                                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-green-500/50 text-white"
-                                        placeholder="http://localhost:8000/sse"
-                                    />
-                                </div>
-                                <div className="space-y-2">
                                     <label className="text-sm font-medium text-zinc-300">Connection Type</label>
                                     <select
                                         value={mcpForm.connection_type}
@@ -399,9 +506,35 @@ export default function GlobalConfigView() {
                                         className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-green-500/50 text-white"
                                     >
                                         <option value="http">HTTP</option>
-                                        <option value="sse">SSE</option>
-                                        <option value="stdio">STDIO</option>
+                                        <option value="sse">SSE (Server-Sent Events)</option>
+                                        <option value="stdio">STDIO (Local Process)</option>
                                     </select>
+                                </div>
+                                <div className="col-span-2 space-y-2">
+                                    <label className="text-sm font-medium text-zinc-300">Server URL</label>
+                                    <input
+                                        type="text"
+                                        value={mcpForm.url}
+                                        onChange={e => setMcpForm({ ...mcpForm, url: e.target.value })}
+                                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-green-500/50 text-white"
+                                        placeholder={
+                                            mcpForm.connection_type === 'http'
+                                                ? "http://localhost:8000/api/mcp/people/mcp"
+                                                : mcpForm.connection_type === 'sse'
+                                                ? "http://localhost:3000/sse"
+                                                : "npx -y @modelcontextprotocol/server-filesystem ..."
+                                        }
+                                    />
+                                    {mcpForm.connection_type === 'http' && (
+                                        <p className="text-xs text-zinc-400 mt-1">
+                                            HTTP URLs should end with <code className="bg-zinc-800 px-1 rounded">/mcp</code>. Example: <code className="bg-zinc-800 px-1 rounded">http://localhost:8000/api/mcp/people/mcp</code>
+                                        </p>
+                                    )}
+                                    {mcpForm.connection_type === 'sse' && (
+                                        <p className="text-xs text-zinc-400 mt-1">
+                                            SSE URLs should end with <code className="bg-zinc-800 px-1 rounded">/sse</code>. Example: <code className="bg-zinc-800 px-1 rounded">http://localhost:3000/sse</code>
+                                        </p>
+                                    )}
                                 </div>
                                 <div className="col-span-2 space-y-2">
                                     <label className="text-sm font-medium text-zinc-300">API Key (Optional)</label>
