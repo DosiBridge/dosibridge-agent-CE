@@ -895,7 +895,7 @@ async def chat_stream(
                                         llm_model=llm_config.get("model"),
                                         input_tokens=input_tokens,
                                         output_tokens=output_tokens,
-                                        embedding_tokens=0,
+                                        embedding_tokens=embedding_tokens,
                                         mode=chat_request.mode,
                                         session_id=chat_request.session_id,
                                         success=True

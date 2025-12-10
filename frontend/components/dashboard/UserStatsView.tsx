@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Loader2, Activity, Zap, Database, Cpu, Brain, Power, Edit2, Trash2, X, Eye, EyeOff } from 'lucide-react';
 import { getTodayUsage, getApiKeysInfo, UsageStats, ApiKeysInfo } from '@/lib/api/monitoring';
-import { listLLMConfigs, switchLLMConfig, deleteLLMConfig, updateLLMConfig, type LLMConfigListItem } from '@/lib/api/llm';
+import { listLLMConfigs, switchLLMConfig, deleteLLMConfig, updateLLMConfig, toggleLLMConfig, type LLMConfigListItem } from '@/lib/api/llm';
 import type { LLMConfig } from '@/types/api';
 import toast from 'react-hot-toast';
 
@@ -61,6 +61,25 @@ export default function UserStatsView() {
         } catch (error: any) {
             console.error("Failed to switch LLM config:", error);
             toast.error(error?.message || "Failed to switch LLM configuration");
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
+    const handleToggleConfig = async (configId: number) => {
+        setActionLoading(configId);
+        try {
+            await toggleLLMConfig(configId);
+            toast.success("LLM configuration toggled successfully");
+            // Reload configs to reflect changes
+            const configsData = await listLLMConfigs();
+            setLlmConfigs(configsData.configs);
+            // Also reload usage to show new provider/model
+            const usageData = await getTodayUsage();
+            setUsage(usageData);
+        } catch (error: any) {
+            console.error("Failed to toggle LLM config:", error);
+            toast.error(error?.message || "Failed to toggle LLM configuration");
         } finally {
             setActionLoading(null);
         }
@@ -307,6 +326,11 @@ export default function UserStatsView() {
                                                     Default
                                                 </span>
                                             )}
+                                            {(config.user_id === null || config.user_id === undefined || config.user_id === 1) && (
+                                                <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded-full">
+                                                    Global
+                                                </span>
+                                            )}
                                         </div>
                                         <div className="text-sm text-zinc-300 mb-1">
                                             Model: <span className="font-medium text-white">{config.model}</span>
@@ -326,16 +350,26 @@ export default function UserStatsView() {
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2 ml-4">
-                                        {!config.is_default && (
+                                        {/* Toggle Active/Inactive button - for user's own configs */}
+                                        {config.user_id !== null && config.user_id !== undefined && config.user_id !== 1 && !config.is_default && (
                                             <button
-                                                onClick={() => handleEditConfig(config)}
+                                                onClick={() => handleToggleConfig(config.id)}
                                                 disabled={actionLoading === config.id}
-                                                className="p-2 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700 rounded-lg transition-colors disabled:opacity-50"
-                                                title="Edit this LLM configuration"
+                                                className={`p-2 rounded-lg transition-colors disabled:opacity-50 ${
+                                                    config.active
+                                                        ? "bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30"
+                                                        : "bg-zinc-500/20 text-zinc-400 hover:bg-zinc-500/30 border border-zinc-700"
+                                                }`}
+                                                title={config.active ? "Disable this LLM configuration" : "Enable this LLM configuration"}
                                             >
-                                                <Edit2 className="w-4 h-4 text-indigo-400" />
+                                                {actionLoading === config.id ? (
+                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                ) : (
+                                                    <Power className="w-4 h-4" />
+                                                )}
                                             </button>
                                         )}
+                                        {/* Switch button - for global configs or to activate any config */}
                                         {!config.active && (
                                             <button
                                                 onClick={() => handleSwitchConfig(config.id)}
@@ -350,7 +384,19 @@ export default function UserStatsView() {
                                                 )}
                                             </button>
                                         )}
-                                        {!config.active && !config.is_default && (
+                                        {/* Edit button - for user's own configs */}
+                                        {config.user_id !== null && config.user_id !== undefined && config.user_id !== 1 && !config.is_default && (
+                                            <button
+                                                onClick={() => handleEditConfig(config)}
+                                                disabled={actionLoading === config.id}
+                                                className="p-2 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700 rounded-lg transition-colors disabled:opacity-50"
+                                                title="Edit this LLM configuration"
+                                            >
+                                                <Edit2 className="w-4 h-4 text-indigo-400" />
+                                            </button>
+                                        )}
+                                        {/* Delete button - for user's own inactive configs */}
+                                        {config.user_id !== null && config.user_id !== undefined && config.user_id !== 1 && !config.is_default && !config.active && (
                                             <button
                                                 onClick={() => handleDeleteConfig(config.id)}
                                                 disabled={actionLoading === config.id}

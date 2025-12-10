@@ -130,7 +130,13 @@ def decrypt_value(encrypted_value: Optional[str]) -> Optional[str]:
     except Exception as e:
         # If decryption fails, it might be an old unencrypted value
         # Try to return as-is (for backward compatibility during migration)
-        print(f"⚠️  Warning: Failed to decrypt value (might be unencrypted): {str(e)}")
+        # Only log warning if it's not a common decryption error (to reduce noise)
+        error_str = str(e).lower()
+        if "invalid token" not in error_str and "incorrect padding" not in error_str:
+            # Only log if it's an unexpected error
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.debug(f"Failed to decrypt value (might be unencrypted): {str(e)}")
         # Return the value as-is - might be unencrypted from before encryption was added
         return encrypted_value
 

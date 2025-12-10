@@ -22,6 +22,7 @@ import {
   deleteLLMConfig,
   switchLLMConfig,
   updateLLMConfig,
+  toggleLLMConfig,
   type LLMConfigListItem,
 } from "@/lib/api/llm";
 import {
@@ -195,6 +196,18 @@ export default function MonitoringPage() {
       useStore.getState().loadLLMConfig();
     } catch (error: any) {
       toast.error(error.message || "Failed to switch LLM configuration");
+    }
+  };
+
+  const handleToggleConfig = async (configId: number) => {
+    try {
+      await toggleLLMConfig(configId);
+      toast.success("LLM configuration toggled successfully");
+      loadMonitoringData();
+      // Reload LLM config in store
+      useStore.getState().loadLLMConfig();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to toggle LLM configuration");
     }
   };
 
@@ -490,6 +503,11 @@ export default function MonitoringPage() {
                               Default
                             </span>
                           )}
+                          {(config.user_id === null || config.user_id === undefined || config.user_id === 1) && (
+                            <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded-full">
+                              Global
+                            </span>
+                          )}
                         </div>
                         <div className="text-sm text-[var(--text-primary)] mb-1">
                           Model: <span className="font-medium">{config.model}</span>
@@ -518,15 +536,21 @@ export default function MonitoringPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2 ml-4">
-                        {!config.is_default && (
+                        {/* Toggle Active/Inactive button - for user's own configs */}
+                        {config.user_id !== null && config.user_id !== undefined && config.user_id !== 1 && !config.is_default && (
                           <button
-                            onClick={() => handleEditConfig(config)}
-                            className="p-2 bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border)] rounded-lg transition-colors"
-                            title="Edit this LLM configuration"
+                            onClick={() => handleToggleConfig(config.id)}
+                            className={`p-2 rounded-lg transition-colors ${
+                              config.active
+                                ? "bg-[var(--green)]/20 text-[var(--green)] hover:bg-[var(--green)]/30 border border-[var(--green)]/30"
+                                : "bg-[var(--surface)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] border border-[var(--border)]"
+                            }`}
+                            title={config.active ? "Disable this LLM configuration" : "Enable this LLM configuration"}
                           >
-                            <Edit2 className="w-4 h-4 text-[var(--green)]" />
+                            <Power className="w-4 h-4" />
                           </button>
                         )}
+                        {/* Switch button - for global configs or to activate any config */}
                         {!config.active && (
                           <button
                             onClick={() => handleSwitchConfig(config.id)}
@@ -536,7 +560,18 @@ export default function MonitoringPage() {
                             <Power className="w-4 h-4 text-[var(--green)]" />
                           </button>
                         )}
-                        {!config.active && !config.is_default && (
+                        {/* Edit button - for user's own configs */}
+                        {config.user_id !== null && config.user_id !== undefined && config.user_id !== 1 && !config.is_default && (
+                          <button
+                            onClick={() => handleEditConfig(config)}
+                            className="p-2 bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border)] rounded-lg transition-colors"
+                            title="Edit this LLM configuration"
+                          >
+                            <Edit2 className="w-4 h-4 text-[var(--green)]" />
+                          </button>
+                        )}
+                        {/* Delete button - for user's own inactive configs */}
+                        {config.user_id !== null && config.user_id !== undefined && config.user_id !== 1 && !config.is_default && !config.active && (
                           <button
                             onClick={() => handleDeleteConfig(config.id)}
                             className="p-2 bg-[var(--surface)] hover:bg-red-500/10 border border-[var(--border)] rounded-lg transition-colors"

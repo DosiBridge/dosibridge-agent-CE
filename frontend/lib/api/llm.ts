@@ -116,3 +116,14 @@ export async function switchLLMConfig(
   });
   return handleResponse(response);
 }
+
+export async function toggleLLMConfig(
+  configId: number
+): Promise<{ message: string; config: LLMConfigResponse }> {
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/llm-config/${configId}/toggle`, {
+    method: "PATCH",
+    headers: getAuthHeaders(),
+  });
+  return handleResponse(response);
+}

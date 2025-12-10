@@ -214,6 +214,26 @@ async def create_global_llm_config(
             detail="Only superadmin with ID=1 can manage global configurations"
         )
 
+    # Test configuration before saving
+    test_message = None
+    if config.api_key:
+        from src.api.routes.llm_config import test_llm_config
+        
+        # Build config dict for testing
+        config_dict = {
+            "type": config.type,
+            "model": config.model,
+            "api_key": config.api_key,
+            "base_url": config.base_url
+        }
+        
+        test_success, test_message = await test_llm_config(config_dict)
+        if not test_success:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Configuration test failed: {test_message}. Please fix the configuration before saving."
+            )
+
     # If setting this as default, unset other global defaults first
     # Global configs are owned by superadmin (user_id=1) or None (for backward compatibility)
     if config.is_default:
@@ -239,7 +259,7 @@ async def create_global_llm_config(
     db.commit()
     db.refresh(new_config)
     
-    return {"status": "success", "config": new_config.to_dict()}
+    return {"status": "success", "config": new_config.to_dict(), "test_message": test_message if config.api_key else None}
 
 @router.post("/global-config/mcp")
 async def create_global_mcp_server(
@@ -259,6 +279,7 @@ async def create_global_mcp_server(
         )
         
     from src.core.models import MCPServer
+    from src.utils.mcp_connection_test import test_mcp_connection
     
     # Check if name already exists globally (user_id=1 or None for backward compatibility)
     existing = db.query(MCPServer).filter(
@@ -267,12 +288,44 @@ async def create_global_mcp_server(
     ).first()
     if existing:
         raise HTTPException(status_code=400, detail="Global MCP server with this name already exists")
+    
+    # Normalize URL based on connection type
+    connection_type = (server.connection_type or "http").lower()
+    if connection_type == "stdio":
+        normalized_url = server.url.strip()
+    else:
+        normalized_url = server.url.rstrip('/')
+        if connection_type == "sse":
+            if normalized_url.endswith('/mcp'):
+                normalized_url = normalized_url[:-4] + '/sse'
+            elif not normalized_url.endswith('/sse'):
+                normalized_url = normalized_url.rstrip('/') + '/sse'
+        else:  # http
+            if normalized_url.endswith('/sse'):
+                normalized_url = normalized_url[:-4]
+            if not normalized_url.endswith('/mcp'):
+                normalized_url = normalized_url.rstrip('/') + '/mcp'
+    
+    # Test connection before saving
+    connection_ok, connection_message = await test_mcp_connection(
+        normalized_url,
+        connection_type=connection_type,
+        api_key=server.api_key if server.api_key else None,
+        headers=server.headers if server.headers else None,
+        timeout=5.0
+    )
+    
+    if not connection_ok:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Connection test failed: {connection_message}. Please fix the configuration before saving."
+        )
         
     new_server = MCPServer(
         user_id=1,  # Owned by superadmin (ID=1)
         name=server.name,
-        url=server.url,
-        connection_type=server.connection_type,
+        url=normalized_url,
+        connection_type=connection_type,
         enabled=True
     )
     
@@ -283,7 +336,7 @@ async def create_global_mcp_server(
     db.commit()
     db.refresh(new_server)
     
-    return {"status": "success", "server": new_server.to_dict()}
+    return {"status": "success", "server": new_server.to_dict(), "test_message": connection_message}
 
 @router.get("/global-config/llm")
 async def list_global_llm_configs(
@@ -597,6 +650,45 @@ async def toggle_global_mcp_server(
 
 # --- Global Embedding Configuration Routes ---
 
+async def test_embedding_config(provider: str, model: str, api_key: str, base_url: Optional[str] = None) -> tuple[bool, str]:
+    """Test embedding configuration by making a simple API call."""
+    try:
+        if provider.lower() == "openai":
+            from langchain_openai import OpenAIEmbeddings
+            
+            embeddings = OpenAIEmbeddings(
+                model=model,
+                openai_api_key=api_key,
+                openai_api_base=base_url if base_url else None
+            )
+            
+            # Test with a simple text
+            test_text = "test"
+            result = await embeddings.aembed_query(test_text)
+            
+            if result and len(result) > 0:
+                return True, "Embedding configuration is valid and working"
+            else:
+                return False, "Embedding API responded but with empty result"
+        else:
+            # For other providers, we can add support later
+            # For now, just check if API key is provided
+            if not api_key:
+                return False, f"API key is required for {provider} provider"
+            # If API key is provided, assume it's valid (can't test without provider-specific implementation)
+            return True, f"{provider} embedding configuration accepted (not tested - provider-specific test not implemented)"
+    except Exception as e:
+        error_msg = str(e).lower()
+        if "api key" in error_msg or "authentication" in error_msg or "401" in error_msg or "403" in error_msg:
+            return False, f"Invalid API key or authentication failed: {str(e)[:200]}"
+        elif "not found" in error_msg or "404" in error_msg:
+            return False, f"Model not found or not available: {str(e)[:200]}"
+        elif "connection" in error_msg or "timeout" in error_msg:
+            return False, f"Connection error: {str(e)[:200]}"
+        else:
+            return False, f"Test failed: {str(e)[:200]}"
+
+
 @router.post("/global-config/embedding")
 async def create_global_embedding_config(
     config: GlobalEmbeddingConfigRequest,
@@ -613,6 +705,21 @@ async def create_global_embedding_config(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only superadmin with ID=1 can manage global configurations"
         )
+
+    # Test configuration before saving
+    test_message = None
+    if config.api_key:
+        test_success, test_message = await test_embedding_config(
+            config.provider,
+            config.model,
+            config.api_key,
+            config.base_url
+        )
+        if not test_success:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Configuration test failed: {test_message}. Please fix the configuration before saving."
+            )
 
     # If setting this as default, unset other global defaults first
     if config.is_default:
@@ -638,7 +745,7 @@ async def create_global_embedding_config(
     db.commit()
     db.refresh(new_config)
     
-    return {"status": "success", "config": new_config.to_dict()}
+    return {"status": "success", "config": new_config.to_dict(), "test_message": test_message}
 
 @router.get("/global-config/embedding")
 async def list_global_embedding_configs(

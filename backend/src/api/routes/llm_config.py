@@ -856,3 +856,64 @@ async def switch_llm_config(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to switch LLM configuration: {str(e)}")
 
+
+@router.patch("/llm-config/{config_id}/toggle")
+async def toggle_llm_config(
+    config_id: int,
+    current_user: Optional[User] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Toggle active status of a user's own LLM configuration.
+    Users can only toggle their own configs (not global configs).
+    If disabling the currently active config, user will fall back to default global config.
+    """
+    try:
+        user_id = current_user.id if current_user else None
+        
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        # Find the config - must be user's own config (not global)
+        llm_config = db.query(LLMConfig).filter(
+            LLMConfig.id == config_id,
+            LLMConfig.user_id == user_id  # Only user's own configs
+        ).first()
+        
+        if not llm_config:
+            raise HTTPException(
+                status_code=404, 
+                detail="LLM configuration not found or you don't have permission to toggle it"
+            )
+        
+        # Toggle active status
+        llm_config.active = not llm_config.active
+        
+        # If disabling the active config, ensure at least one config is active
+        # If no user configs are active, system will use default global config
+        if not llm_config.active:
+            # Check if this was the only active config
+            active_count = db.query(LLMConfig).filter(
+                LLMConfig.user_id == user_id,
+                LLMConfig.active == True
+            ).count()
+            
+            if active_count == 0:
+                # No active user configs - system will use default global config
+                pass
+        
+        db.commit()
+        db.refresh(llm_config)
+        
+        status = "enabled" if llm_config.active else "disabled"
+        return {
+            "status": "success",
+            "message": f"LLM configuration {status}",
+            "config": llm_config.to_dict()
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to toggle LLM configuration: {str(e)}")
+

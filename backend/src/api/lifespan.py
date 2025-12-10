@@ -151,7 +151,7 @@ async def mcp_lifespan(app: FastAPI):
                             except Exception as commit_error:
                                 db.rollback()
                                 print(f"⚠️  Failed to create default embedding config: {commit_error}")
-                        else:
+                    else:
                             print("⚠️  OPENAI_API_KEY not set. Please configure embedding providers via the superadmin dashboard.")
                     
                     # Step 3: Check status of existing configs

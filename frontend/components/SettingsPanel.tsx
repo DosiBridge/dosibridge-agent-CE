@@ -35,6 +35,7 @@ import {
   switchLLMConfig,
   deleteLLMConfig,
   updateLLMConfig,
+  toggleLLMConfig,
   type LLMConfigListItem,
 } from "@/lib/api/llm";
 import RAGUploadModal from "@/components/rag/RAGUploadModal";
@@ -367,6 +368,20 @@ export default function SettingsPanel() {
       await loadLLMConfig();
     } catch (error: any) {
       toast.error(error.message || "Failed to switch LLM configuration");
+    } finally {
+      setSwitchingConfigId(null);
+    }
+  };
+
+  const handleToggleConfig = async (configId: number) => {
+    setSwitchingConfigId(configId);
+    try {
+      await toggleLLMConfig(configId);
+      toast.success("LLM configuration toggled successfully");
+      await loadLLMConfigsList();
+      await loadLLMConfig();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to toggle LLM configuration");
     } finally {
       setSwitchingConfigId(null);
     }
@@ -732,15 +747,26 @@ export default function SettingsPanel() {
                                   )}
                               </div>
                               <div className="flex items-center gap-2 ml-4">
-                                  {canModify && !config.is_default && (
+                                  {/* Toggle Active/Inactive button - for user's own configs */}
+                                  {canModify && !config.is_default && config.user_id !== null && config.user_id !== undefined && config.user_id !== 1 && (
                                   <button
-                                    onClick={() => startEditingLLMConfig(config)}
-                                    className="p-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg transition-colors"
-                                    title="Edit this LLM configuration"
-                                  >
-                                    <Edit2 className="w-4 h-4 text-indigo-400" />
+                                      onClick={() => handleToggleConfig(config.id)}
+                                      className={`p-2 rounded-lg transition-colors disabled:opacity-50 ${
+                                        config.active
+                                          ? "bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30"
+                                          : "bg-zinc-500/20 text-zinc-400 hover:bg-zinc-500/30 border border-zinc-700"
+                                      }`}
+                                      title={config.active ? "Disable this LLM configuration" : "Enable this LLM configuration"}
+                                      disabled={switchingConfigId === config.id}
+                                    >
+                                      {switchingConfigId === config.id ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                      ) : (
+                                        <Power className="w-4 h-4" />
+                                      )}
                                   </button>
                                 )}
+                                  {/* Switch button - for global configs or to activate any config */}
                                 {!config.active && (
                                   <button
                                     onClick={() => handleSwitchConfig(config.id)}
@@ -755,6 +781,16 @@ export default function SettingsPanel() {
                                     )}
                                   </button>
                                 )}
+                                  {/* Edit button - for user's own configs */}
+                                  {canModify && !config.is_default && config.user_id !== null && config.user_id !== undefined && config.user_id !== 1 && (
+                                    <button
+                                      onClick={() => startEditingLLMConfig(config)}
+                                      className="p-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg transition-colors"
+                                      title="Edit this LLM configuration"
+                                    >
+                                      <Edit2 className="w-4 h-4 text-indigo-400" />
+                                    </button>
+                                  )}
                                   {config.active && isGlobal && (
                                     <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded-full">
                                       Using Global Default

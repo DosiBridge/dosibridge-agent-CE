@@ -414,9 +414,9 @@ export default function GlobalConfigView() {
                                 <div className="text-center py-8 text-zinc-400">No global LLM configurations yet</div>
                             ) : (
                                 <div className="space-y-3">
-                                    {globalLLMConfigs.map((config) => (
+                                    {globalLLMConfigs.map((config, index) => (
                                         <div
-                                            key={config.id}
+                                            key={config.id || `llm-config-${index}`}
                                             className="bg-black/40 border border-white/10 rounded-xl p-4 flex items-center justify-between"
                                         >
                                             <div className="flex-1">
@@ -466,6 +466,180 @@ export default function GlobalConfigView() {
                                 </div>
                             )}
                         </div>
+                    </div>
+                )}
+
+                {activeTab === 'embedding' && (
+                    <div className="space-y-6">
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="bg-zinc-900/50 backdrop-blur-sm border border-white/5 rounded-3xl p-8 space-y-6"
+                    >
+                        <div className="flex items-start gap-4 p-4 bg-purple-500/5 border border-purple-500/10 rounded-xl mb-6">
+                            <ShieldAlert className="w-5 h-5 text-purple-400 shrink-0 mt-0.5" />
+                            <div className="text-sm text-purple-200">
+                                <strong>Global Embedding Configuration:</strong> These configurations are available to all users for RAG/document embeddings. Users can use them but cannot modify, delete, or disable them. Only superadmins can manage these.
+                            </div>
+                        </div>
+
+                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                            {editingEmbeddingId ? <Edit2 className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
+                            {editingEmbeddingId ? 'Edit' : 'Create'} Global Embedding Configuration
+                        </h3>
+
+                        <div className="grid grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-zinc-300">Provider</label>
+                                <select
+                                    value={embeddingForm.provider}
+                                    onChange={e => setEmbeddingForm({ ...embeddingForm, provider: e.target.value })}
+                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-purple-500/50 text-white"
+                                >
+                                    <option value="openai">OpenAI</option>
+                                    <option value="cohere">Cohere</option>
+                                    <option value="huggingface">HuggingFace</option>
+                                </select>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-zinc-300">Model Name</label>
+                                <input
+                                    type="text"
+                                    value={embeddingForm.model}
+                                    onChange={e => setEmbeddingForm({ ...embeddingForm, model: e.target.value })}
+                                    placeholder="text-embedding-3-small"
+                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-purple-500/50 text-white"
+                                />
+                            </div>
+                            <div className="col-span-2 space-y-2">
+                                <label className="text-sm font-medium text-zinc-300">API Key</label>
+                                <input
+                                    type="password"
+                                    value={embeddingForm.api_key}
+                                    onChange={e => setEmbeddingForm({ ...embeddingForm, api_key: e.target.value })}
+                                    placeholder="sk-... (leave empty to keep existing)"
+                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-purple-500/50 text-white"
+                                />
+                            </div>
+                            <div className="col-span-2 space-y-2">
+                                <label className="text-sm font-medium text-zinc-300">Base URL (Optional)</label>
+                                <input
+                                    type="text"
+                                    value={embeddingForm.base_url}
+                                    onChange={e => setEmbeddingForm({ ...embeddingForm, base_url: e.target.value })}
+                                    placeholder="https://api.openai.com/v1"
+                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-purple-500/50 text-white"
+                                />
+                            </div>
+                            <div className="col-span-2 flex items-center gap-3 p-4 bg-purple-500/5 border border-purple-500/10 rounded-xl">
+                                <input
+                                    type="checkbox"
+                                    id="embedding_is_default"
+                                    checked={embeddingForm.is_default}
+                                    onChange={e => setEmbeddingForm({ ...embeddingForm, is_default: e.target.checked })}
+                                    className="w-4 h-4 text-purple-600 bg-black/40 border-white/20 rounded focus:ring-purple-500"
+                                />
+                                <label htmlFor="embedding_is_default" className="text-sm font-medium text-zinc-300 cursor-pointer">
+                                    Mark as Default Configuration
+                                </label>
+                                <span className="text-xs text-purple-400 ml-auto">
+                                    Only one global config can be default. Setting this will unset others.
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="pt-4 flex justify-end gap-2">
+                            {editingEmbeddingId && (
+                                <button
+                                    onClick={() => {
+                                        setEditingEmbeddingId(null);
+                                        setEmbeddingForm({ provider: 'openai', model: 'text-embedding-3-small', api_key: '', base_url: '', is_default: true });
+                                    }}
+                                    className="px-6 py-2.5 bg-zinc-700 hover:bg-zinc-600 text-white rounded-xl font-medium transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                            )}
+                            <button
+                                onClick={handleEmbeddingSubmit}
+                                className="px-6 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-medium transition-colors flex items-center gap-2"
+                            >
+                                <Save className="w-4 h-4" />
+                                {editingEmbeddingId ? 'Update' : 'Create'} Configuration
+                            </button>
+                        </div>
+                    </motion.div>
+
+                    {/* List of Global Embedding Configs */}
+                    <div className="bg-zinc-900/50 backdrop-blur-sm border border-white/5 rounded-3xl p-8">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-lg font-bold text-white">Existing Global Embedding Configurations</h3>
+                            <button
+                                onClick={loadGlobalConfigs}
+                                className="p-2 hover:bg-white/5 rounded-lg transition-colors"
+                                title="Refresh"
+                            >
+                                <RefreshCw className={`w-4 h-4 text-zinc-400 ${loading ? 'animate-spin' : ''}`} />
+                            </button>
+                        </div>
+                        {loading ? (
+                            <div className="text-center py-8 text-zinc-400">Loading...</div>
+                        ) : globalEmbeddingConfigs.length === 0 ? (
+                            <div className="text-center py-8 text-zinc-400">No global embedding configurations yet</div>
+                        ) : (
+                            <div className="space-y-3">
+                                {globalEmbeddingConfigs.map((config, index) => (
+                                    <div
+                                        key={config.id || `embedding-config-${index}`}
+                                        className="bg-black/40 border border-white/10 rounded-xl p-4 flex items-center justify-between"
+                                    >
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <span className="font-semibold text-white">{config.provider} - {config.model}</span>
+                                                {config.active ? (
+                                                    <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-full">Active</span>
+                                                ) : (
+                                                    <span className="px-2 py-0.5 bg-zinc-500/20 text-zinc-400 text-xs rounded-full">Inactive</span>
+                                                )}
+                                                {config.is_default && (
+                                                    <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 text-xs rounded-full">Default</span>
+                                                )}
+                                                {config.has_api_key && (
+                                                    <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded-full">API Key Set</span>
+                                                )}
+                                            </div>
+                                            {config.base_url && (
+                                                <div className="text-sm text-zinc-400 mt-1">{config.base_url}</div>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => handleToggleEmbedding(config.id)}
+                                                className={`p-2 rounded-lg transition-colors ${config.active ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' : 'bg-zinc-500/20 text-zinc-400 hover:bg-zinc-500/30'}`}
+                                                title={config.active ? 'Disable' : 'Enable'}
+                                            >
+                                                <Power className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => startEditEmbedding(config)}
+                                                className="p-2 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded-lg transition-colors"
+                                                title="Edit"
+                                            >
+                                                <Edit2 className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteEmbedding(config.id)}
+                                                className="p-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-lg transition-colors"
+                                                title="Delete"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                     </div>
                 )}
 
@@ -587,9 +761,9 @@ export default function GlobalConfigView() {
                                 <div className="text-center py-8 text-zinc-400">No global MCP servers yet</div>
                             ) : (
                                 <div className="space-y-3">
-                                    {globalMCPServers.map((server) => (
+                                    {globalMCPServers.map((server, index) => (
                                         <div
-                                            key={server.id}
+                                            key={server.id || `mcp-server-${index}`}
                                             className="bg-black/40 border border-white/10 rounded-xl p-4 flex items-center justify-between"
                                         >
                                             <div className="flex-1">
