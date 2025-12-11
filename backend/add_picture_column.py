@@ -6,11 +6,10 @@ from sqlalchemy import create_engine, text
 # Add the parent directory to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.core.config import get_settings
+from src.core.database import DATABASE_URL
 
 def add_picture_column():
-    settings = get_settings()
-    engine = create_engine(settings.DATABASE_URL)
+    engine = create_engine(DATABASE_URL)
     
     with engine.connect() as connection:
         try:

@@ -6,16 +6,23 @@ import { useRouter } from "next/navigation";
 import { Loader2, Github, Chrome } from "lucide-react";
 import AuthLayout from "@/components/auth/AuthLayout";
 import SocialButton from "@/components/auth/SocialButton";
+import { useStore } from "@/lib/store";
 
 export default function LoginPage() {
     const { loginWithRedirect, isAuthenticated, isLoading, user } = useAuth0();
     const router = useRouter();
+    const { user: storeUser, isAuthenticated: storeIsAuthenticated } = useStore();
 
     useEffect(() => {
-        if (isAuthenticated && user) {
+        // Only redirect if user is authenticated AND active (not blocked)
+        // The store's checkAuth will handle blocked users and clear their state
+        if (isAuthenticated && user && storeIsAuthenticated && storeUser?.is_active) {
             router.push("/chat");
+        } else if (isAuthenticated && user && storeUser && !storeUser.is_active) {
+            // User is blocked - don't redirect, stay on login page
+            // The error toast will be shown by checkAuth in AuthProvider
         }
-    }, [isAuthenticated, user, router]);
+    }, [isAuthenticated, user, storeUser, storeIsAuthenticated, router]);
 
     if (isLoading) {
         return (

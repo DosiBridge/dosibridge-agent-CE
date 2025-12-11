@@ -6,6 +6,7 @@ export interface AdminUser {
   name: string;
   is_active: boolean;
   role: string;
+  picture?: string;
   created_at: string;
 }
 
@@ -79,6 +80,16 @@ export const blockUser = async (userId: number): Promise<AdminUser> => {
 export const unblockUser = async (userId: number): Promise<AdminUser> => {
   const apiBaseUrl = await getApiBaseUrl();
   const response = await fetch(`${apiBaseUrl}/api/admin/users/${userId}/unblock`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+  });
+  const data = await handleResponse<{ status: string; user: AdminUser }>(response);
+  return data.user;
+};
+
+export const promoteToSuperadmin = async (userId: number): Promise<AdminUser> => {
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/admin/users/${userId}/promote-to-superadmin`, {
     method: "PUT",
     headers: getAuthHeaders(),
   });

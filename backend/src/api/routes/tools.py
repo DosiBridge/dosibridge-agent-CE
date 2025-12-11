@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from typing import Optional
 from sqlalchemy.orm import Session
 from src.core import Config, get_db, User, CustomRAGTool, DB_AVAILABLE
-from src.core.auth import get_current_user
+from src.core.auth import get_current_user, get_current_active_user
 
 router = APIRouter()
 

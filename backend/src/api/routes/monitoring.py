@@ -220,7 +220,7 @@ async def get_api_keys_info(
 @router.get("/usage/per-request")
 async def get_per_request_stats(
     request: Request,
-    current_user: Optional[User] = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_current_active_user),
     db: Session = Depends(get_db),
     days: int = 7,
     group_by: str = "hour"  # "hour", "day", "minute"
@@ -262,7 +262,7 @@ async def get_per_request_stats(
 @router.get("/usage/requests")
 async def get_individual_requests(
     request: Request,
-    current_user: Optional[User] = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_current_active_user),
     db: Session = Depends(get_db),
     days: int = 7,
     limit: int = 100,

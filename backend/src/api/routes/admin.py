@@ -20,6 +20,7 @@ class UserResponse(BaseModel):
     name: str
     is_active: bool
     role: str
+    picture: Optional[str] = None
     created_at: Optional[str] = None
 
     class Config:
@@ -43,23 +44,35 @@ class SystemStatsResponse(BaseModel):
 def get_current_superadmin(
     current_user: User = Depends(get_current_active_user)
 ) -> User:
-    """Get the current superadmin user (requires superadmin role and ID=1)"""
+    """Get the current superadmin user (requires superadmin role)"""
     # Check if user has superadmin role
     if not hasattr(current_user, 'role') or getattr(current_user, 'role', 'user') != "superadmin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Superadmin access required"
         )
-    # Ensure superadmin has ID=1 check removed to allow any superadmin to manage configs
+    return current_user
+
+
+def get_current_admin_or_superadmin(
+    current_user: User = Depends(get_current_active_user)
+) -> User:
+    """Get the current admin or superadmin user (requires admin or superadmin role)"""
+    role = getattr(current_user, 'role', 'user')
+    if role not in ["admin", "superadmin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin or superadmin access required"
+        )
     return current_user
 
 
 @router.get("/users", response_model=List[UserResponse])
 async def list_all_users(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_superadmin)
+    current_user: User = Depends(get_current_admin_or_superadmin)
 ):
-    """List all users (superadmin only)"""
+    """List all users (admin or superadmin only)"""
     if not DB_AVAILABLE:
         raise HTTPException(status_code=503, detail="Database not available")
     
@@ -129,12 +142,98 @@ async def unblock_user(
     return {"status": "success", "message": "User unblocked successfully", "user": user.to_dict()}
 
 
-@router.get("/system/stats", response_model=SystemStatsResponse)
-async def get_system_stats(
+@router.put("/users/{user_id}/promote-to-superadmin")
+async def promote_to_superadmin(
+    user_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_superadmin)
 ):
-    """Get system statistics (superadmin only)"""
+    """Promote a user to superadmin (superadmin only)"""
+    if not DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    user = db.query(UserModel).filter(UserModel.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check if user is already a superadmin
+    if hasattr(user, 'role') and user.role == "superadmin":
+        raise HTTPException(status_code=400, detail="User is already a superadmin")
+    
+    # Promote to superadmin
+    user.role = "superadmin"
+    # Ensure user is active when promoted
+    user.is_active = True
+    db.commit()
+    db.refresh(user)
+    
+    return {"status": "success", "message": "User promoted to superadmin successfully", "user": user.to_dict()}
+
+
+@router.put("/users/{user_id}/promote-to-admin")
+async def promote_to_admin(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_superadmin)
+):
+    """Promote a user to admin (superadmin only)"""
+    if not DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    user = db.query(UserModel).filter(UserModel.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check if user is already an admin or superadmin
+    if hasattr(user, 'role') and user.role in ["admin", "superadmin"]:
+        raise HTTPException(status_code=400, detail=f"User is already a {user.role}")
+    
+    # Promote to admin
+    user.role = "admin"
+    # Ensure user is active when promoted
+    user.is_active = True
+    db.commit()
+    db.refresh(user)
+    
+    return {"status": "success", "message": "User promoted to admin successfully", "user": user.to_dict()}
+
+
+@router.put("/users/{user_id}/demote-to-user")
+async def demote_to_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_superadmin)
+):
+    """Demote an admin to user (superadmin only)"""
+    if not DB_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    user = db.query(UserModel).filter(UserModel.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check if user is a superadmin (cannot demote superadmin)
+    if hasattr(user, 'role') and user.role == "superadmin":
+        raise HTTPException(status_code=400, detail="Cannot demote superadmin to user")
+    
+    # Check if user is already a regular user
+    if hasattr(user, 'role') and user.role == "user":
+        raise HTTPException(status_code=400, detail="User is already a regular user")
+    
+    # Demote to user
+    user.role = "user"
+    db.commit()
+    db.refresh(user)
+    
+    return {"status": "success", "message": "User demoted to regular user successfully", "user": user.to_dict()}
+
+
+@router.get("/system/stats", response_model=SystemStatsResponse)
+async def get_system_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_or_superadmin)
+):
+    """Get system statistics (admin or superadmin)"""
     if not DB_AVAILABLE:
         raise HTTPException(status_code=503, detail="Database not available")
     
@@ -160,9 +259,9 @@ async def get_system_stats(
 async def get_system_usage_history(
     days: int = 7,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_superadmin)
+    current_user: User = Depends(get_current_admin_or_superadmin)
 ):
-    """Get system-wide usage history (superadmin only)"""
+    """Get system-wide usage history (admin or superadmin)"""
     if not DB_AVAILABLE:
         raise HTTPException(status_code=503, detail="Database not available")
     
@@ -1049,7 +1148,7 @@ async def get_user_sessions(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_superadmin)
 ):
-    """Get all chat sessions for a specific user (superadmin only)"""
+    """Get all chat sessions for a specific user (superadmin only - admin cannot access user chats)"""
     if not DB_AVAILABLE:
         raise HTTPException(status_code=503, detail="Database not available")
         
@@ -1065,7 +1164,7 @@ async def get_user_session_messages(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_superadmin)
 ):
-    """Get messages for a specific user session (superadmin only)"""
+    """Get messages for a specific user session (superadmin only - admin cannot access user chats)"""
     if not DB_AVAILABLE:
         raise HTTPException(status_code=503, detail="Database not available")
         
@@ -1088,7 +1187,7 @@ async def get_user_details(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_superadmin)
 ):
-    """Get comprehensive user details (stats, configs, etc.)"""
+    """Get comprehensive user details (stats, configs, etc.) - Superadmin only (admin cannot access user data)"""
     if not DB_AVAILABLE:
         raise HTTPException(status_code=503, detail="Database not available")
         

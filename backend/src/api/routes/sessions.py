@@ -7,7 +7,7 @@ from typing import Optional
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from src.core import User, get_db, DB_AVAILABLE, Conversation, Message
-from src.core.auth import get_current_user
+from src.core.auth import get_current_user, get_current_active_user
 from src.services.db_history import db_history_manager
 from src.services import history_manager
 from ..models import SessionInfo
