@@ -1,20 +1,55 @@
-# Don't ignore docker-compose.yml - it's needed for deployment
-# *docker-compose.yml
+# Environment variables
 .env
 *.env
 !.env.example
+!.env*.example
+
+# Python
 venv/
+.venv/
+env/
+ENV/
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
+*.py[cod]
+*$py.class
 *.so
 *.egg
 *.egg-info/
 dist/
 build/
+*.log
+*.pyc
+*.pyo
+*.pyd
+.Python
 
+# Node.js / Frontend
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp
+.pnp.*
+.next/
+out/
+build/
+*.tsbuildinfo
+next-env.d.ts
+
+# Database & Vectorstores
+*.db
+*.sqlite
+*.sqlite3
+*.faiss
+*.faiss.index
+*.pkl
+backend/src/vectorstores/**/*.faiss
+backend/src/vectorstores/**/*.pkl
+backend/src/uploads/**/*.pdf
+backend/src/uploads/**/*.docx
+backend/src/uploads/**/*.doc
+
+# Documents (user uploads)
 *.pdf
 *.txt
 *.docx
@@ -24,11 +59,66 @@ build/
 *.ppt
 *.pptx
 
-*.faiss
-*.faiss.index
-*.pkl
-backend/src/vectorstores/user_1/index.faiss
-backend/src/vectorstores/user_1/index.pkl
+# Logs
+*.log
+logs/
+server.log
+backend/server.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.cursor/
+*.code-workspace
+*.iml
+*.sublime-project
+*.sublime-workspace
+
+# OS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.directory
+.Trash-*
+
+# Secrets & Credentials
+*.key
+*.pem
+*.cert
+secrets.json
+credentials.json
+.env.local
+.env.*.local
+.env.backup
 compose-vps.yml
-frontend/.env.production
-backend/.env.backup
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+
+# Coverage & Testing
+htmlcov/
+.coverage
+.coverage.*
+.pytest_cache/
+.tox/
+.nox/
+coverage.xml
+*.cover
+
+# MCP specific
+mcp_servers.local.json
+
+# Docker (keep docker-compose.yml for deployment)
+# Don't ignore docker-compose.yml - it's needed for deployment

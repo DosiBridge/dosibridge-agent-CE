@@ -124,9 +124,63 @@ def init_db():
         Base.metadata.create_all(bind=engine)
         print("✓ Database tables initialized")
         
-        # Add user_id columns if they don't exist (migration)
+        # Migration: Add missing columns to existing tables
         try:
             with engine.connect() as conn:
+                # Check and add otp_hash column to users table
+                result = conn.execute(
+                    text("SELECT column_name FROM information_schema.columns "
+                         "WHERE table_name='users' AND column_name='otp_hash'")
+                )
+                if not result.fetchone():
+                    print("📝 Adding otp_hash column to users table...")
+                    conn.execute(
+                        text("ALTER TABLE users ADD COLUMN otp_hash VARCHAR(255)")
+                    )
+                    conn.commit()
+                    print("✓ Added otp_hash column to users table")
+                
+                # Check and add otp_expires_at column to users table
+                result = conn.execute(
+                    text("SELECT column_name FROM information_schema.columns "
+                         "WHERE table_name='users' AND column_name='otp_expires_at'")
+                )
+                if not result.fetchone():
+                    print("📝 Adding otp_expires_at column to users table...")
+                    conn.execute(
+                        text("ALTER TABLE users ADD COLUMN otp_expires_at TIMESTAMP WITH TIME ZONE")
+                    )
+                    conn.commit()
+                    print("✓ Added otp_expires_at column to users table")
+                
+                # Check and add picture column to users table
+                result = conn.execute(
+                    text("SELECT column_name FROM information_schema.columns "
+                         "WHERE table_name='users' AND column_name='picture'")
+                )
+                if not result.fetchone():
+                    print("📝 Adding picture column to users table...")
+                    conn.execute(
+                        text("ALTER TABLE users ADD COLUMN picture VARCHAR(500)")
+                    )
+                    conn.commit()
+                    print("✓ Added picture column to users table")
+                
+                # Make hashed_password nullable (for OAuth users)
+                result = conn.execute(
+                    text("SELECT is_nullable FROM information_schema.columns "
+                         "WHERE table_name='users' AND column_name='hashed_password'")
+                )
+                row = result.fetchone()
+                if row and row[0] == 'NO':
+                    print("📝 Making hashed_password column nullable (for OAuth users)...")
+                    conn.execute(
+                        text("ALTER TABLE users ALTER COLUMN hashed_password DROP NOT NULL")
+                    )
+                    conn.commit()
+                    print("✓ Made hashed_password column nullable")
+                
+                # Add user_id columns if they don't exist (migration)
                 # Check and add user_id to mcp_servers table
                 result = conn.execute(
                     text("SELECT column_name FROM information_schema.columns "
