@@ -11,6 +11,8 @@ import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
+import { useAuth0 } from "@auth0/auth0-react";
+
 interface ProfileDropdownProps {
   isOpen: boolean;
   onClose: () => void;
@@ -29,6 +31,7 @@ export default function ProfileDropdown({
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const user = useStore((state) => state.user);
+  const { user: auth0User } = useAuth0();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -116,11 +119,19 @@ export default function ProfileDropdown({
             {/* User Info */}
             <div className="px-4 py-3 border-b border-neutral-700">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center border border-white/10">
-                  <span className="text-sm font-bold text-white">
-                    {user?.name?.[0]?.toUpperCase() || "U"}
-                  </span>
-                </div>
+                {auth0User?.picture ? (
+                  <img
+                    src={auth0User.picture}
+                    alt={user?.name || "User"}
+                    className="h-10 w-10 rounded-full border border-white/10"
+                  />
+                ) : (
+                  <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center border border-white/10">
+                    <span className="text-sm font-bold text-white">
+                      {user?.name?.[0]?.toUpperCase() || "U"}
+                    </span>
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-white truncate">
                     {user?.name || "User"}

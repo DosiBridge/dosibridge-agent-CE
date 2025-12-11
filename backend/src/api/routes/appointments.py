@@ -160,7 +160,7 @@ class AppointmentRequestUpdate(BaseModel):
 async def create_appointment_request(
     request: AppointmentRequestCreate,
     background_tasks: BackgroundTasks,
-    current_user: Optional[User] = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """

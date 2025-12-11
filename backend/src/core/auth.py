@@ -81,6 +81,7 @@ async def get_current_user(
     
     # If email is missing from Access Token (common), fetch from /userinfo
     # We use a cached function to avoid hitting Auth0 API on every request
+    user_data = None
     if not email:
         try:
             user_data = await get_auth0_user_info(os.getenv('AUTH0_DOMAIN'), token)
@@ -93,6 +94,13 @@ async def get_current_user(
 
     if not email:
          raise HTTPException(status_code=401, detail="Email not found in token or userinfo")
+         
+    # Extract picture - try user_data first (more detailed), then payload
+    picture = None
+    if user_data:
+        picture = user_data.get("picture")
+    if not picture:
+        picture = payload.get("picture")
 
     user = db.query(User).filter(User.email == email).first()
     
@@ -100,14 +108,30 @@ async def get_current_user(
         # JIT Provisioning
         user = User(
             email=email,
-            name=payload.get("name", email.split("@")[0]), 
+            name=name or email.split("@")[0], 
             role="user",
+            picture=picture,
             is_active=True,
             hashed_password=None # Auth0 users have no local password
         )
         db.add(user)
         db.commit()
         db.refresh(user)
+    else:
+        # Update existing user info if changed
+        updates_needed = False
+        if picture and user.picture != picture:
+            user.picture = picture
+            updates_needed = True
+        
+        # Also update name if we have a better one and it's currently default/empty
+        if name and (not user.name or user.name == user.email.split("@")[0]) and name != user.name:
+             user.name = name
+             updates_needed = True
+
+        if updates_needed:
+            db.commit()
+            db.refresh(user)
         
     return user
 

@@ -159,7 +159,7 @@ export const useStore = create<AppState>((set, get) => ({
   originalSuperadminId: null,
   setImpersonatedUserId: (userId: string | null) => {
     const currentState = get();
-    
+
     // If starting impersonation, store the original superadmin ID
     if (userId && !currentState.impersonatedUserId) {
       // Store the current user's ID as the original superadmin
@@ -168,7 +168,7 @@ export const useStore = create<AppState>((set, get) => ({
         set({ originalSuperadminId: currentState.user.id.toString() });
       }
     }
-    
+
     // If exiting impersonation or switching back to superadmin, clear the original superadmin ID
     if (!userId || userId === currentState.originalSuperadminId) {
       set({ originalSuperadminId: null });
@@ -197,15 +197,15 @@ export const useStore = create<AppState>((set, get) => ({
       if (userId) {
         console.error = (...args: any[]) => {
           const errorMessage = args[0]?.toString() || '';
-          const isPermissionError = 
+          const isPermissionError =
             errorMessage.includes("Superadmin access required") ||
             errorMessage.includes("Superadmin") && errorMessage.includes("required") ||
-            args.some(arg => 
-              arg?.message?.includes("Superadmin") || 
+            args.some(arg =>
+              arg?.message?.includes("Superadmin") ||
               arg?.detail?.includes("Superadmin") ||
               arg?.isPermissionError
             );
-          
+
           if (!isPermissionError) {
             originalConsoleError.apply(console, args);
           }
@@ -263,6 +263,21 @@ export const useStore = create<AppState>((set, get) => ({
         get().loadMCPServers();
       }, 0);
     } catch (error: any) {
+      // Handle blocked user scenario (403 Forbidden with specific message)
+      if (
+        error?.statusCode === 403 ||
+        (error?.message && error.message.includes("User account is inactive")) ||
+        (error?.detail && error.detail.includes("User account is inactive"))
+      ) {
+        console.error("User account is blocked:", error);
+        import("react-hot-toast").then(({ toast }) => {
+          toast.error("This account is blocked by superadmin");
+        });
+        // Ensure we log them out/clear state
+        set({ user: null, isAuthenticated: false, authLoading: false });
+        return;
+      }
+
       // Not authenticated - this is fine for agent mode
       // Silently handle expected 401 errors (user not logged in)
       // Only log unexpected errors
@@ -347,7 +362,7 @@ export const useStore = create<AppState>((set, get) => ({
 
     // Import storage utilities
     const { enablePersistentAccess, disablePersistentAccess, getAuthToken } = await import("./storage/authStorage");
-    
+
     if (enabled) {
       enablePersistentAccess();
       // Move token to localStorage if it exists
@@ -621,7 +636,7 @@ export const useStore = create<AppState>((set, get) => ({
             message_count: s.message_count || 0,
             updated_at: s.updated_at,
           }));
-          
+
           // Sort by updated_at descending (most recent first)
           backendSessions.sort((a, b) => {
             if (!a.updated_at && !b.updated_at) return 0;
@@ -629,7 +644,7 @@ export const useStore = create<AppState>((set, get) => ({
             if (!b.updated_at) return -1;
             return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
           });
-          
+
           set({ sessions: backendSessions, sessionsLoading: false });
           return;
         } catch (error) {

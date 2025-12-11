@@ -1,7 +1,9 @@
 import React from 'react';
 import { useStore } from '@/lib/store';
-import { Bell, Search, Home, MessageSquare } from 'lucide-react';
+import { Search, Home, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
+import { useAuth0 } from '@auth0/auth0-react';
+import NotificationsPopover from './NotificationsPopover';
 
 interface AdminHeaderProps {
     title: string;
@@ -9,6 +11,7 @@ interface AdminHeaderProps {
 
 export default function AdminHeader({ title }: AdminHeaderProps) {
     const user = useStore(state => state.user);
+    const { user: auth0User } = useAuth0();
 
     return (
         <header className="h-20 border-b border-white/5 bg-zinc-900/50 backdrop-blur-xl px-10 flex items-center justify-between sticky top-0 z-30">
@@ -44,19 +47,26 @@ export default function AdminHeader({ title }: AdminHeaderProps) {
 
                 <div className="w-px h-8 bg-white/10" />
 
-                <button className="relative p-2 text-zinc-400 hover:text-white transition-colors hover:bg-white/5 rounded-full">
-                    <Bell className="w-5 h-5" />
-                    <span className="absolute top-2 right-2 w-2 h-2 bg-indigo-500 rounded-full border-2 border-black" />
-                </button>
+                <NotificationsPopover />
 
                 <div className="flex items-center gap-4 pl-2">
                     <div className="text-right hidden sm:block">
-                        <p className="text-sm font-semibold text-white">{user?.name}</p>
+                        <p className="text-sm font-semibold text-white">{user?.name || auth0User?.name}</p>
                         <p className="text-xs text-zinc-500 capitalize">{user?.role}</p>
                     </div>
-                    <div className="h-10 w-10 bg-gradient-to-br from-indigo-500 to-violet-500 rounded-full flex items-center justify-center text-white font-bold shadow-lg shadow-indigo-500/20 border border-white/10">
-                        {user?.name?.[0]?.toUpperCase()}
-                    </div>
+                    {auth0User?.picture ? (
+                        <div className="h-10 w-10 rounded-full flex-shrink-0 relative overflow-hidden shadow-lg shadow-indigo-500/20 border border-white/10">
+                            <img
+                                src={auth0User.picture}
+                                alt={user?.name || "User"}
+                                className="h-full w-full object-cover"
+                            />
+                        </div>
+                    ) : (
+                        <div className="h-10 w-10 bg-gradient-to-br from-indigo-500 to-violet-500 rounded-full flex items-center justify-center text-white font-bold shadow-lg shadow-indigo-500/20 border border-white/10">
+                            {user?.name?.[0]?.toUpperCase()}
+                        </div>
+                    )}
                 </div>
             </div>
         </header>

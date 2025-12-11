@@ -36,7 +36,8 @@ const MENU_ITEMS: { id: AdminView; label: string; icon: React.ElementType }[] = 
 export default function AdminSidebar({ currentView, onChangeView }: AdminSidebarProps) {
     const router = useRouter();
     const handleLogout = useStore((state) => state.handleLogout);
-    const { logout: auth0Logout } = useAuth0();
+    const user = useStore((state) => state.user);
+    const { user: auth0User, logout: auth0Logout } = useAuth0();
     const [isLoggingOut, setIsLoggingOut] = useState(false);
 
     const handleLogoutClick = async (e: React.MouseEvent) => {
@@ -130,6 +131,29 @@ export default function AdminSidebar({ currentView, onChangeView }: AdminSidebar
             </div>
 
             <div className="mt-auto p-6 border-t border-white/5 relative z-10">
+                <div className="flex items-center gap-3 mb-4 px-1">
+                    {auth0User?.picture ? (
+                        <img
+                            src={auth0User.picture}
+                            alt={user?.name || "User"}
+                            className="h-9 w-9 rounded-full border border-white/10"
+                        />
+                    ) : (
+                        <div className="h-9 w-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center border border-white/10">
+                            <span className="text-sm font-bold text-white">
+                                {user?.name?.[0]?.toUpperCase() || "U"}
+                            </span>
+                        </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-white truncate">
+                            {user?.name || auth0User?.name || "User"}
+                        </p>
+                        <p className="text-xs text-zinc-500 truncate">
+                            {user?.email || auth0User?.email}
+                        </p>
+                    </div>
+                </div>
                 <button
                     onClick={handleLogoutClick}
                     disabled={isLoggingOut}

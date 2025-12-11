@@ -17,7 +17,7 @@ router = APIRouter()
 @router.get("/mcp-servers")
 async def list_mcp_servers(
     db: Session = Depends(get_db),
-    current_user: Optional[User] = Depends(get_current_user)
+    current_user: Optional[User] = Depends(get_current_active_user)
 ):
     """List all configured MCP servers for the authenticated user (including disabled ones)"""
     if not current_user:
@@ -396,7 +396,7 @@ async def update_mcp_server(
 @router.post("/mcp-servers/test-connection")
 async def test_mcp_server_connection(
     server: MCPServerRequest,
-    current_user: Optional[User] = Depends(get_current_user)
+    current_user: Optional[User] = Depends(get_current_active_user)
 ):
     """Test MCP server connection without saving. Requires authentication."""
     if not current_user:
@@ -452,7 +452,7 @@ async def test_mcp_server_connection(
 @router.patch("/mcp-servers/global/{server_id}/toggle-preference")
 async def toggle_global_mcp_server_preference(
     server_id: int,
-    current_user: Optional[User] = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """

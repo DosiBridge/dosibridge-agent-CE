@@ -194,9 +194,9 @@ export default function AnalyticsView() {
                                 No usage data available
                             </div>
                         ) : (
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={usageData}>
-                                <defs>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={usageData}>
+                                    <defs>
                                         <linearGradient id="colorInput" x1="0" y1="0" x2="0" y2="1">
                                             <stop offset="5%" stopColor="#34d399" stopOpacity={0.3} />
                                             <stop offset="95%" stopColor="#34d399" stopOpacity={0} />
@@ -204,15 +204,15 @@ export default function AnalyticsView() {
                                         <linearGradient id="colorOutput" x1="0" y1="0" x2="0" y2="1">
                                             <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
                                             <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                                <XAxis dataKey="date" hide />
-                                <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 2 }} />
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                                    <XAxis dataKey="date" hide />
+                                    <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 2 }} />
                                     <Area type="monotone" stackId="1" dataKey="input_tokens" name="Input Tokens" stroke="#34d399" strokeWidth={2} fillOpacity={1} fill="url(#colorInput)" />
                                     <Area type="monotone" stackId="1" dataKey="output_tokens" name="Output Tokens" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorOutput)" />
-                            </AreaChart>
-                        </ResponsiveContainer>
+                                </AreaChart>
+                            </ResponsiveContainer>
                         )}
                     </div>
                 </motion.div>
@@ -235,20 +235,20 @@ export default function AnalyticsView() {
                                 No request data available
                             </div>
                         ) : (
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={usageData}>
-                                <defs>
-                                    <linearGradient id="colorRequests" x1="0" y1="0" x2="0" y2="1">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={usageData}>
+                                    <defs>
+                                        <linearGradient id="colorRequests" x1="0" y1="0" x2="0" y2="1">
                                             <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
                                             <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                                <XAxis dataKey="date" hide />
-                                <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 2 }} />
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                                    <XAxis dataKey="date" hide />
+                                    <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 2 }} />
                                     <Area type="monotone" dataKey="requests" name="Total Requests" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorRequests)" />
-                            </AreaChart>
-                        </ResponsiveContainer>
+                                </AreaChart>
+                            </ResponsiveContainer>
                         )}
                     </div>
                 </motion.div>
@@ -324,7 +324,37 @@ export default function AnalyticsView() {
                                 <BarChart data={topUsers} layout="vertical" margin={{ left: 40, right: 20 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
                                     <XAxis type="number" hide />
-                                    <YAxis dataKey="name" type="category" width={100} tick={{ fill: '#a1a1aa' }} />
+                                    <YAxis
+                                        dataKey="name"
+                                        type="category"
+                                        width={200}
+                                        tick={({ x, y, payload }) => {
+                                            // Format: "Guest (email)" or "Name" - and potentially split
+                                            const name = payload.value;
+                                            const isGuest = name.startsWith("Guest");
+                                            // Hacky way to pass picture url if it were available, but for now just initials/guest icon
+                                            // Ideally the API would return an object with name and picture, but current recharts dataKey="name" expects string
+
+                                            return (
+                                                <g transform={`translate(${x},${y})`}>
+                                                    <foreignObject x={-200} y={-15} width={190} height={30}>
+                                                        <div className="flex items-center justify-end gap-2 h-full pr-2">
+                                                            <span className="text-xs text-zinc-400 truncate max-w-[150px]">{name}</span>
+                                                            {isGuest ? (
+                                                                <div className="w-5 h-5 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center">
+                                                                    <Users className="w-3 h-3 text-zinc-500" />
+                                                                </div>
+                                                            ) : (
+                                                                <div className="w-5 h-5 rounded-full bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center">
+                                                                    <span className="text-[9px] font-bold text-indigo-400">{name[0]?.toUpperCase()}</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </foreignObject>
+                                                </g>
+                                            );
+                                        }}
+                                    />
                                     <Tooltip
                                         cursor={{ fill: 'rgba(255,255,255,0.05)' }}
                                         contentStyle={{ backgroundColor: '#18181b', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}

@@ -199,6 +199,7 @@ if Base is not None:
         otp_expires_at = Column(DateTime(timezone=True), nullable=True)
         is_active = Column(Boolean, default=True, nullable=False)
         role = Column(String(50), default="user", nullable=False)  # "user" or "superadmin"
+        picture = Column(String(500), nullable=True)  # URL to user's profile picture
         created_at = Column(DateTime(timezone=True), server_default=func.now())
         updated_at = Column(DateTime(timezone=True), onupdate=func.now())
         
@@ -208,6 +209,7 @@ if Base is not None:
                 "id": self.id,
                 "email": self.email,
                 "name": self.name,
+                "picture": self.picture,
                 "is_active": self.is_active,
                 "role": getattr(self, 'role', 'user'),  # Support both old and new schemas
                 "created_at": self.created_at.isoformat() if self.created_at else None,

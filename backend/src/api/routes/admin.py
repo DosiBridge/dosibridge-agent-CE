@@ -749,7 +749,7 @@ async def create_global_embedding_config(
 @router.patch("/global-config/embedding/{config_id}/toggle-preference")
 async def toggle_global_embedding_config_preference(
     config_id: int,
-    current_user: Optional[User] = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """

@@ -12,7 +12,7 @@ router = APIRouter()
 
 @router.get("/tools")
 async def get_tools_info(
-    current_user: Optional[User] = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """

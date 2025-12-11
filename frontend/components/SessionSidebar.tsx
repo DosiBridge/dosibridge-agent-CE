@@ -79,7 +79,7 @@ export default function SessionSidebar({
   const setSettingsOpen = useStore((state) => state.setSettingsOpen);
   const user = useStore((state) => state.user);
   const isAuthenticated = useStore((state) => state.isAuthenticated);
-  const { logout: auth0Logout, loginWithRedirect } = useAuth0();
+  const { user: auth0User, logout: auth0Logout, loginWithRedirect } = useAuth0();
   const logout = useStore((state) => state.handleLogout);
 
   const links = [
@@ -199,7 +199,13 @@ export default function SessionSidebar({
                       link={{
                         label: user?.name || "User",
                         href: "#",
-                        icon: (
+                        icon: auth0User?.picture ? (
+                          <img
+                            src={auth0User.picture}
+                            alt={user?.name || "User"}
+                            className="h-5 w-5 flex-shrink-0 rounded-full border border-white/10"
+                          />
+                        ) : (
                           <div className="h-5 w-5 flex-shrink-0 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center border border-white/10">
                             <span className="text-[10px] font-bold text-white">{user?.name?.[0]?.toUpperCase() || "U"}</span>
                           </div>

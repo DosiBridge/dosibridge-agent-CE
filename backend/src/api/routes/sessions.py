@@ -22,7 +22,7 @@ class UpdateSessionRequest(BaseModel):
 @router.get("/session/{session_id}", response_model=SessionInfo)
 async def get_session(
     session_id: str,
-    current_user: Optional[User] = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Get session information with full message metadata"""
@@ -110,7 +110,7 @@ async def get_session(
 @router.delete("/session/{session_id}")
 async def clear_session(
     session_id: str,
-    current_user: Optional[User] = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -144,7 +144,7 @@ async def clear_session(
 async def update_session(
     session_id: str,
     request_data: UpdateSessionRequest,
-    current_user: Optional[User] = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -187,7 +187,7 @@ async def update_session(
 
 @router.get("/sessions")
 async def list_sessions(
-    current_user: Optional[User] = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """List all active sessions for the current user (or all if not authenticated)"""

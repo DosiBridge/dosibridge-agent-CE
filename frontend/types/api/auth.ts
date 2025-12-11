@@ -9,6 +9,7 @@ export interface User {
   is_active: boolean;
   role?: string;
   is_superadmin?: boolean;
+  picture?: string;
 }
 
 export interface RegisterRequest {

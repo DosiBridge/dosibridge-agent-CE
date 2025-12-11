@@ -58,6 +58,10 @@ async def chat(
         # Get IP address for unauthenticated users
         ip_address = usage_tracker.get_client_ip(request) if user_id is None else None
         
+        # Check if user is blocked (is_active=False)
+        if current_user and not current_user.is_active:
+             raise HTTPException(status_code=403, detail="User account is inactive")
+        
         # RAG mode requires authentication (Agent mode works without login)
         if chat_request.mode == "rag" and not current_user:
             app_logger.warning(
@@ -204,6 +208,11 @@ async def chat_stream(
         # Get IP address for unauthenticated users
         ip_address = usage_tracker.get_client_ip(request) if user_id is None else None
         
+        # Check if user is blocked (is_active=False)
+        if current_user and not current_user.is_active:
+             yield f"data: {json.dumps({'chunk': '', 'done': True, 'error': 'User account is inactive'})}\n\n"
+             return
+
         # RAG mode requires authentication (Agent mode works without login)
         if chat_request.mode == "rag" and not current_user:
             yield f"data: {json.dumps({'chunk': '', 'done': True, 'error': 'Authentication required for RAG mode. Please log in to upload documents and query them.'})}\n\n"

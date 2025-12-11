@@ -15,7 +15,7 @@ router = APIRouter()
 @router.get("/usage/stats")
 async def get_usage_stats(
     request: Request,
-    current_user: Optional[User] = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_current_active_user),
     db: Session = Depends(get_db),
     days: int = 7
 ):

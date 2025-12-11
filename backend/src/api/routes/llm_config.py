@@ -20,7 +20,7 @@ from src.services.llm_testing import test_llm_config
 
 @router.get("/llm-config")
 async def get_llm_config(
-    current_user: Optional[User] = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Get current LLM configuration for the authenticated user"""
@@ -47,7 +47,7 @@ async def get_llm_config(
 @router.post("/llm-config")
 async def set_llm_config(
     config: LLMConfigRequest,
-    current_user: Optional[User] = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -230,7 +230,7 @@ async def set_llm_config(
 @router.post("/llm-config/test")
 async def test_llm_config_endpoint(
     config: LLMConfigRequest,
-    current_user: Optional[User] = Depends(get_current_user)
+    current_user: Optional[User] = Depends(get_current_active_user)
 ):
     """
     Test LLM configuration without saving to database.
@@ -329,7 +329,7 @@ async def test_llm_config_endpoint(
 
 @router.post("/llm-config/reset")
 async def reset_llm_config(
-    current_user: Optional[User] = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -391,7 +391,7 @@ async def reset_llm_config(
 
 @router.get("/llm-config/list")
 async def list_llm_configs(
-    current_user: Optional[User] = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -516,7 +516,7 @@ async def list_llm_configs(
 async def update_llm_config(
     config_id: int,
     config: LLMConfigRequest,
-    current_user: Optional[User] = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -656,7 +656,7 @@ async def update_llm_config(
 @router.delete("/llm-config/{config_id}")
 async def delete_llm_config(
     config_id: int,
-    current_user: Optional[User] = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -699,7 +699,7 @@ async def delete_llm_config(
 @router.post("/llm-config/{config_id}/switch")
 async def switch_llm_config(
     config_id: int,
-    current_user: Optional[User] = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -786,7 +786,7 @@ async def switch_llm_config(
 @router.patch("/llm-config/{config_id}/toggle")
 async def toggle_llm_config(
     config_id: int,
-    current_user: Optional[User] = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
