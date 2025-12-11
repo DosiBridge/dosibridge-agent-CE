@@ -33,6 +33,16 @@ export default function UserDashboard() {
   }, [isAuthenticated, authLoading, user, router]);
 
   const loadDashboardData = async () => {
+    const { accountInactive, user } = useStore.getState();
+    // Don't load data if account is inactive
+    if (accountInactive || (user && !user.is_active)) {
+      setSessions([]);
+      setRecentRequests([]);
+      setLoading(false);
+      setSessionsLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       
@@ -41,8 +51,11 @@ export default function UserDashboard() {
       try {
         const sessionsData = await listSessions();
         setSessions(sessionsData.sessions || []);
-      } catch (error) {
-        console.error("Failed to load sessions:", error);
+      } catch (error: any) {
+        // Don't log errors for inactive accounts
+        if (!error?.isInactiveAccount && !(error?.message && error.message.includes("User account is inactive"))) {
+          console.error("Failed to load sessions:", error);
+        }
       } finally {
         setSessionsLoading(false);
       }
@@ -51,12 +64,18 @@ export default function UserDashboard() {
       try {
         const requestsData = await getIndividualRequests(7, 20, 0);
         setRecentRequests(requestsData.requests || []);
-      } catch (error) {
-        console.error("Failed to load recent requests:", error);
+      } catch (error: any) {
+        // Don't log errors for inactive accounts
+        if (!error?.isInactiveAccount && !(error?.message && error.message.includes("User account is inactive"))) {
+          console.error("Failed to load recent requests:", error);
+        }
       }
 
-    } catch (error) {
-      console.error("Failed to load dashboard data:", error);
+    } catch (error: any) {
+      // Don't log errors for inactive accounts
+      if (!error?.isInactiveAccount && !(error?.message && error.message.includes("User account is inactive"))) {
+        console.error("Failed to load dashboard data:", error);
+      }
     } finally {
       setLoading(false);
     }

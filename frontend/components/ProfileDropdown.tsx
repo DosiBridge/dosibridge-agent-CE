@@ -119,9 +119,9 @@ export default function ProfileDropdown({
             {/* User Info */}
             <div className="px-4 py-3 border-b border-neutral-700">
               <div className="flex items-center gap-3">
-                {auth0User?.picture ? (
+                {(user?.picture || auth0User?.picture) ? (
                   <img
-                    src={auth0User.picture}
+                    src={user?.picture || auth0User?.picture}
                     alt={user?.name || "User"}
                     className="h-10 w-10 rounded-full border border-white/10"
                   />

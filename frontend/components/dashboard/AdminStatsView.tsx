@@ -22,17 +22,19 @@ export default function AdminStatsView() {
     
     const user = useStore(state => state.user);
     const impersonatedUserId = useStore(state => state.impersonatedUserId);
+    const isSuperAdmin = useStore(state => state.isSuperadmin());
+    const getActualUserRole = useStore(state => state.getActualUserRole);
     
-    // Check if current user (impersonated or real) is admin or superadmin
-    const userRole = user?.role;
-    const isSuperAdmin = userRole === 'superadmin';
-    const isAdmin = userRole === 'admin';
-    const isImpersonatingNonAdmin = impersonatedUserId && !isSuperAdmin && !isAdmin;
+    // Check actual logged-in user's role (not impersonated user's role)
+    const actualUserRole = getActualUserRole();
+    const isAdmin = actualUserRole === 'admin';
+    // Superadmin can always access admin features, even when impersonating
+    const canAccessAdmin = isSuperAdmin || isAdmin;
 
     useEffect(() => {
-        // Don't load admin data if impersonating a non-admin user
-        if (isImpersonatingNonAdmin) {
-            setError("Admin access is not available when viewing as a regular user");
+        // Only load admin data if user has admin/superadmin access
+        if (!canAccessAdmin) {
+            setError("Admin access is not available");
             setLoading(false);
             return;
         }
@@ -54,8 +56,8 @@ export default function AdminStatsView() {
                     error?.message?.includes("access") ||
                     error?.detail?.includes("access");
                 
-                // Only log non-permission errors or if not impersonating
-                if (!isPermissionError || !isImpersonatingNonAdmin) {
+                // Only log non-permission errors
+                if (!isPermissionError) {
                 console.error("Failed to load admin dashboard data:", error);
                 }
                 
@@ -72,7 +74,7 @@ export default function AdminStatsView() {
         };
 
         fetchData();
-    }, [days, isImpersonatingNonAdmin]);
+    }, [days, canAccessAdmin]);
 
     if (loading) {
         return (
@@ -93,7 +95,7 @@ export default function AdminStatsView() {
                     <p className="text-sm text-zinc-400">
                         {error || "Failed to load admin dashboard data. Admin features require superadmin access."}
                     </p>
-                    {isImpersonatingNonAdmin && (
+                    {!canAccessAdmin && (
                         <p className="text-xs text-zinc-500 mt-2">
                             Exit persistent access to view admin features.
                         </p>

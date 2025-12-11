@@ -141,9 +141,9 @@ export default function AdminSidebar({ currentView, onChangeView }: AdminSidebar
 
             <div className="mt-auto p-6 border-t border-white/5 relative z-10">
                 <div className="flex items-center gap-3 mb-4 px-1">
-                    {auth0User?.picture ? (
+                    {(user?.picture || auth0User?.picture) ? (
                         <img
-                            src={auth0User.picture}
+                            src={user?.picture || auth0User?.picture}
                             alt={user?.name || "User"}
                             className="h-9 w-9 rounded-full border border-white/10"
                         />

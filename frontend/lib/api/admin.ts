@@ -34,16 +34,19 @@ export interface SystemUsageHistory {
 }
 
 export const listUsers = async (): Promise<AdminUser[]> => {
-  // Check if impersonating a non-admin user before making API call
+  // Check if actual logged-in user has admin access (not impersonated user)
   try {
     const { useStore } = require('../store');
-    const impersonatedUserId = useStore.getState().impersonatedUserId;
-    const user = useStore.getState().user;
-    if (impersonatedUserId && user?.role !== 'superadmin') {
+    const isSuperAdmin = useStore.getState().isSuperadmin();
+    const getActualUserRole = useStore.getState().getActualUserRole;
+    const actualUserRole = getActualUserRole();
+    const canAccessAdmin = isSuperAdmin || actualUserRole === 'admin';
+    
+    if (!canAccessAdmin) {
       // Return a rejected promise that won't log to console
       return Promise.reject({
-        message: "Admin access is not available when viewing as a regular user",
-        detail: "Admin access is not available when viewing as a regular user",
+        message: "Admin access is not available",
+        detail: "Admin access is not available",
         isPermissionError: true,
         statusCode: 403
       });
@@ -118,16 +121,19 @@ export const demoteToUser = async (userId: number): Promise<AdminUser> => {
 };
 
 export const getSystemStats = async (): Promise<SystemStats> => {
-  // Check if impersonating a non-admin user before making API call
+  // Check if actual logged-in user has admin access (not impersonated user)
   try {
     const { useStore } = require('../store');
-    const impersonatedUserId = useStore.getState().impersonatedUserId;
-    const user = useStore.getState().user;
-    if (impersonatedUserId && user?.role !== 'superadmin') {
+    const isSuperAdmin = useStore.getState().isSuperadmin();
+    const getActualUserRole = useStore.getState().getActualUserRole;
+    const actualUserRole = getActualUserRole();
+    const canAccessAdmin = isSuperAdmin || actualUserRole === 'admin';
+    
+    if (!canAccessAdmin) {
       // Return a rejected promise that won't log to console
       return Promise.reject({
-        message: "Admin access is not available when viewing as a regular user",
-        detail: "Admin access is not available when viewing as a regular user",
+        message: "Admin access is not available",
+        detail: "Admin access is not available",
         isPermissionError: true,
         statusCode: 403
       });
@@ -144,12 +150,15 @@ export const getSystemStats = async (): Promise<SystemStats> => {
 };
 
 export const getSystemUsageHistory = async (days: number = 7): Promise<SystemUsageHistory> => {
-  // Check if impersonating a non-admin user before making API call
+  // Check if actual logged-in user has admin access (not impersonated user)
   try {
     const { useStore } = require('../store');
-    const impersonatedUserId = useStore.getState().impersonatedUserId;
-    const user = useStore.getState().user;
-    if (impersonatedUserId && user?.role !== 'superadmin') {
+    const isSuperAdmin = useStore.getState().isSuperadmin();
+    const getActualUserRole = useStore.getState().getActualUserRole;
+    const actualUserRole = getActualUserRole();
+    const canAccessAdmin = isSuperAdmin || actualUserRole === 'admin';
+    
+    if (!canAccessAdmin) {
       // Return a rejected promise that won't log to console
       return Promise.reject({
         message: "Admin access is not available when viewing as a regular user",

@@ -199,9 +199,9 @@ export default function SessionSidebar({
                       link={{
                         label: user?.name || "User",
                         href: "#",
-                        icon: auth0User?.picture ? (
+                        icon: (user?.picture || auth0User?.picture) ? (
                           <img
-                            src={auth0User.picture}
+                            src={user?.picture || auth0User?.picture}
                             alt={user?.name || "User"}
                             className="h-5 w-5 flex-shrink-0 rounded-full border border-white/10"
                           />

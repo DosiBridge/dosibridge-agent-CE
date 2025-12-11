@@ -17,13 +17,15 @@ export default function ImpersonationBanner() {
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        // When impersonating, fetch the impersonated user's info
+        // When impersonating, fetch the impersonated user's info and update store
         if (impersonatedUserId) {
             setLoading(true);
             getCurrentUser()
                 .then((currentUser) => {
                     // The API returns the impersonated user when X-Impersonate-User header is set
                     setImpersonatedUser(currentUser);
+                    // Update the store with the impersonated user so components see the correct user
+                    useStore.setState({ user: currentUser });
                 })
                 .catch((error) => {
                     console.error("Failed to fetch impersonated user:", error);
@@ -33,6 +35,8 @@ export default function ImpersonationBanner() {
                 });
         } else {
             setImpersonatedUser(null);
+            // When exiting impersonation, reload the actual user
+            useStore.getState().checkAuth();
         }
     }, [impersonatedUserId]);
 
@@ -86,9 +90,7 @@ export default function ImpersonationBanner() {
                             onClick={(e) => {
                                 e.stopPropagation();
                                 setImpersonatedUserId(originalSuperadminId);
-                                if (typeof window !== 'undefined') {
-                                    window.location.reload();
-                                }
+                                // Store will handle reloading user data via checkAuth
                             }}
                             className="p-2 hover:bg-white/10 rounded-lg text-white/70 hover:text-white transition-colors"
                             title="Return to Superadmin View"
@@ -100,9 +102,7 @@ export default function ImpersonationBanner() {
                         onClick={(e) => {
                             e.stopPropagation();
                             setImpersonatedUserId(null);
-                            if (typeof window !== 'undefined') {
-                                window.location.reload();
-                            }
+                            // Store will handle reloading user data via checkAuth
                         }}
                         className="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition-all shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40"
                     >

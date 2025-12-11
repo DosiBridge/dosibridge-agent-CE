@@ -19,14 +19,14 @@ export default function DashboardModal({ isOpen, onClose }: DashboardModalProps)
     const impersonatedUserId = useStore(state => state.impersonatedUserId);
     const [activeTab, setActiveTab] = useState<'overview' | 'admin'>('overview');
 
-    // Check user role (admin or superadmin)
-    const userRole = user?.role;
-    const isSuperAdmin = userRole === 'superadmin';
-    const isAdmin = userRole === 'admin';
+    // Check actual logged-in user's role (not impersonated user's role)
+    const isSuperAdmin = useStore(state => state.isSuperadmin());
+    const getActualUserRole = useStore(state => state.getActualUserRole);
+    const actualUserRole = getActualUserRole();
+    const isAdmin = actualUserRole === 'admin';
     
-    // Admin and superadmin can access admin console
-    // If impersonating a non-admin, don't show admin features
-    const canAccessAdmin = (isSuperAdmin || isAdmin) && (!impersonatedUserId || (userRole === 'superadmin' || userRole === 'admin'));
+    // Superadmin can always access admin features, even when impersonating
+    const canAccessAdmin = isSuperAdmin || isAdmin;
 
     return (
         <Transition appear show={isOpen} as={Fragment}>

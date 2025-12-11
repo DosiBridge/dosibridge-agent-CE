@@ -72,10 +72,11 @@ export default function ChatPage() {
   // Suppress console errors for permission errors during impersonation
   useEffect(() => {
     const impersonatedUserId = useStore.getState().impersonatedUserId;
-    const user = useStore.getState().user;
-    const isImpersonatingNonAdmin = impersonatedUserId && user?.role !== 'superadmin';
+    const isSuperAdmin = useStore.getState().isSuperadmin();
+    // Only suppress errors if impersonating (superadmin can still access everything)
+    const isImpersonating = !!impersonatedUserId;
 
-    if (isImpersonatingNonAdmin) {
+    if (isImpersonating) {
       // Override console.error to suppress permission errors
       const originalError = console.error;
       console.error = (...args: any[]) => {

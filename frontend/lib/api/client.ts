@@ -167,9 +167,31 @@ export async function handleResponse<T>(response: Response): Promise<T> {
       statusCode: number;
       detail?: string;
       isPermissionError?: boolean;
+      isInactiveAccount?: boolean;
     };
     error.statusCode = response.status;
     error.detail = errorDetail;
+    
+    // Check if this is an inactive account error
+    const isInactiveAccount = response.status === 403 && 
+      (errorDetail.includes("User account is inactive") || 
+       errorDetail.includes("account is inactive") ||
+       errorDetail.toLowerCase().includes("inactive"));
+    
+    if (isInactiveAccount) {
+      error.isInactiveAccount = true;
+      // Update store to mark account as inactive
+      try {
+        const { useStore } = require('../store');
+        const store = useStore.getState();
+        if (store.user) {
+          store.user.is_active = false;
+          useStore.setState({ user: store.user });
+        }
+      } catch (e) {
+        // Store might not be initialized
+      }
+    }
     
     // Mark permission errors (403 Forbidden or Superadmin access required)
     if (response.status === 403 || errorDetail.includes("Superadmin") || errorDetail.includes("access")) {

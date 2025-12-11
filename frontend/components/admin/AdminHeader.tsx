@@ -54,10 +54,10 @@ export default function AdminHeader({ title }: AdminHeaderProps) {
                         <p className="text-sm font-semibold text-white">{user?.name || auth0User?.name}</p>
                         <p className="text-xs text-zinc-500 capitalize">{user?.role}</p>
                     </div>
-                    {auth0User?.picture ? (
+                    {(user?.picture || auth0User?.picture) ? (
                         <div className="h-10 w-10 rounded-full flex-shrink-0 relative overflow-hidden shadow-lg shadow-indigo-500/20 border border-white/10">
                             <img
-                                src={auth0User.picture}
+                                src={user?.picture || auth0User?.picture}
                                 alt={user?.name || "User"}
                                 className="h-full w-full object-cover"
                             />

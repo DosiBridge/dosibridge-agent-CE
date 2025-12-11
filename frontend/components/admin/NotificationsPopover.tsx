@@ -18,10 +18,24 @@ export default function NotificationsPopover() {
 
     // Fetch notifications
     useEffect(() => {
+        const { accountInactive, user } = useStore.getState();
+        // Don't load notifications if account is inactive
+        if (accountInactive || (user && !user.is_active)) {
+            setNotifications([]);
+            setLoading(false);
+            return;
+        }
+
         if (isAuthenticated) {
             loadNotifications();
             // Refresh every 30 seconds
-            const interval = setInterval(loadNotifications, 30000);
+            const interval = setInterval(() => {
+                const state = useStore.getState();
+                // Don't refresh if account became inactive
+                if (!state.accountInactive && (!state.user || state.user.is_active)) {
+                    loadNotifications();
+                }
+            }, 30000);
             return () => clearInterval(interval);
         } else {
             setNotifications([]);
@@ -39,8 +53,13 @@ export default function NotificationsPopover() {
             setLoading(true);
             const data = await getNotifications();
             setNotifications(data);
-        } catch (error) {
-            console.error('Failed to load notifications:', error);
+        } catch (error: any) {
+            // Don't log errors for inactive accounts - it's expected
+            if (!error?.isInactiveAccount && !(error?.message && error.message.includes("User account is inactive"))) {
+                console.error('Failed to load notifications:', error);
+            }
+            // Clear notifications on error
+            setNotifications([]);
         } finally {
             setLoading(false);
         }

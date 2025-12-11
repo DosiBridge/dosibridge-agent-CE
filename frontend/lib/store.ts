@@ -48,6 +48,7 @@ interface AppState {
   user: User | null;
   isAuthenticated: boolean;
   authLoading: boolean;
+  accountInactive: boolean; // Track if account is inactive to prevent repeated API calls
 
   // Current session
   currentSessionId: string;
@@ -125,6 +126,7 @@ interface AppState {
   // Impersonation
   impersonatedUserId: string | null;
   originalSuperadminId: string | null; // Store original superadmin ID to switch back
+  originalSuperadminRole: string | null; // Store original superadmin role to maintain permissions
   setImpersonatedUserId: (userId: string | null) => void;
 }
 
@@ -136,6 +138,7 @@ export const useStore = create<AppState>((set, get) => ({
   user: null,
   isAuthenticated: false,
   authLoading: true,
+  accountInactive: false,
   currentSessionId: "default",
   messages: [],
   isLoading: false,
@@ -157,21 +160,25 @@ export const useStore = create<AppState>((set, get) => ({
   // Impersonation (Superadmin)
   impersonatedUserId: null,
   originalSuperadminId: null,
+  originalSuperadminRole: null,
   setImpersonatedUserId: (userId: string | null) => {
     const currentState = get();
 
-    // If starting impersonation, store the original superadmin ID
+    // If starting impersonation, store the original superadmin ID and role
     if (userId && !currentState.impersonatedUserId) {
-      // Store the current user's ID as the original superadmin
-      // This allows switching back to superadmin view
+      // Store the current user's ID and role as the original superadmin
+      // This allows switching back to superadmin view and maintaining permissions
       if (currentState.user?.id) {
-        set({ originalSuperadminId: currentState.user.id.toString() });
+        set({ 
+          originalSuperadminId: currentState.user.id.toString(),
+          originalSuperadminRole: currentState.user.role || null
+        });
       }
     }
 
-    // If exiting impersonation or switching back to superadmin, clear the original superadmin ID
+    // If exiting impersonation or switching back to superadmin, clear the original superadmin ID and role
     if (!userId || userId === currentState.originalSuperadminId) {
-      set({ originalSuperadminId: null });
+      set({ originalSuperadminId: null, originalSuperadminRole: null });
     }
     // Clear local storage as requested to ensure fresh state
     clearAllStoredSessions();
@@ -221,8 +228,9 @@ export const useStore = create<AppState>((set, get) => ({
     // Reload data when switching users
     const isAuthenticated = get().isAuthenticated;
     if (isAuthenticated) {
+      // Immediately reload user data to get impersonated user info
       setTimeout(() => {
-        get().checkAuth(); // Re-fetch user profile (will return target user)
+        get().checkAuth(); // Re-fetch user profile (will return impersonated user when header is set)
         // checkAuth will automatically trigger loadSessions() and loadMCPServers()
         // Restore console.error after a delay to allow errors to be suppressed
         setTimeout(() => {
@@ -261,11 +269,14 @@ export const useStore = create<AppState>((set, get) => ({
       // If user is blocked, don't load sessions/MCP servers
       if (user && !user.is_active) {
         // User is blocked - they can still login but cannot use features
+        set({ accountInactive: true });
         import("react-hot-toast").then(({ toast }) => {
           toast.error("Your account is blocked. You can send a message to superadmin to request unblocking.");
         });
         return;
       }
+      // Reset inactive flag if user is active
+      set({ accountInactive: false });
       
       // Load user-specific data after authentication check (only for active users)
       // Use setTimeout to ensure state is updated before loading
@@ -286,7 +297,7 @@ export const useStore = create<AppState>((set, get) => ({
         try {
           const user = await getCurrentUser();
           if (user && !user.is_active) {
-            set({ user, isAuthenticated: true, authLoading: false });
+            set({ user, isAuthenticated: true, authLoading: false, accountInactive: true });
             import("react-hot-toast").then(({ toast }) => {
               toast.error("Your account is blocked. You can send a message to superadmin to request unblocking.");
             });
@@ -706,7 +717,12 @@ export const useStore = create<AppState>((set, get) => ({
           // If a session was deleted from browser storage, it should stay deleted
 
           set({ sessions: mergedSessions, sessionsLoading: false });
-        } catch (error) {
+        } catch (error: any) {
+          // Check if error is due to inactive account
+          if (error?.isInactiveAccount || (error?.message && error.message.includes("User account is inactive"))) {
+            set({ accountInactive: true, sessions: [], sessionsLoading: false });
+            return;
+          }
           // If backend fails, use browser storage
           console.warn(
             "Failed to load sessions from backend, using browser storage:",
@@ -838,9 +854,15 @@ export const useStore = create<AppState>((set, get) => ({
 
   // Settings
   loadMCPServers: async () => {
-    const isAuthenticated = get().isAuthenticated;
+    const { isAuthenticated, accountInactive, user } = get();
     if (!isAuthenticated) {
       // Not authenticated - clear MCP servers (no access without login)
+      set({ mcpServers: [] });
+      return;
+    }
+
+    // Don't load MCP servers if account is inactive
+    if (accountInactive || (user && !user.is_active)) {
       set({ mcpServers: [] });
       return;
     }
@@ -848,7 +870,12 @@ export const useStore = create<AppState>((set, get) => ({
     try {
       const data = await listMCPServers();
       set({ mcpServers: data.servers });
-    } catch (error) {
+    } catch (error: any) {
+      // Check if error is due to inactive account
+      if (error?.isInactiveAccount || (error?.message && error.message.includes("User account is inactive"))) {
+        set({ accountInactive: true, mcpServers: [] });
+        return;
+      }
       console.error("Failed to load MCP servers:", error);
       // On error, clear MCP servers list
       set({ mcpServers: [] });
@@ -911,10 +938,26 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
-  // Superadmin check
+  // Superadmin check - checks actual logged-in user, not impersonated user
   isSuperadmin: () => {
-    const user = get().user;
+    const { user, impersonatedUserId, originalSuperadminRole } = get();
+    // If impersonating, check the original superadmin's role, not the impersonated user's role
+    if (impersonatedUserId && originalSuperadminRole) {
+      return originalSuperadminRole === "superadmin";
+    }
+    // Otherwise check the current user's role
     return user?.role === "superadmin" || user?.is_superadmin === true;
+  },
+  
+  // Get the actual logged-in user's role (not impersonated)
+  getActualUserRole: () => {
+    const { impersonatedUserId, originalSuperadminRole, user } = get();
+    // If impersonating, return the original superadmin's role
+    if (impersonatedUserId && originalSuperadminRole) {
+      return originalSuperadminRole;
+    }
+    // Otherwise return the current user's role
+    return user?.role || null;
   },
 }));
 

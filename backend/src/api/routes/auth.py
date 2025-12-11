@@ -16,6 +16,7 @@ class UserResponse(BaseModel):
     name: Optional[str] = None
     is_active: bool
     role: Optional[str] = None
+    picture: Optional[str] = None
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(current_user: User = Depends(get_current_user)):
@@ -31,7 +32,8 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
         email=current_user.email,
         name=current_user.name,
         is_active=current_user.is_active,
-        role=current_user.role
+        role=current_user.role,
+        picture=getattr(current_user, 'picture', None)
     )
 
 @router.post("/logout")

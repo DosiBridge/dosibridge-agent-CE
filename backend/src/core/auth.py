@@ -39,24 +39,30 @@ async def get_auth0_user_info(domain: str, token: str):
         return response.json()
 
 async def get_optional_current_user(
+    request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
     db: Session = Depends(get_db)
 ) -> Optional[User]:
     """
     Returns the current user if authenticated, or None if not.
     Does not raise 401 for missing credentials.
+    Supports impersonation via X-Impersonate-User header.
     """
     if not credentials:
         return None
-    return await get_current_user(credentials, db)
+    return await get_current_user(request, credentials, db)
 
 async def get_current_user(
+    request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
     db: Session = Depends(get_db)
 ) -> User:
     """
     Validates Auth0 token and returns the local User object.
     Creates the user if they don't exist (JIT Provisioning).
+    
+    Supports impersonation: If X-Impersonate-User header is present and the
+    authenticated user is a superadmin, returns the impersonated user instead.
     """
     if not credentials:
         raise HTTPException(
@@ -132,6 +138,34 @@ async def get_current_user(
         if updates_needed:
             db.commit()
             db.refresh(user)
+    
+    # Check for impersonation header
+    impersonate_user_id = request.headers.get("X-Impersonate-User")
+    if impersonate_user_id:
+        # Only allow superadmin to impersonate
+        user_role = getattr(user, 'role', 'user')
+        if user_role != "superadmin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only superadmin can impersonate users"
+            )
+        
+        try:
+            impersonate_id = int(impersonate_user_id)
+            # Get the impersonated user
+            impersonated_user = db.query(User).filter(User.id == impersonate_id).first()
+            if not impersonated_user:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"User with ID {impersonate_id} not found"
+                )
+            # Return the impersonated user instead of the superadmin
+            return impersonated_user
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid user ID in X-Impersonate-User header"
+            )
         
     return user
 
