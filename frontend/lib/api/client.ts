@@ -5,8 +5,14 @@
 
 // Runtime config loader - reads from public/runtime-config.json if available
 // This allows the API URL to be configured at container startup time
-let runtimeConfig: { API_BASE_URL?: string } | null = null;
+let runtimeConfig: { 
+  API_BASE_URL?: string;
+  AUTH0_DOMAIN?: string;
+  AUTH0_CLIENT_ID?: string;
+  AUTH0_AUDIENCE?: string;
+} | null = null;
 let configLoadPromise: Promise<string> | null = null;
+let fullConfigPromise: Promise<typeof runtimeConfig> | null = null;
 
 /**
  * Get API base URL - loads runtime config on first call, then caches it
@@ -64,6 +70,56 @@ export async function getApiBaseUrl(): Promise<string> {
   })();
 
   return configLoadPromise;
+}
+
+/**
+ * Get full runtime config including Auth0 settings
+ */
+export async function getRuntimeConfig(): Promise<typeof runtimeConfig> {
+  // Return cached value if already loaded
+  if (runtimeConfig) {
+    return runtimeConfig;
+  }
+
+  // If already loading, return the same promise
+  if (fullConfigPromise) {
+    return fullConfigPromise;
+  }
+
+  // Start loading config
+  fullConfigPromise = (async () => {
+    try {
+      // Try to fetch runtime config from API route (more reliable than static file)
+      const response = await fetch("/api/runtime-config", {
+        cache: "no-store", // Always fetch fresh config
+        headers: {
+          "Cache-Control": "no-cache",
+        },
+      });
+
+      if (response.ok) {
+        runtimeConfig = await response.json();
+        console.log("✓ Full runtime config loaded:", runtimeConfig);
+        return runtimeConfig;
+      } else {
+        console.warn(
+          `⚠️ Failed to load runtime config: ${response.status} ${response.statusText}`
+        );
+      }
+    } catch (error) {
+      console.error("⚠️ Error loading runtime config:", error);
+    }
+
+    // Fall back to build-time env vars
+    return {
+      API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8085",
+      AUTH0_DOMAIN: process.env.NEXT_PUBLIC_AUTH0_DOMAIN,
+      AUTH0_CLIENT_ID: process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID,
+      AUTH0_AUDIENCE: process.env.NEXT_PUBLIC_AUTH0_AUDIENCE,
+    };
+  })();
+
+  return fullConfigPromise;
 }
 
 // Token management - use secure storage utility

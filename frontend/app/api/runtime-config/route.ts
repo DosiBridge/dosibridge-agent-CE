@@ -27,8 +27,29 @@ export async function GET() {
     resolved: apiBaseUrl,
   });
 
+  // Read Auth0 config from environment variables (set at container startup)
+  const auth0Domain =
+    process.env.NEXT_PUBLIC_AUTH0_DOMAIN ||
+    process.env.AUTH0_DOMAIN;
+  const auth0ClientId =
+    process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID ||
+    process.env.AUTH0_CLIENT_ID;
+  const auth0Audience =
+    process.env.NEXT_PUBLIC_AUTH0_AUDIENCE ||
+    process.env.AUTH0_AUDIENCE;
+
+  // Log for debugging
+  console.log("[Runtime Config] Auth0 config:", {
+    domain: auth0Domain ? "set" : "not set",
+    clientId: auth0ClientId ? "set" : "not set",
+    audience: auth0Audience ? "set" : "not set",
+  });
+
   const config = {
     API_BASE_URL: apiBaseUrl,
+    AUTH0_DOMAIN: auth0Domain,
+    AUTH0_CLIENT_ID: auth0ClientId,
+    AUTH0_AUDIENCE: auth0Audience,
   };
 
   return Response.json(config, {

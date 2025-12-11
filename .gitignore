@@ -122,3 +122,4 @@ mcp_servers.local.json
 
 # Docker (keep docker-compose.yml for deployment)
 # Don't ignore docker-compose.yml - it's needed for deployment
+docker-compose-vps-example.yml
