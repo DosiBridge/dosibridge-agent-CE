@@ -38,6 +38,7 @@ export function createStreamReader(
         message: request.message,
         session_id: request.session_id,
         mode: request.mode,
+        guest_email: request.guest_email,
       };
       if (request.mode === "rag") {
         if (
@@ -225,10 +226,10 @@ export function createStreamReader(
           error instanceof Error
             ? error
             : new Error(
-                `Network error: ${String(
-                  error
-                )}. Please check your connection and ensure the backend is running.`
-              );
+              `Network error: ${String(
+                error
+              )}. Please check your connection and ensure the backend is running.`
+            );
         onError(errorMessage);
       }
     }

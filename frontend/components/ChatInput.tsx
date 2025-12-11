@@ -24,6 +24,7 @@ import type { KeyboardEvent, ChangeEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import RAGEnablePopup from "@/components/RAGEnablePopup";
+import GuestEmailDialog from "@/components/chat/GuestEmailDialog";
 
 import { cn } from "@/lib/utils";
 
@@ -33,6 +34,7 @@ export default function ChatInput() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showModelDropdown, setShowModelDropdown] = useState(false);
   const [showRAGPopup, setShowRAGPopup] = useState(false);
+  const [showGuestEmailDialog, setShowGuestEmailDialog] = useState(false);
 
   const abortRef = useRef<(() => void) | null>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
@@ -200,6 +202,17 @@ export default function ChatInput() {
       return;
     }
 
+    // Check for guest email if not authenticated
+    let guestEmail = null;
+    if (!isAuthenticated) {
+      const storedGuestEmail = localStorage.getItem("guest_email");
+      if (!storedGuestEmail) {
+        setShowGuestEmailDialog(true);
+        return;
+      }
+      guestEmail = storedGuestEmail;
+    }
+
     try {
       const todayUsage = await getTodayUsage();
       if (todayUsage.is_default_llm && todayUsage.limit !== -1) {
@@ -246,6 +259,7 @@ export default function ChatInput() {
           mode,
           collection_id: mode === "rag" ? selectedCollectionId : null,
           use_react: mode === "rag" ? useReact : false,
+          guest_email: guestEmail || undefined,
         },
         (chunk: StreamChunk) => {
           if (chunk.error) {
@@ -353,7 +367,10 @@ export default function ChatInput() {
     toast("Voice input coming soon", { icon: "🎤" });
   };
 
-
+  const handleGuestEmailSubmit = (email: string) => {
+    localStorage.setItem("guest_email", email);
+    handleSend();
+  };
 
   const getModeDisplayName = () => {
     return mode === "agent" ? "Agent" : "RAG";
@@ -521,6 +538,11 @@ export default function ChatInput() {
         onEnable={() => { }}
       />
 
+      <GuestEmailDialog
+        isOpen={showGuestEmailDialog}
+        onClose={() => setShowGuestEmailDialog(false)}
+        onSubmit={handleGuestEmailSubmit}
+      />
 
     </div>
   );

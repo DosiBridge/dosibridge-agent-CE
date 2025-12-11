@@ -19,7 +19,8 @@ export default function UsageIndicator() {
   const loadUsage = async () => {
     // Load usage for both authenticated and unauthenticated users
     try {
-      const todayUsage = await getTodayUsage();
+      const guestEmail = localStorage.getItem("guest_email") || undefined;
+      const todayUsage = await getTodayUsage(guestEmail);
       setUsage(todayUsage);
     } catch (error) {
       console.error("Failed to load usage:", error);
@@ -81,10 +82,10 @@ export default function UsageIndicator() {
         )}
         <span
           className={`text-xs font-medium ${isExceeded
-              ? "text-red-500"
-              : isNearLimit
-                ? "text-amber-500"
-                : "text-[var(--text-secondary)]"
+            ? "text-red-500"
+            : isNearLimit
+              ? "text-amber-500"
+              : "text-[var(--text-secondary)]"
             }`}
         >
           {usage.remaining}/{usage.limit}

@@ -8,6 +8,8 @@ export interface ChatRequest {
   mode: "agent" | "rag";
   collection_id?: number | null;
   use_react?: boolean;
+  agent_prompt?: string;
+  guest_email?: string;
 }
 
 export interface ChatResponse {

@@ -50,12 +50,7 @@ def get_current_superadmin(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Superadmin access required"
         )
-    # Ensure superadmin has ID=1 (only superadmin ID=1 can manage global configs)
-    if current_user.id != 1:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only superadmin with ID=1 can manage global configurations"
-        )
+    # Ensure superadmin has ID=1 check removed to allow any superadmin to manage configs
     return current_user
 
 
@@ -208,12 +203,6 @@ async def create_global_llm_config(
         if not DB_AVAILABLE:
             raise HTTPException(status_code=503, detail="Database not available")
 
-        # Ensure current_user is superadmin with ID=1
-        if current_user.id != 1:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Only superadmin with ID=1 can manage global configurations"
-            )
 
         # Test configuration before saving
         test_message = None
@@ -282,13 +271,6 @@ async def create_global_mcp_server(
     """Add a global MCP server (superadmin ID=1 only)"""
     if not DB_AVAILABLE:
         raise HTTPException(status_code=503, detail="Database not available")
-    
-    # Ensure current_user is superadmin with ID=1
-    if current_user.id != 1:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only superadmin with ID=1 can manage global configurations"
-        )
         
     from src.core.models import MCPServer
     from src.utils.mcp_connection_test import test_mcp_connection
@@ -408,13 +390,6 @@ async def update_global_llm_config(
     if not DB_AVAILABLE:
         raise HTTPException(status_code=503, detail="Database not available")
     
-    # Ensure current_user is superadmin with ID=1
-    if current_user.id != 1:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only superadmin with ID=1 can manage global configurations"
-        )
-    
     llm_config = db.query(LLMConfig).filter(
         LLMConfig.id == config_id,
         ((LLMConfig.user_id == 1) | (LLMConfig.user_id.is_(None)))
@@ -458,13 +433,6 @@ async def delete_global_llm_config(
     If deleting the default config, ensures another default exists or creates DeepSeek fallback."""
     if not DB_AVAILABLE:
         raise HTTPException(status_code=503, detail="Database not available")
-    
-    # Ensure current_user is superadmin with ID=1
-    if current_user.id != 1:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only superadmin with ID=1 can manage global configurations"
-        )
     
     llm_config = db.query(LLMConfig).filter(
         LLMConfig.id == config_id,
@@ -730,13 +698,6 @@ async def create_global_embedding_config(
     if not DB_AVAILABLE:
         raise HTTPException(status_code=503, detail="Database not available")
 
-    # Ensure current_user is superadmin with ID=1
-    if current_user.id != 1:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only superadmin with ID=1 can manage global configurations"
-        )
-
     # Test configuration before saving
     test_message = None
     if config.api_key:
@@ -904,13 +865,6 @@ async def update_global_embedding_config(
     if not DB_AVAILABLE:
         raise HTTPException(status_code=503, detail="Database not available")
     
-    # Ensure current_user is superadmin with ID=1
-    if current_user.id != 1:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only superadmin with ID=1 can manage global configurations"
-        )
-    
     embedding_config = db.query(EmbeddingConfig).filter(
         EmbeddingConfig.id == config_id,
         ((EmbeddingConfig.user_id == 1) | (EmbeddingConfig.user_id.is_(None)))
@@ -955,13 +909,6 @@ async def delete_global_embedding_config(
     If deleting the default config, ensures another default exists or creates OpenAI fallback."""
     if not DB_AVAILABLE:
         raise HTTPException(status_code=503, detail="Database not available")
-    
-    # Ensure current_user is superadmin with ID=1
-    if current_user.id != 1:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only superadmin with ID=1 can manage global configurations"
-        )
     
     embedding_config = db.query(EmbeddingConfig).filter(
         EmbeddingConfig.id == config_id,

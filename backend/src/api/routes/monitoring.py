@@ -1,11 +1,11 @@
 """
 API Usage Monitoring Endpoints
 """
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends, Request, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 from src.core import get_db, User
-from src.core.auth import get_current_user, get_current_active_user
+from src.core.auth import get_current_user, get_current_active_user, get_optional_current_user
 from src.services.usage_tracker import usage_tracker
 from src.core.constants import DAILY_REQUEST_LIMIT, DAILY_REQUEST_LIMIT_UNAUTHENTICATED
 
@@ -50,7 +50,8 @@ async def get_usage_stats(
 @router.get("/usage/today")
 async def get_today_usage(
     request: Request,
-    current_user: Optional[User] = Depends(get_current_user),
+    guest_email: Optional[str] = Query(None),
+    current_user: Optional[User] = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -97,7 +98,7 @@ async def get_today_usage(
         # Only check daily limit if using default LLM
         if is_default_llm:
             is_allowed, current_count, remaining = usage_tracker.check_daily_limit(
-                user_id, db, is_default_llm=True, ip_address=ip_address
+                user_id, db, is_default_llm=True, ip_address=ip_address, guest_email=guest_email
             )
             limit = DAILY_REQUEST_LIMIT_UNAUTHENTICATED if user_id is None else DAILY_REQUEST_LIMIT
         else:
@@ -107,7 +108,7 @@ async def get_today_usage(
             remaining = -1  # -1 means unlimited
             limit = -1
         
-        stats = usage_tracker.get_user_usage_stats(user_id, db, days=1, ip_address=ip_address)
+        stats = usage_tracker.get_user_usage_stats(user_id, db, days=1, ip_address=ip_address, guest_email=guest_email)
         today_stats = stats.get("today", {})
         
         return {

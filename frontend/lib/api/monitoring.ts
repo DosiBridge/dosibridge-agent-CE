@@ -38,9 +38,14 @@ export interface ApiKeysInfo {
   };
 }
 
-export const getTodayUsage = async (): Promise<UsageStats> => {
+export const getTodayUsage = async (guestEmail?: string): Promise<UsageStats> => {
   const apiBaseUrl = await getApiBaseUrl();
-  const response = await fetch(`${apiBaseUrl}/api/monitoring/usage/today`, {
+  const url = new URL(`${apiBaseUrl}/api/monitoring/usage/today`);
+  if (guestEmail) {
+    url.searchParams.append("guest_email", guestEmail);
+  }
+
+  const response = await fetch(url.toString(), {
     headers: getAuthHeaders(),
   });
   const data = await handleResponse<{ status: string; data: UsageStats }>(response);

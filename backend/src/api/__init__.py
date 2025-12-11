@@ -21,7 +21,7 @@ from .routes.documents import router as documents_router
 from .routes.websocket import router as websocket_router
 from .routes.custom_rag_tools import router as custom_rag_tools_router
 from .routes.monitoring import router as monitoring_router
-from src.core.auth import get_current_user
+from src.core.auth import get_current_user, get_optional_current_user
 from src.core import User
 from typing import Optional
 
@@ -159,7 +159,7 @@ async def root():
 
 
 @app.get("/health")
-async def health_check(current_user: Optional[User] = Depends(get_current_user)):
+async def health_check(current_user: Optional[User] = Depends(get_optional_current_user)):
     """Health check endpoint with MCP server count and RAG availability"""
     from src.api.routes.websocket import get_health_status
     user_id = current_user.id if current_user else None

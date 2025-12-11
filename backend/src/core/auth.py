@@ -22,7 +22,33 @@ from src.core.auth0 import verify_auth0_token
 # from sqlalchemy.orm import Session # Already imported
 
 # Reusable security scheme
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
+
+from async_lru import alru_cache
+
+@alru_cache(maxsize=1000, ttl=300)
+async def get_auth0_user_info(domain: str, token: str):
+    """Fetch user info from Auth0 with caching (TTL 5 mins)"""
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(
+            f"https://{domain}/userinfo", 
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=401, detail="Failed to fetch user info from Auth0")
+        return response.json()
+
+async def get_optional_current_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    db: Session = Depends(get_db)
+) -> Optional[User]:
+    """
+    Returns the current user if authenticated, or None if not.
+    Does not raise 401 for missing credentials.
+    """
+    if not credentials:
+        return None
+    return await get_current_user(credentials, db)
 
 async def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
@@ -50,40 +76,23 @@ async def get_current_user(
         )
         
     # Extract user info from Auth0 claims
-    # Standard claims: sub (Auth0 ID), email, name/nickname
-    # Note: You might need to add a custom rule/action in Auth0 to add email to access token
-    # or call /userinfo endpoint. For now, we assume email is in the token.
-    auth0_id = payload.get("sub")
-    email = payload.get("email") # Requires Auth0 'email' scope and rule
+    email = payload.get("email") 
+    name = payload.get("name")
     
-    # Fallback if email is missing (common with standard access tokens)
-    # Ideally, we call Auth0 /userinfo, but to keep it simple, we require email in token
-    # (Checking permissions/scopes could also be done here)
-    
+    # If email is missing from Access Token (common), fetch from /userinfo
+    # We use a cached function to avoid hitting Auth0 API on every request
     if not email:
-        # For this demo, if email is missing, we might fail or use a placeholder
-        # In production: Fetch from /userinfo
-        # raise HTTPException(status_code=400, detail="Email claim missing from token")
-        pass 
+        try:
+            user_data = await get_auth0_user_info(os.getenv('AUTH0_DOMAIN'), token)
+            email = user_data.get("email")
+            name = user_data.get("name", name)
+        except Exception as e:
+            # If fetch fails (timeout/error), and we still have no email, we can't identify the user
+            print(f"⚠️ Auth0 UserInfo fetch failed: {e}")
+            raise HTTPException(status_code=401, detail="Could not validate user identity")
 
-    # Find user by Auth0 ID (ideal) or Email (legacy)
-    # We might need to add auth0_id to User model?
-    # For now, let's look up by email match.
-    
     if not email:
-         # If no email in token, we can't sync easily without a lookup.
-         # TEMPORARY: Return a mock or error?
-         # Real solution: Call Auth0 /userinfo here using the token
-         # import httpx # Already imported at the top
-         async with httpx.AsyncClient() as client:
-             userinfo = await client.get(f"https://{os.getenv('AUTH0_DOMAIN')}/userinfo", headers={"Authorization": f"Bearer {token}"})
-             if userinfo.status_code == 200:
-                 data = userinfo.json()
-                 email = data.get("email")
-                 name = data.get("name")
-                 picture = data.get("picture")
-             else:
-                 raise HTTPException(status_code=401, detail="Failed to fetch user info")
+         raise HTTPException(status_code=401, detail="Email not found in token or userinfo")
 
     user = db.query(User).filter(User.email == email).first()
     

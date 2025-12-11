@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import { useAuth0 } from "@auth0/auth0-react";
 import { Sidebar, SidebarBody, SidebarLink } from "./ui/sidebar";
 import {
   IconArrowLeft,
@@ -41,12 +42,12 @@ export default function SessionSidebar({
   // Use state to ensure consistent hydration
   // Always start with false to match server-side rendering
   const [open, setOpenState] = useState(false);
-  
+
   // Sync with prop changes after mount to prevent hydration mismatch
   useEffect(() => {
     setOpenState(isOpen);
   }, [isOpen]);
-  
+
   const setOpen = (value: boolean | ((prevState: boolean) => boolean)) => {
     // Determine new value
     const newValue = typeof value === 'function' ? value(open) : value;
@@ -78,6 +79,7 @@ export default function SessionSidebar({
   const setSettingsOpen = useStore((state) => state.setSettingsOpen);
   const user = useStore((state) => state.user);
   const isAuthenticated = useStore((state) => state.isAuthenticated);
+  const { logout: auth0Logout, loginWithRedirect } = useAuth0();
   const logout = useStore((state) => state.handleLogout);
 
   const links = [
@@ -214,8 +216,16 @@ export default function SessionSidebar({
                       if (isLoggingOut) return;
                       setIsLoggingOut(true);
                       try {
+                        // Clear local state first
                         await logout();
-                      } finally {
+                        // Then redirect to Auth0 logout
+                        auth0Logout({
+                          logoutParams: {
+                            returnTo: window.location.origin
+                          }
+                        });
+                      } catch (error) {
+                        console.error("Logout error:", error);
                         setIsLoggingOut(false);
                       }
                     }}
@@ -224,20 +234,24 @@ export default function SessionSidebar({
               </div>
             ) : (
               <div className="flex flex-col gap-1">
-                <SidebarLink
-                  link={{
-                    label: "Login",
-                    href: "/login",
-                    icon: <IconLogin className="text-neutral-200 h-5 w-5 flex-shrink-0" />,
-                  }}
-                />
-                <SidebarLink
-                  link={{
-                    label: "Create Account",
-                    href: "/register",
-                    icon: <IconUserPlus className="text-neutral-200 h-5 w-5 flex-shrink-0" />,
-                  }}
-                />
+                <div onClick={() => loginWithRedirect()}>
+                  <SidebarLink
+                    link={{
+                      label: "Login",
+                      href: "#",
+                      icon: <IconLogin className="text-neutral-200 h-5 w-5 flex-shrink-0" />,
+                    }}
+                  />
+                </div>
+                <div onClick={() => loginWithRedirect({ authorizationParams: { screen_hint: "signup" } })}>
+                  <SidebarLink
+                    link={{
+                      label: "Create Account",
+                      href: "#",
+                      icon: <IconUserPlus className="text-neutral-200 h-5 w-5 flex-shrink-0" />,
+                    }}
+                  />
+                </div>
               </div>
             )}
           </div>

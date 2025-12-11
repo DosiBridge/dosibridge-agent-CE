@@ -14,7 +14,12 @@ function AuthSynchronizer({ children }: { children: ReactNode }) {
         const syncAuth = async () => {
             if (isAuthenticated) {
                 try {
-                    const token = await getAccessTokenSilently();
+                    const token = await getAccessTokenSilently({
+                        authorizationParams: {
+                            audience: process.env.NEXT_PUBLIC_AUTH0_AUDIENCE,
+                            scope: "openid profile email"
+                        }
+                    });
                     // Store token in client config (and localStorage via client implementation)
                     setAuthToken(token);
 

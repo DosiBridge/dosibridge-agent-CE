@@ -14,7 +14,7 @@ from langchain_core.tools import BaseTool
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from src.core import Config, User, get_db, DB_AVAILABLE
-from src.core.auth import get_current_active_user, get_current_user
+from src.core.auth import get_current_active_user, get_current_user, get_optional_current_user
 from src.services import history_manager, MCPClientManager, create_llm_from_config, rag_system
 from src.services.chat_service import ChatService
 from src.services.tools import retrieve_dosiblog_context, load_custom_rag_tools, create_appointment_tool
@@ -36,7 +36,7 @@ async def chat(
     request: Request,
     chat_request: ChatRequest,
     background_tasks: BackgroundTasks,
-    current_user: Optional[User] = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ) -> ChatResponse:
     """
@@ -81,10 +81,10 @@ async def chat(
         
         # Check daily rate limit
         # - Authenticated users: 100/day for default LLM, unlimited for custom keys
-        # - Unauthenticated users: 30/day
-        limit = DAILY_REQUEST_LIMIT_UNAUTHENTICATED if user_id is None else DAILY_REQUEST_LIMIT
+        # - Unauthenticated users: 10/day (Guest Mode)
+        limit = 10 if user_id is None else DAILY_REQUEST_LIMIT
         is_allowed, current_count, remaining = usage_tracker.check_daily_limit(
-            user_id, db, is_default_llm=is_default_llm, ip_address=ip_address
+            user_id, db, is_default_llm=is_default_llm, ip_address=ip_address, guest_email=chat_request.guest_email
         )
         if not is_allowed:
             limit_msg = limit if is_default_llm else "unlimited"
@@ -154,7 +154,8 @@ async def chat(
             mode=chat_request.mode,
             session_id=chat_request.session_id,
             success=True,
-            ip_address=ip_address
+            ip_address=ip_address,
+            guest_email=chat_request.guest_email
         )
         
         app_logger.info(
@@ -182,7 +183,7 @@ async def chat(
 async def chat_stream(
     request: Request,
     chat_request: ChatRequest,
-    current_user: Optional[User] = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -222,11 +223,11 @@ async def chat_stream(
         
         # Check daily rate limit
         # - Authenticated users: 100/day for default LLM, unlimited for custom keys
-        # - Unauthenticated users: 30/day
+        # - Unauthenticated users: 10/day (Guest Mode)
         from src.core.constants import DAILY_REQUEST_LIMIT_UNAUTHENTICATED
-        limit = DAILY_REQUEST_LIMIT_UNAUTHENTICATED if user_id is None else DAILY_REQUEST_LIMIT
+        limit = 10 if user_id is None else DAILY_REQUEST_LIMIT
         is_allowed, current_count, remaining = usage_tracker.check_daily_limit(
-            user_id, db, is_default_llm=is_default_llm, ip_address=ip_address
+            user_id, db, is_default_llm=is_default_llm, ip_address=ip_address, guest_email=chat_request.guest_email
         )
         if not is_allowed:
             app_logger.warning(
@@ -425,7 +426,8 @@ async def chat_stream(
                             mode=chat_request.mode,
                             session_id=chat_request.session_id,
                             success=True,
-                            ip_address=ip_address
+                            ip_address=ip_address,
+                            guest_email=chat_request.guest_email
                         )
                 
                 yield f"data: {json.dumps({'chunk': '', 'done': True})}\n\n"
@@ -717,7 +719,8 @@ async def chat_stream(
                             mode=chat_request.mode,
                             session_id=chat_request.session_id,
                             success=True,
-                            ip_address=ip_address
+                            ip_address=ip_address,
+                            guest_email=chat_request.guest_email
                         )
                     
                     yield f"data: {json.dumps({'chunk': '', 'done': True, 'tools_used': tool_calls_made})}\n\n"

@@ -40,7 +40,7 @@ class UsageTracker:
         return None
     
     @staticmethod
-    def check_daily_limit(user_id: Optional[int], db: Session, is_default_llm: bool = False, ip_address: Optional[str] = None) -> Tuple[bool, int, int]:
+    def check_daily_limit(user_id: Optional[int], db: Session, is_default_llm: bool = False, ip_address: Optional[str] = None, guest_email: Optional[str] = None) -> Tuple[bool, int, int]:
         """
         Check if user has exceeded daily request limit
         
@@ -49,6 +49,7 @@ class UsageTracker:
             db: Database session
             is_default_llm: True if using default DeepSeek LLM, False for custom API keys (unlimited)
             ip_address: IP address for anonymous users (required when user_id is None)
+            guest_email: Optional email for guest users tracking
             
         Returns:
             Tuple of (is_allowed, current_count, limit)
@@ -65,20 +66,34 @@ class UsageTracker:
         try:
             today_start = UsageTracker.get_today_start()
             
-            # Determine the limit based on authentication status
+            # Determine the limit based on authentication status and guest email
             if user_id is None:
-                # Unauthenticated user - 30 requests per day
-                limit = DAILY_REQUEST_LIMIT_UNAUTHENTICATED
-                if not ip_address:
-                    # If no IP, allow but warn
-                    return True, 0, limit
+                # Unauthenticated user
+                # If guest email provided, they get 10 requests/day (as per requirement)
+                # If no email (truly anonymous), defaulting to 5 or keeping same strict limit?
+                # User requirement: "without logni also user can use chat but limite par day is 10"
+                # And "when a user without login to chat then for monetoing get a dialog box to get email"
                 
-                # Query by IP address for anonymous users
-                usage = db.query(APIUsage).filter(
-                    APIUsage.user_id.is_(None),
-                    APIUsage.ip_address == ip_address,
-                    func.date(APIUsage.usage_date) == today_start.date()
-                ).first()
+                limit = 10 # Explicit 10/day limit for unauthenticated users
+                
+                if guest_email:
+                     # Query by guest email
+                    usage = db.query(APIUsage).filter(
+                        APIUsage.user_id.is_(None),
+                        APIUsage.guest_email == guest_email,
+                        func.date(APIUsage.usage_date) == today_start.date()
+                    ).first()
+                elif ip_address:
+                    # Query by IP address for anonymous users without email
+                    usage = db.query(APIUsage).filter(
+                        APIUsage.user_id.is_(None),
+                        APIUsage.guest_email.is_(None),
+                        APIUsage.ip_address == ip_address,
+                        func.date(APIUsage.usage_date) == today_start.date()
+                    ).first()
+                else:
+                    # If no IP and no email, allow but warn (shouldn't happen)
+                    return True, 0, limit
             else:
                 # Authenticated user - 100 requests per day
                 limit = DAILY_REQUEST_LIMIT
@@ -96,7 +111,7 @@ class UsageTracker:
         except Exception as e:
             print(f"⚠️  Error checking daily limit: {e}")
             # On error, allow the request
-            limit = DAILY_REQUEST_LIMIT_UNAUTHENTICATED if user_id is None else DAILY_REQUEST_LIMIT
+            limit = 10 if user_id is None else DAILY_REQUEST_LIMIT
             return True, 0, limit
     
     @staticmethod
@@ -111,7 +126,8 @@ class UsageTracker:
         mode: Optional[str] = None,
         session_id: Optional[str] = None,
         success: bool = True,
-        ip_address: Optional[str] = None
+        ip_address: Optional[str] = None,
+        guest_email: Optional[str] = None
     ) -> bool:
         """
         Record an API request (both daily aggregate and individual request)
@@ -127,6 +143,8 @@ class UsageTracker:
             mode: Chat mode ("agent" or "rag")
             session_id: Session ID if available
             success: Whether the request was successful
+            ip_address: Client IP
+            guest_email: Optional guest email for unauthenticated users
             
         Returns:
             True if recorded successfully
@@ -153,21 +171,29 @@ class UsageTracker:
                     total_tokens=total_tokens,
                     mode=mode,
                     session_id=session_id,
-                    success=success
+                    success=success,
+                    guest_email=guest_email if user_id is None else None
                 )
                 db.add(api_request)
             
             # Get or create today's usage record (for daily aggregates)
             if user_id is None:
-                # For anonymous users, query by IP address
-                if not ip_address:
-                    # If no IP, skip recording (shouldn't happen, but handle gracefully)
+                # For unauthenticated users
+                if guest_email:
+                    usage = db.query(APIUsage).filter(
+                        APIUsage.user_id.is_(None),
+                        APIUsage.guest_email == guest_email,
+                        func.date(APIUsage.usage_date) == today_start.date()
+                    ).first()
+                elif ip_address:
+                    usage = db.query(APIUsage).filter(
+                        APIUsage.user_id.is_(None),
+                        APIUsage.guest_email.is_(None), # Explicitly NULL guest_email
+                        APIUsage.ip_address == ip_address,
+                        func.date(APIUsage.usage_date) == today_start.date()
+                    ).first()
+                else:
                     return False
-                usage = db.query(APIUsage).filter(
-                    APIUsage.user_id.is_(None),
-                    APIUsage.ip_address == ip_address,
-                    func.date(APIUsage.usage_date) == today_start.date()
-                ).first()
             else:
                 # For authenticated users, query by user_id
                 usage = db.query(APIUsage).filter(
@@ -199,7 +225,8 @@ class UsageTracker:
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
                     embedding_tokens=embedding_tokens,
-                    mode=mode
+                    mode=mode,
+                    guest_email=guest_email if user_id is None else None
                 )
                 db.add(usage)
             
@@ -215,7 +242,8 @@ class UsageTracker:
         user_id: Optional[int],
         db: Session,
         days: int = 7,
-        ip_address: Optional[str] = None
+        ip_address: Optional[str] = None,
+        guest_email: Optional[str] = None
     ) -> Dict:
         """
         Get usage statistics for a user
@@ -223,8 +251,10 @@ class UsageTracker:
         Args:
             user_id: User ID (None for anonymous users)
             db: Database session
+            db: Database session
             days: Number of days to retrieve
             ip_address: IP address for anonymous users (required when user_id is None)
+            guest_email: Optional guest email for unauthenticated users
             
         Returns:
             Dictionary with usage statistics
@@ -245,26 +275,42 @@ class UsageTracker:
             limit = DAILY_REQUEST_LIMIT_UNAUTHENTICATED if user_id is None else DAILY_REQUEST_LIMIT
             
             # Get today's usage
+            # Get today's usage
             if user_id is None:
-                if not ip_address:
+                if guest_email:
+                    today_usage = db.query(APIUsage).filter(
+                        APIUsage.user_id.is_(None),
+                        APIUsage.guest_email == guest_email,
+                        func.date(APIUsage.usage_date) == today_start.date()
+                    ).first()
+                    
+                    recent_usage = db.query(APIUsage).filter(
+                        APIUsage.user_id.is_(None),
+                        APIUsage.guest_email == guest_email,
+                        APIUsage.usage_date >= start_date
+                    ).order_by(APIUsage.usage_date.desc()).all()
+                    
+                elif ip_address:
+                    today_usage = db.query(APIUsage).filter(
+                        APIUsage.user_id.is_(None),
+                        APIUsage.guest_email.is_(None),
+                        APIUsage.ip_address == ip_address,
+                        func.date(APIUsage.usage_date) == today_start.date()
+                    ).first()
+                    
+                    recent_usage = db.query(APIUsage).filter(
+                        APIUsage.user_id.is_(None),
+                        APIUsage.guest_email.is_(None),
+                        APIUsage.ip_address == ip_address,
+                        APIUsage.usage_date >= start_date
+                    ).order_by(APIUsage.usage_date.desc()).all()
+                else:
                     return {
                         "today": {"request_count": 0, "remaining": limit},
                         "recent_days": [],
                         "total_requests": 0,
                         "total_tokens": 0
                     }
-                today_usage = db.query(APIUsage).filter(
-                    APIUsage.user_id.is_(None),
-                    APIUsage.ip_address == ip_address,
-                    func.date(APIUsage.usage_date) == today_start.date()
-                ).first()
-                
-                # Get recent days usage
-                recent_usage = db.query(APIUsage).filter(
-                    APIUsage.user_id.is_(None),
-                    APIUsage.ip_address == ip_address,
-                    APIUsage.usage_date >= start_date
-                ).order_by(APIUsage.usage_date.desc()).all()
             else:
                 today_usage = db.query(APIUsage).filter(
                     APIUsage.user_id == user_id,

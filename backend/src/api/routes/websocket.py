@@ -100,17 +100,25 @@ async def websocket_health(websocket: WebSocket, token: Optional[str] = Query(No
     user_id = None
     if token:
         try:
-            from src.core.auth import decode_access_token
-            payload = decode_access_token(token)
-            if payload:
-                user_id_str = payload.get("sub")
-                if user_id_str:
-                    try:
-                        user_id = int(user_id_str)
-                    except (ValueError, TypeError):
-                        user_id = None
+            from src.core.auth0 import verify_auth0_token
+            from src.core.models import User
+            
+            # Verify Auth0 token
+            payload = verify_auth0_token(token)
+            
+            # Get email from payload (Auth0 puts email in claims)
+            email = payload.get("email")
+            
+            if email:
+                # Look up user in database to get ID
+                with get_db_context() as db:
+                    user = db.query(User).filter(User.email == email).first()
+                    if user:
+                        user_id = user.id
         except Exception as e:
-            print(f"⚠️  Error verifying token in WebSocket: {e}")
+            # Token validation failed - treat as anonymous
+            # print(f"⚠️  Error verifying token in WebSocket: {e}") # Reduce log noise
+            pass
     
     try:
         # Send initial health status
