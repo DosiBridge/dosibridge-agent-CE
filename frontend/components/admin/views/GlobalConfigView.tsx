@@ -53,6 +53,9 @@ export default function GlobalConfigView() {
     const [globalEmbeddingConfigs, setGlobalEmbeddingConfigs] = useState<any[]>([]);
     const [globalMCPServers, setGlobalMCPServers] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
+    const [savingLLM, setSavingLLM] = useState(false);
+    const [savingMCP, setSavingMCP] = useState(false);
+    const [savingEmbedding, setSavingEmbedding] = useState(false);
     const [embeddingForm, setEmbeddingForm] = useState({
         provider: 'openai',
         model: 'text-embedding-3-small',
@@ -97,36 +100,48 @@ export default function GlobalConfigView() {
     };
 
     const handleLlmSubmit = async () => {
+        setSavingLLM(true);
         try {
             if (editingLLMId) {
                 await updateGlobalLLMConfig(editingLLMId, llmForm);
                 toast.success("Global LLM Configuration updated successfully");
             } else {
-            await createGlobalLLMConfig(llmForm);
+                await createGlobalLLMConfig(llmForm);
                 toast.success("Global LLM Configuration created successfully");
             }
             setLlmForm({ type: 'openai', model: 'gpt-4o', api_key: '', base_url: '', is_default: true });
             setEditingLLMId(null);
             await loadGlobalConfigs();
         } catch (error: any) {
-            toast.error(error.message || "Failed to save global LLM config");
+            // Extract error message from backend response
+            const errorMessage = error?.detail || error?.message || error?.error || "Failed to save global LLM config";
+            toast.error(errorMessage);
+            console.error("Failed to save global LLM config:", error);
+        } finally {
+            setSavingLLM(false);
         }
     };
 
     const handleMcpSubmit = async () => {
+        setSavingMCP(true);
         try {
             if (editingMCPId) {
                 await updateGlobalMCPServer(editingMCPId, mcpForm);
                 toast.success("Global MCP Server updated successfully");
             } else {
-            await createGlobalMCPServer(mcpForm);
-            toast.success("Global MCP Server added");
+                await createGlobalMCPServer(mcpForm);
+                toast.success("Global MCP Server added");
             }
             setMcpForm({ name: '', url: '', connection_type: 'http', api_key: '' });
             setEditingMCPId(null);
             await loadGlobalConfigs();
         } catch (error: any) {
-            toast.error(error.message || "Failed to save global MCP server");
+            // Extract error message from backend response
+            const errorMessage = error?.detail || error?.message || error?.error || "Failed to save global MCP server";
+            toast.error(errorMessage);
+            console.error("Failed to save global MCP server:", error);
+        } finally {
+            setSavingMCP(false);
         }
     };
 
@@ -145,7 +160,9 @@ export default function GlobalConfigView() {
             toast.success("Global LLM configuration deleted" + (isDefault ? ". A new default has been set." : ""));
             await loadGlobalConfigs();
         } catch (error: any) {
-            toast.error(error.message || "Failed to delete global LLM config");
+            const errorMessage = error?.detail || error?.message || error?.error || "Failed to delete global LLM config";
+            toast.error(errorMessage);
+            console.error("Failed to delete global LLM config:", error);
         }
     };
 
@@ -156,7 +173,9 @@ export default function GlobalConfigView() {
             toast.success("Global MCP server deleted");
             await loadGlobalConfigs();
         } catch (error: any) {
-            toast.error(error.message || "Failed to delete global MCP server");
+            const errorMessage = error?.detail || error?.message || error?.error || "Failed to delete global MCP server";
+            toast.error(errorMessage);
+            console.error("Failed to delete global MCP server:", error);
         }
     };
 
@@ -166,7 +185,9 @@ export default function GlobalConfigView() {
             toast.success("Global LLM configuration status updated");
             await loadGlobalConfigs();
         } catch (error: any) {
-            toast.error(error.message || "Failed to toggle global LLM config");
+            const errorMessage = error?.detail || error?.message || error?.error || "Failed to toggle global LLM config";
+            toast.error(errorMessage);
+            console.error("Failed to toggle global LLM config:", error);
         }
     };
 
@@ -176,7 +197,9 @@ export default function GlobalConfigView() {
             toast.success("Global MCP server status updated");
             await loadGlobalConfigs();
         } catch (error: any) {
-            toast.error(error.message || "Failed to toggle global MCP server");
+            const errorMessage = error?.detail || error?.message || error?.error || "Failed to toggle global MCP server";
+            toast.error(errorMessage);
+            console.error("Failed to toggle global MCP server:", error);
         }
     };
 
@@ -192,6 +215,7 @@ export default function GlobalConfigView() {
     };
 
     const handleEmbeddingSubmit = async () => {
+        setSavingEmbedding(true);
         try {
             if (editingEmbeddingId) {
                 await updateGlobalEmbeddingConfig(editingEmbeddingId, embeddingForm);
@@ -204,7 +228,12 @@ export default function GlobalConfigView() {
             setEditingEmbeddingId(null);
             await loadGlobalConfigs();
         } catch (error: any) {
-            toast.error(error.message || "Failed to save global embedding config");
+            // Extract error message from backend response
+            const errorMessage = error?.detail || error?.message || error?.error || "Failed to save global embedding config";
+            toast.error(errorMessage);
+            console.error("Failed to save global embedding config:", error);
+        } finally {
+            setSavingEmbedding(false);
         }
     };
 
@@ -223,7 +252,9 @@ export default function GlobalConfigView() {
             toast.success("Global embedding configuration deleted" + (isDefault ? ". A new default has been set." : ""));
             await loadGlobalConfigs();
         } catch (error: any) {
-            toast.error(error.message || "Failed to delete global embedding config");
+            const errorMessage = error?.detail || error?.message || error?.error || "Failed to delete global embedding config";
+            toast.error(errorMessage);
+            console.error("Failed to delete global embedding config:", error);
         }
     };
 
@@ -233,7 +264,9 @@ export default function GlobalConfigView() {
             toast.success("Global Embedding Configuration toggled");
             await loadGlobalConfigs();
         } catch (error: any) {
-            toast.error(error.message || "Failed to toggle global embedding config");
+            const errorMessage = error?.detail || error?.message || error?.error || "Failed to toggle global embedding config";
+            toast.error(errorMessage);
+            console.error("Failed to toggle global embedding config:", error);
         }
     };
 
@@ -388,10 +421,20 @@ export default function GlobalConfigView() {
                                 )}
                             <button
                                 onClick={handleLlmSubmit}
-                                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-medium transition-colors flex items-center gap-2"
+                                disabled={savingLLM}
+                                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors flex items-center gap-2"
                             >
-                                <Save className="w-4 h-4" />
-                                    {editingLLMId ? 'Update' : 'Create'} Configuration
+                                {savingLLM ? (
+                                    <>
+                                        <RefreshCw className="w-4 h-4 animate-spin" />
+                                        Saving...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Save className="w-4 h-4" />
+                                        {editingLLMId ? 'Update' : 'Create'} Configuration
+                                    </>
+                                )}
                             </button>
                         </div>
                     </motion.div>
@@ -562,10 +605,20 @@ export default function GlobalConfigView() {
                             )}
                             <button
                                 onClick={handleEmbeddingSubmit}
-                                className="px-6 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-medium transition-colors flex items-center gap-2"
+                                disabled={savingEmbedding}
+                                className="px-6 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:bg-purple-600/50 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors flex items-center gap-2"
                             >
-                                <Save className="w-4 h-4" />
-                                {editingEmbeddingId ? 'Update' : 'Create'} Configuration
+                                {savingEmbedding ? (
+                                    <>
+                                        <RefreshCw className="w-4 h-4 animate-spin" />
+                                        Saving...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Save className="w-4 h-4" />
+                                        {editingEmbeddingId ? 'Update' : 'Create'} Configuration
+                                    </>
+                                )}
                             </button>
                         </div>
                     </motion.div>
@@ -735,10 +788,20 @@ export default function GlobalConfigView() {
                                 )}
                                 <button
                                     onClick={handleMcpSubmit}
-                                    className="px-6 py-2.5 bg-green-600 hover:bg-green-500 text-white rounded-xl font-medium transition-colors flex items-center gap-2"
+                                    disabled={savingMCP}
+                                    className="px-6 py-2.5 bg-green-600 hover:bg-green-500 disabled:bg-green-600/50 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors flex items-center gap-2"
                                 >
-                                    <Server className="w-4 h-4" />
-                                    {editingMCPId ? 'Update' : 'Deploy'} Global Server
+                                    {savingMCP ? (
+                                        <>
+                                            <RefreshCw className="w-4 h-4 animate-spin" />
+                                            Saving...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Server className="w-4 h-4" />
+                                            {editingMCPId ? 'Update' : 'Deploy'} Global Server
+                                        </>
+                                    )}
                                 </button>
                             </div>
                         </motion.div>

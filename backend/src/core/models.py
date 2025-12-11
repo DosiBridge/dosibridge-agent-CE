@@ -510,6 +510,7 @@ if Base is not None:
         
         id = Column(Integer, primary_key=True, index=True)
         user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)  # Nullable for anonymous users
+        guest_email = Column(String(255), nullable=True, index=True)  # Email for guest users
         ip_address = Column(String(45), nullable=True, index=True)  # IP address for anonymous users (IPv6 max length)
         usage_date = Column(DateTime(timezone=True), nullable=False, index=True)  # Date of usage (normalized to start of day)
         request_count = Column(Integer, default=0, nullable=False)  # Number of requests today
@@ -529,6 +530,7 @@ if Base is not None:
         __table_args__ = (
             UniqueConstraint('user_id', 'usage_date', name='uq_api_usage_user_date'),
             UniqueConstraint('ip_address', 'usage_date', name='uq_api_usage_ip_date'),
+            UniqueConstraint('guest_email', 'usage_date', name='uq_api_usage_guest_email_date'),
         )
         
         def to_dict(self) -> dict:
@@ -536,6 +538,7 @@ if Base is not None:
             return {
                 "id": self.id,
                 "user_id": self.user_id,
+                "guest_email": self.guest_email,
                 "ip_address": self.ip_address,
                 "usage_date": self.usage_date.isoformat() if self.usage_date else None,
                 "request_count": self.request_count,
@@ -556,6 +559,7 @@ if Base is not None:
         
         id = Column(Integer, primary_key=True, index=True)
         user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)  # Nullable for anonymous users
+        guest_email = Column(String(255), nullable=True, index=True)  # Email for guest users
         request_timestamp = Column(DateTime(timezone=True), nullable=False, index=True)  # Exact timestamp of the request
         llm_provider = Column(String(50), nullable=True)  # Which LLM provider was used
         llm_model = Column(String(100), nullable=True)  # Which model was used
@@ -576,6 +580,7 @@ if Base is not None:
             return {
                 "id": self.id,
                 "user_id": self.user_id,
+                "guest_email": self.guest_email,
                 "request_timestamp": self.request_timestamp.isoformat() if self.request_timestamp else None,
                 "llm_provider": self.llm_provider,
                 "llm_model": self.llm_model,

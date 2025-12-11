@@ -1,4 +1,6 @@
-import React from 'react';
+"use client";
+
+import React, { useState } from 'react';
 import {
     LayoutDashboard,
     Activity,
@@ -10,6 +12,10 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
+import { useStore } from '@/lib/store';
+import { useAuth0 } from '@auth0/auth0-react';
+import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 
 export type AdminView = 'analytics' | 'activity' | 'users' | 'configure' | 'settings' | 'global';
 
@@ -28,6 +34,49 @@ const MENU_ITEMS: { id: AdminView; label: string; icon: React.ElementType }[] = 
 ];
 
 export default function AdminSidebar({ currentView, onChangeView }: AdminSidebarProps) {
+    const router = useRouter();
+    const handleLogout = useStore((state) => state.handleLogout);
+    const { logout: auth0Logout } = useAuth0();
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+    const handleLogoutClick = async (e: React.MouseEvent) => {
+        e.preventDefault();
+
+        if (isLoggingOut) return;
+
+        setIsLoggingOut(true);
+        try {
+            // Call the logout function from store (clears local state and token)
+            await handleLogout();
+
+            // Redirect to Auth0 logout endpoint using the SDK
+            auth0Logout({
+                logoutParams: {
+                    returnTo: window.location.origin
+                }
+            });
+            return; // Auth0 will handle the redirect
+
+            // Standard logout (no Auth0)
+            toast.success("Logged out successfully");
+
+            // Redirect to home page
+            router.push("/");
+
+            // Force a page reload to clear any cached state
+            if (typeof window !== "undefined") {
+                setTimeout(() => {
+                    window.location.href = "/";
+                }, 500);
+            }
+        } catch (error: any) {
+            console.error("Logout error:", error);
+            const errorMessage = error?.detail || error?.message || "Failed to logout. Please try again.";
+            toast.error(errorMessage);
+            setIsLoggingOut(false);
+        }
+    };
+
     return (
         <aside className="w-64 bg-zinc-900/50 backdrop-blur-xl border-r border-white/10 flex flex-col h-screen sticky top-0 bg-grid-white/[0.02] relative z-20">
             <div className="absolute inset-0 bg-zinc-900/80 pointer-events-none" />
@@ -81,13 +130,14 @@ export default function AdminSidebar({ currentView, onChangeView }: AdminSidebar
             </div>
 
             <div className="mt-auto p-6 border-t border-white/5 relative z-10">
-                <a
-                    href="/"
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-zinc-400 hover:text-white hover:bg-red-500/10 transition-colors group"
+                <button
+                    onClick={handleLogoutClick}
+                    disabled={isLoggingOut}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-zinc-400 hover:text-white hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors group"
                 >
-                    <LogOut className="w-5 h-5 group-hover:text-red-400 transition-colors" />
-                    Exit Dashboard
-                </a>
+                    <LogOut className={cn("w-5 h-5 transition-colors", isLoggingOut ? "animate-spin" : "group-hover:text-red-400")} />
+                    {isLoggingOut ? "Logging out..." : "Logout"}
+                </button>
             </div>
         </aside>
     );

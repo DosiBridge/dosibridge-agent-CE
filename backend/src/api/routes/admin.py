@@ -232,13 +232,13 @@ async def create_global_llm_config(
                 LLMConfig.is_default == True
             ).update({LLMConfig.is_default: False})
 
-        # Create new config with user_id = 1 (superadmin)
+        # Create new config with user_id = None (global)
         new_config = LLMConfig(
-            user_id=1,  # Owned by superadmin (ID=1)
+            user_id=None,  # Global config
             type=config.type,
             model=config.model,
             base_url=config.base_url,
-            is_default=config.is_default  # Only superadmin ID=1 can set this via this endpoint
+            is_default=config.is_default
         )
         
         if config.api_key:
@@ -316,7 +316,7 @@ async def create_global_mcp_server(
         )
         
     new_server = MCPServer(
-        user_id=1,  # Owned by superadmin (ID=1)
+        user_id=None,  # Global server
         name=server.name,
         url=normalized_url,
         connection_type=connection_type,
@@ -398,8 +398,13 @@ async def update_global_llm_config(
         raise HTTPException(status_code=404, detail="Global LLM config not found")
     
     # Migrate old configs (user_id=None) to user_id=1
-    if llm_config.user_id is None:
-        llm_config.user_id = 1
+    # Ensure it stays global
+    if llm_config.user_id is not None and llm_config.user_id != 1:
+        # If it was somehow assigned to a specific user other than 1, make it global
+        llm_config.user_id = None
+    elif llm_config.user_id == 1:
+        # Migrate legacy ID=1 to None
+        llm_config.user_id = None
     
     # If setting this as default, unset other global defaults first
     if config.is_default:
@@ -475,8 +480,9 @@ async def delete_global_llm_config(
                     from src.utils.encryption import encrypt_value
                     deepseek_config.api_key = encrypt_value(deepseek_api_key)
                 # Ensure it's owned by superadmin
-                if deepseek_config.user_id is None:
-                    deepseek_config.user_id = 1
+                # Ensure it's global
+                if deepseek_config.user_id is not None:
+                    deepseek_config.user_id = None
                 db.commit()
             elif deepseek_api_key:
                 # Create new DeepSeek default config (encrypt API key)
@@ -488,7 +494,7 @@ async def delete_global_llm_config(
                     api_base="https://api.deepseek.com",
                     active=True,
                     is_default=True,
-                    user_id=1  # Owned by superadmin
+                    user_id=None  # Global config
                 )
                 db.add(new_default)
                 db.commit()
@@ -502,8 +508,8 @@ async def delete_global_llm_config(
                 if first_global:
                     first_global.is_default = True
                     # Migrate to user_id=1 if needed
-                    if first_global.user_id is None:
-                        first_global.user_id = 1
+                    if first_global.user_id is not None:
+                        first_global.user_id = None
                     db.commit()
     
     return {"status": "success", "message": "Global LLM config deleted"}
@@ -526,8 +532,8 @@ async def toggle_global_llm_config(
         raise HTTPException(status_code=404, detail="Global LLM config not found")
     
     # Migrate old configs (user_id=None) to user_id=1
-    if llm_config.user_id is None:
-        llm_config.user_id = 1
+    if llm_config.user_id is not None:
+        llm_config.user_id = None
     
     llm_config.active = not llm_config.active
     db.commit()
@@ -571,8 +577,8 @@ async def update_global_mcp_server(
         raise HTTPException(status_code=404, detail="Global MCP server not found")
     
     # Migrate old configs (user_id=None) to user_id=1
-    if mcp_server.user_id is None:
-        mcp_server.user_id = 1
+    if mcp_server.user_id is not None:
+        mcp_server.user_id = None
     
     # Check if name already exists globally (excluding current server)
     existing = db.query(MCPServer).filter(
@@ -638,8 +644,8 @@ async def toggle_global_mcp_server(
         raise HTTPException(status_code=404, detail="Global MCP server not found")
     
     # Migrate old configs (user_id=None) to user_id=1
-    if server.user_id is None:
-        server.user_id = 1
+    if server.user_id is not None:
+        server.user_id = None
     
     server.enabled = not server.enabled
     db.commit()
@@ -720,9 +726,9 @@ async def create_global_embedding_config(
             EmbeddingConfig.is_default == True
         ).update({EmbeddingConfig.is_default: False})
 
-    # Create new config with user_id = 1 (superadmin)
+    # Create new config with user_id = None (global)
     new_config = EmbeddingConfig(
-        user_id=1,  # Owned by superadmin (ID=1)
+        user_id=None,
         provider=config.provider,
         model=config.model,
         base_url=config.base_url,
@@ -873,8 +879,9 @@ async def update_global_embedding_config(
         raise HTTPException(status_code=404, detail="Global embedding config not found")
     
     # Migrate old configs (user_id=None) to user_id=1
-    if embedding_config.user_id is None:
-        embedding_config.user_id = 1
+    # Ensure global semantics
+    if embedding_config.user_id is not None:
+        embedding_config.user_id = None
     
     # If setting this as default, unset other global defaults first
     if config.is_default:
@@ -951,8 +958,9 @@ async def delete_global_embedding_config(
                     from src.utils.encryption import encrypt_value
                     openai_config.api_key = encrypt_value(openai_api_key)
                 # Ensure it's owned by superadmin
-                if openai_config.user_id is None:
-                    openai_config.user_id = 1
+                # Ensure it's global
+                if openai_config.user_id is not None:
+                    openai_config.user_id = None
                 db.commit()
             elif openai_api_key:
                 # Create new OpenAI default config (encrypt API key)
@@ -964,7 +972,7 @@ async def delete_global_embedding_config(
                     base_url=None,
                     active=True,
                     is_default=True,
-                    user_id=1  # Owned by superadmin
+                    user_id=None  # Global config
                 )
                 db.add(new_default)
                 db.commit()
@@ -978,8 +986,8 @@ async def delete_global_embedding_config(
                 if first_global:
                     first_global.is_default = True
                     # Migrate to user_id=1 if needed
-                    if first_global.user_id is None:
-                        first_global.user_id = 1
+                    if first_global.user_id is not None:
+                        first_global.user_id = None
                     db.commit()
     
     return {"status": "success", "message": "Global embedding config deleted"}
@@ -1130,6 +1138,8 @@ async def get_system_activity(
             user = db.query(UserModel).filter(UserModel.id == req.user_id).first()
             if user:
                 user_name = user.name
+        elif hasattr(req, 'guest_email') and req.guest_email:
+            user_name = f"Guest ({req.guest_email})"
                 
         activity.append({
             "id": req.id,
@@ -1234,7 +1244,7 @@ async def get_top_users_analytics(
     
     cutoff = datetime.now() - timedelta(days=days)
     
-    # Aggregate by user
+    # 1. Authenticated users
     user_stats = db.query(
         APIUsage.user_id,
         func.sum(APIUsage.input_tokens + APIUsage.output_tokens + APIUsage.embedding_tokens).label('total_tokens')
@@ -1246,7 +1256,22 @@ async def get_top_users_analytics(
     ).order_by(
         func.sum(APIUsage.input_tokens + APIUsage.output_tokens + APIUsage.embedding_tokens).desc()
     ).limit(limit).all()
+
+    # 2. Guest users
+    guest_stats = db.query(
+        APIUsage.guest_email,
+        func.sum(APIUsage.input_tokens + APIUsage.output_tokens + APIUsage.embedding_tokens).label('total_tokens')
+    ).filter(
+        APIUsage.usage_date >= cutoff,
+        APIUsage.user_id.is_(None),
+        APIUsage.guest_email.isnot(None)
+    ).group_by(
+        APIUsage.guest_email
+    ).order_by(
+        func.sum(APIUsage.input_tokens + APIUsage.output_tokens + APIUsage.embedding_tokens).desc()
+    ).limit(limit).all()
     
+    # Process authenticated users
     result = []
     for stat in user_stats:
         user = db.query(UserModel).filter(UserModel.id == stat.user_id).first()
@@ -1256,5 +1281,16 @@ async def get_top_users_analytics(
                 "email": user.email,
                 "tokens": int(stat.total_tokens or 0)
             })
-            
-    return result
+
+    # Process guest users
+    for stat in guest_stats:
+        result.append({
+            "name": f"Guest ({stat.guest_email})",
+            "email": stat.guest_email,
+            "tokens": int(stat.total_tokens or 0)
+        })
+    
+    # Sort combined results and take top N
+    result.sort(key=lambda x: x["tokens"], reverse=True)
+    return result[:limit]
+

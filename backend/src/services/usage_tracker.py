@@ -77,17 +77,25 @@ class UsageTracker:
                 limit = 10 # Explicit 10/day limit for unauthenticated users
                 
                 if guest_email:
-                     # Query by guest email
+                     # First try to find by email
                     usage = db.query(APIUsage).filter(
                         APIUsage.user_id.is_(None),
                         APIUsage.guest_email == guest_email,
                         func.date(APIUsage.usage_date) == today_start.date()
                     ).first()
+                    
+                    # If not found by email, try to find by IP and merge/upgrade
+                    if not usage and ip_address:
+                        usage = db.query(APIUsage).filter(
+                            APIUsage.user_id.is_(None),
+                            APIUsage.ip_address == ip_address,
+                            func.date(APIUsage.usage_date) == today_start.date()
+                        ).first()
                 elif ip_address:
                     # Query by IP address for anonymous users without email
                     usage = db.query(APIUsage).filter(
                         APIUsage.user_id.is_(None),
-                        APIUsage.guest_email.is_(None),
+                         # Don't filter by guest_email is None here, to match any record for this IP
                         APIUsage.ip_address == ip_address,
                         func.date(APIUsage.usage_date) == today_start.date()
                     ).first()
@@ -179,16 +187,31 @@ class UsageTracker:
             # Get or create today's usage record (for daily aggregates)
             if user_id is None:
                 # For unauthenticated users
+                # For unauthenticated users
                 if guest_email:
+                    # First try to find by email
                     usage = db.query(APIUsage).filter(
                         APIUsage.user_id.is_(None),
                         APIUsage.guest_email == guest_email,
                         func.date(APIUsage.usage_date) == today_start.date()
                     ).first()
+                    
+                    # If not found by email, try to find by IP and upgrade it
+                    if not usage and ip_address:
+                        usage = db.query(APIUsage).filter(
+                            APIUsage.user_id.is_(None),
+                            APIUsage.ip_address == ip_address,
+                            func.date(APIUsage.usage_date) == today_start.date()
+                        ).first()
+                        
+                        # If found by IP but no email, update it with the email
+                        if usage and not usage.guest_email:
+                            usage.guest_email = guest_email
                 elif ip_address:
                     usage = db.query(APIUsage).filter(
                         APIUsage.user_id.is_(None),
-                        APIUsage.guest_email.is_(None), # Explicitly NULL guest_email
+                        # Don't filter by guest_email here, find any record for this IP
+                        # This covers cases where they might have added email previously
                         APIUsage.ip_address == ip_address,
                         func.date(APIUsage.usage_date) == today_start.date()
                     ).first()
