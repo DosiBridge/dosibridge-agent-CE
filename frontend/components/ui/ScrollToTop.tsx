@@ -1,5 +1,5 @@
 /**
- * Scroll to top button component - Mini button that appears on scroll
+ * Scroll to top button component
  */
 "use client";
 
@@ -49,13 +49,13 @@ export default function ScrollToTop({
           transition={{ duration: 0.2, ease: "easeOut" }}
           onClick={scrollToTop}
           className={cn(
-            "fixed bottom-6 right-6 z-[5000] p-2.5 bg-black/80 backdrop-blur-xl border border-white/20 text-white rounded-full shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40 transition-all duration-200 hover:scale-110 active:scale-95 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:ring-offset-2 focus:ring-offset-black",
-            "hover:bg-black/90 hover:border-indigo-500/50",
+            "fixed bottom-6 left-6 z-[9999] p-3 bg-gradient-to-br from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white rounded-full shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all duration-200 hover:scale-110 active:scale-95 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-black",
             className
           )}
           aria-label="Scroll to top"
+          title="Scroll to top"
         >
-          <ArrowUp className="w-4 h-4" />
+          <ArrowUp className="w-5 h-5" />
         </motion.button>
       )}
     </AnimatePresence>

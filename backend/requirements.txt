@@ -60,4 +60,5 @@ chardet>=5.0.0  # Character encoding detection
 # Advanced RAG features
 sentence-transformers>=2.2.0  # For re-ranking and embeddings
 rank-bm25>=0.2.2  # BM25 for hybrid search
-numpy>=1.24.0  # For vector operationsasync-lru
+numpy>=1.24.0  # For vector operations
+async-lru>=2.0.0  # Async LRU cache for performance

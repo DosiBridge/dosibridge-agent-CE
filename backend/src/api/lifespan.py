@@ -9,7 +9,6 @@ from fastapi import FastAPI
 from src.core import get_db_context, DB_AVAILABLE, init_db, LLMConfig
 from src.core.models import User, EmbeddingConfig, MCPServer
 from src.core.env_validation import validate_and_exit_on_error
-from src.core.env_validation import validate_and_exit_on_error
 # from src.core.auth import get_password_hash # Removed
 from src.mcp import MCP_SERVERS
 from src.utils import suppress_mcp_cleanup_errors

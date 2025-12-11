@@ -81,6 +81,7 @@ interface AppState {
 
   // Superadmin check
   isSuperadmin: () => boolean;
+  getActualUserRole: () => string | null;
 
   // Auth actions
   checkAuth: () => Promise<void>;

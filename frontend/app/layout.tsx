@@ -9,6 +9,7 @@ import Script from "next/script";
 import "./globals.css";
 import MiniAgentChatbot from "@/components/MiniAgentChatbot";
 import AuthProvider from "@/components/auth/AuthProvider";
+import ScrollToTop from "@/components/ui/ScrollToTop";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -171,6 +172,7 @@ export default function RootLayout({
         <AuthProvider>
           <ImpersonationBanner />
           <MiniAgentChatbot />
+          <ScrollToTop />
           <ErrorBoundary>{children}</ErrorBoundary>
         </AuthProvider>
       </body>

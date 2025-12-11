@@ -134,14 +134,14 @@ export const FloatingNav = ({
                                 }, 150);
                             }}
                         >
-                            <Link
-                                href={navItem.link}
-                                className={cn(
+                    <Link
+                        href={navItem.link}
+                        className={cn(
                                     "relative text-neutral-50 items-center flex px-1.5 sm:px-2 py-1 rounded-lg hover:bg-white/5 hover:text-neutral-300 transition-colors text-xs sm:text-sm whitespace-nowrap flex-shrink-0",
                                     isHovered && hasDropdown && "bg-white/5 text-neutral-300"
-                                )}
-                            >
-                                <span className="block sm:hidden">{navItem.icon}</span>
+                        )}
+                    >
+                        <span className="block sm:hidden">{navItem.icon}</span>
                                 <span className="hidden sm:flex items-center gap-1">
                                     {navItem.name}
                                     {hasDropdown && (
@@ -210,8 +210,8 @@ export const FloatingNav = ({
                                                                 <ExternalLink className="w-4 h-4 text-neutral-500 group-hover:text-indigo-400 transition-colors flex-shrink-0 mt-0.5" />
                                                             )}
                                                         </div>
-                                                    </Link>
-                                                ))}
+                    </Link>
+                ))}
                                             </div>
                                         </motion.div>
                                     )}
