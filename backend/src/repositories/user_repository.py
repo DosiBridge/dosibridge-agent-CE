@@ -42,9 +42,4 @@ class UserRepository(BaseRepository[User]):
         """Find users by role"""
         return self.db.query(User).filter(User.role == role).all()
 
-    def find_superadmins(self) -> List[User]:
-        """Find all superadmin users"""
-        return self.db.query(User).filter(
-            or_(User.role == "superadmin", User.is_superadmin == True)
-        ).all()
 

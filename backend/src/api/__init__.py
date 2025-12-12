@@ -13,8 +13,6 @@ from .routes import (
     llm_config_router,
     mcp_routes_router,
     auth_router,
-
-    admin_router,
     setup_mcp_routes,
 )
 from .routes.documents import router as documents_router
@@ -61,7 +59,7 @@ if SLOWAPI_AVAILABLE:
     )
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-    
+
     # Apply rate limiting middleware (applies default limits to all routes)
     app.add_middleware(SlowAPIMiddleware)
     print("✓ Rate limiting enabled")
@@ -140,7 +138,6 @@ app.include_router(documents_router, prefix="/api", tags=["documents"])
 app.include_router(websocket_router, prefix="/api", tags=["websocket"])
 app.include_router(custom_rag_tools_router, prefix="/api", tags=["custom-rag-tools"])
 app.include_router(monitoring_router, prefix="/api/monitoring", tags=["monitoring"])
-app.include_router(admin_router, prefix="/api/admin", tags=["admin"])
 
 
 # Setup MCP routes

@@ -348,7 +348,7 @@ class ChatService:
         """Format LLM initialization error"""
         error_msg = f"Failed to initialize LLM: {str(error)}"
         if "api_key" in str(error).lower():
-            error_msg = "LLM API key is invalid or missing. Please configure a valid API key via the superadmin dashboard or create a personal LLM config."
+            error_msg = "LLM API key is invalid or missing. Please configure a valid API key via environment variables or create a personal LLM config."
         return error_msg
 
     @staticmethod

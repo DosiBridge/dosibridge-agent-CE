@@ -59,7 +59,7 @@ class GuardClauseHelpers:
         Returns: (is_valid, error_message)
         """
         if not llm_config:
-            return False, "No LLM configuration found. Please configure an LLM provider via the superadmin dashboard or create a personal LLM config."
+            return False, "No LLM configuration found. Please configure an LLM provider via environment variables or create a personal LLM config."
         return True, None
 
     @staticmethod

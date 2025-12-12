@@ -14,9 +14,6 @@ from .models import User
 
 import httpx
 
-
-
-
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from src.core.auth0 import verify_auth0_token
 # from sqlalchemy.orm import Session # Already imported
@@ -31,7 +28,7 @@ async def get_auth0_user_info(domain: str, token: str):
     """Fetch user info from Auth0 with caching (TTL 5 mins)"""
     async with httpx.AsyncClient(timeout=10.0) as client:
         response = await client.get(
-            f"https://{domain}/userinfo", 
+            f"https://{domain}/userinfo",
             headers={"Authorization": f"Bearer {token}"}
         )
         if response.status_code != 200:
@@ -46,7 +43,6 @@ async def get_optional_current_user(
     """
     Returns the current user if authenticated, or None if not.
     Does not raise 401 for missing credentials.
-    Supports impersonation via X-Impersonate-User header.
     """
     if not credentials:
         return None
@@ -60,9 +56,6 @@ async def get_current_user(
     """
     Validates Auth0 token and returns the local User object.
     Creates the user if they don't exist (JIT Provisioning).
-    
-    Supports impersonation: If X-Impersonate-User header is present and the
-    authenticated user is a superadmin, returns the impersonated user instead.
     """
     if not credentials:
         raise HTTPException(
@@ -70,7 +63,7 @@ async def get_current_user(
             detail="Missing authentication credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
-        
+
     token = credentials.credentials
     try:
         payload = verify_auth0_token(token)
@@ -80,11 +73,11 @@ async def get_current_user(
             detail=str(e),
             headers={"WWW-Authenticate": "Bearer"},
         )
-        
+
     # Extract user info from Auth0 claims
-    email = payload.get("email") 
+    email = payload.get("email")
     name = payload.get("name")
-    
+
     # If email is missing from Access Token (common), fetch from /userinfo
     # We use a cached function to avoid hitting Auth0 API on every request
     user_data = None
@@ -100,7 +93,7 @@ async def get_current_user(
 
     if not email:
          raise HTTPException(status_code=401, detail="Email not found in token or userinfo")
-         
+
     # Extract picture - try user_data first (more detailed), then payload
     picture = None
     if user_data:
@@ -109,16 +102,16 @@ async def get_current_user(
         picture = payload.get("picture")
 
     user = db.query(User).filter(User.email == email).first()
-    
+
     if not user:
         # JIT Provisioning
         user = User(
             email=email,
-            name=name or email.split("@")[0], 
+            name=name or email.split("@")[0],
             role="user",
             picture=picture,
             is_active=True,
-            hashed_password=None # Auth0 users have no local password
+            hashed_password=None  # Auth0 users have no local password
         )
         db.add(user)
         db.commit()
@@ -129,7 +122,7 @@ async def get_current_user(
         if picture and user.picture != picture:
             user.picture = picture
             updates_needed = True
-        
+
         # Also update name if we have a better one and it's currently default/empty
         if name and (not user.name or user.name == user.email.split("@")[0]) and name != user.name:
              user.name = name
@@ -138,35 +131,7 @@ async def get_current_user(
         if updates_needed:
             db.commit()
             db.refresh(user)
-    
-    # Check for impersonation header
-    impersonate_user_id = request.headers.get("X-Impersonate-User")
-    if impersonate_user_id:
-        # Only allow superadmin to impersonate
-        user_role = getattr(user, 'role', 'user')
-        if user_role != "superadmin":
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Only superadmin can impersonate users"
-            )
-        
-        try:
-            impersonate_id = int(impersonate_user_id)
-            # Get the impersonated user
-            impersonated_user = db.query(User).filter(User.id == impersonate_id).first()
-            if not impersonated_user:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"User with ID {impersonate_id} not found"
-                )
-            # Return the impersonated user instead of the superadmin
-            return impersonated_user
-        except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid user ID in X-Impersonate-User header"
-            )
-        
+
     return user
 
 
@@ -186,4 +151,3 @@ async def get_current_active_user(
             detail="User account is inactive"
         )
     return current_user
-

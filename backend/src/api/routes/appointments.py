@@ -29,7 +29,7 @@ def send_appointment_emails(
 ):
     """
     Background task to send appointment confirmation and notification emails
-    
+
     Args:
         appointment_id: Appointment request ID
         name: Contact person's name
@@ -52,7 +52,7 @@ def send_appointment_emails(
             preferred_date=preferred_date,
             preferred_time=preferred_time
         )
-        
+
         # Send notification email to team
         email_service.send_appointment_notification_to_team(
             appointment_id=appointment_id,
@@ -66,7 +66,7 @@ def send_appointment_emails(
             preferred_time=preferred_time,
             user_id=user_id
         )
-        
+
         app_logger.info(
             "Appointment emails sent",
             {"appointment_id": appointment_id, "email": email}
@@ -89,7 +89,7 @@ class AppointmentRequestCreate(BaseModel):
     preferred_date: Optional[str] = Field(None, description="Preferred date (ISO format)")
     preferred_time: Optional[str] = Field(None, max_length=50, description="Preferred time (e.g., 'morning', 'afternoon', 'evening', or specific time)")
     confirm: bool = Field(default=False, description="Set to true to confirm and save to database. If false, returns preview only.")
-    
+
     @validator('request_type')
     def validate_request_type(cls, v):
         if v not in ['appointment', 'contact', 'support']:
@@ -102,7 +102,7 @@ class AppointmentPreviewResponse(BaseModel):
     preview: dict = Field(..., description="Appointment data preview")
     requires_confirmation: bool = Field(True, description="Whether confirmation is required")
     message: str = Field(..., description="Preview message")
-    
+
     class Config:
         from_attributes = True
 
@@ -122,7 +122,7 @@ class AppointmentRequestResponse(BaseModel):
     notes: Optional[str]
     created_at: str
     updated_at: Optional[str]
-    
+
     class Config:
         from_attributes = True
 
@@ -137,7 +137,7 @@ class AppointmentConfirmationRequest(BaseModel):
     message: str = Field(..., min_length=1, description="Message or request details")
     preferred_date: Optional[str] = Field(None, description="Preferred date (ISO format)")
     preferred_time: Optional[str] = Field(None, max_length=50, description="Preferred time")
-    
+
     @validator('request_type')
     def validate_request_type(cls, v):
         if v not in ['appointment', 'contact', 'support']:
@@ -148,7 +148,7 @@ class AppointmentConfirmationRequest(BaseModel):
 class AppointmentRequestUpdate(BaseModel):
     status: Optional[str] = Field(None, description="Status: 'pending', 'confirmed', 'cancelled', 'completed'")
     notes: Optional[str] = Field(None, description="Internal notes")
-    
+
     @validator('status')
     def validate_status(cls, v):
         if v and v not in ['pending', 'confirmed', 'cancelled', 'completed']:
@@ -165,13 +165,13 @@ async def create_appointment_request(
 ):
     """
     Create a new appointment or contact request. Works for both authenticated and anonymous users.
-    
+
     If confirm=False (default), returns a preview without saving to database.
     If confirm=True, saves to database and sends emails.
     """
     if not DB_AVAILABLE or AppointmentRequest is None:
         raise HTTPException(status_code=503, detail="Database not available")
-    
+
     try:
         # Parse preferred_date if provided
         preferred_date_obj = None
@@ -180,7 +180,7 @@ async def create_appointment_request(
                 preferred_date_obj = datetime.fromisoformat(request.preferred_date.replace('Z', '+00:00'))
             except ValueError:
                 raise HTTPException(status_code=400, detail="Invalid date format. Use ISO format (YYYY-MM-DDTHH:MM:SS)")
-        
+
         # If not confirmed, return preview only
         if not request.confirm:
             preview_data = {
@@ -195,7 +195,7 @@ async def create_appointment_request(
                 "user_id": current_user.id if current_user else None,
                 "status": "pending"
             }
-            
+
             app_logger.info(
                 "Appointment preview requested",
                 {
@@ -204,7 +204,7 @@ async def create_appointment_request(
                     "email": request.email
                 }
             )
-            
+
             # Return preview response as JSON
             return JSONResponse(
                 status_code=200,
@@ -215,7 +215,7 @@ async def create_appointment_request(
                     "confirmed": False
                 }
             )
-        
+
         # Confirmed - save to database
         appointment = AppointmentRequest(
             user_id=current_user.id if current_user else None,
@@ -229,11 +229,11 @@ async def create_appointment_request(
             preferred_time=request.preferred_time,
             status="pending"
         )
-        
+
         db.add(appointment)
         db.commit()
         db.refresh(appointment)
-        
+
         app_logger.info(
             "Appointment request created",
             {
@@ -243,7 +243,7 @@ async def create_appointment_request(
                 "email": appointment.email
             }
         )
-        
+
         # Schedule email notifications in background
         preferred_date_str = request.preferred_date if request.preferred_date else None
         background_tasks.add_task(
@@ -259,7 +259,7 @@ async def create_appointment_request(
             preferred_time=request.preferred_time,
             user_id=current_user.id if current_user else None
         )
-        
+
         # Return confirmed appointment response
         return JSONResponse(
             status_code=201,
@@ -290,7 +290,7 @@ async def confirm_appointment_request(
     """
     if not DB_AVAILABLE or AppointmentRequest is None:
         raise HTTPException(status_code=503, detail="Database not available")
-    
+
     try:
         # Parse preferred_date if provided
         preferred_date_obj = None
@@ -299,7 +299,7 @@ async def confirm_appointment_request(
                 preferred_date_obj = datetime.fromisoformat(request.preferred_date.replace('Z', '+00:00'))
             except ValueError:
                 raise HTTPException(status_code=400, detail="Invalid date format. Use ISO format (YYYY-MM-DDTHH:MM:SS)")
-        
+
         # Save to database
         appointment = AppointmentRequest(
             user_id=current_user.id if current_user else None,
@@ -313,11 +313,11 @@ async def confirm_appointment_request(
             preferred_time=request.preferred_time,
             status="pending"
         )
-        
+
         db.add(appointment)
         db.commit()
         db.refresh(appointment)
-        
+
         app_logger.info(
             "Appointment request confirmed and created",
             {
@@ -327,7 +327,7 @@ async def confirm_appointment_request(
                 "email": appointment.email
             }
         )
-        
+
         # Schedule email notifications in background
         preferred_date_str = request.preferred_date if request.preferred_date else None
         background_tasks.add_task(
@@ -343,7 +343,7 @@ async def confirm_appointment_request(
             preferred_time=request.preferred_time,
             user_id=current_user.id if current_user else None
         )
-        
+
         return appointment.to_dict()
     except HTTPException:
         raise
@@ -360,25 +360,23 @@ async def list_appointment_requests(
     request_type: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
-    """List appointment requests. Admin users see all, regular users see only their own."""
+    """List appointment requests. Users see only their own requests."""
     if not DB_AVAILABLE or AppointmentRequest is None:
         raise HTTPException(status_code=503, detail="Database not available")
-    
+
     try:
         query = db.query(AppointmentRequest)
-        
-        # Regular users only see their own requests
-        # Admin users (you can add admin check here) see all
-        # For now, users see their own + anonymous requests
+
+        # Users see their own requests + anonymous requests
         query = query.filter(
             (AppointmentRequest.user_id == current_user.id) | (AppointmentRequest.user_id.is_(None))
         )
-        
+
         if status:
             query = query.filter(AppointmentRequest.status == status)
         if request_type:
             query = query.filter(AppointmentRequest.request_type == request_type)
-        
+
         appointments = query.order_by(AppointmentRequest.created_at.desc()).all()
         return [app.to_dict() for app in appointments]
     except Exception as e:
@@ -395,15 +393,15 @@ async def get_appointment_request(
     """Get a specific appointment request by ID."""
     if not DB_AVAILABLE or AppointmentRequest is None:
         raise HTTPException(status_code=503, detail="Database not available")
-    
+
     appointment = db.query(AppointmentRequest).filter(AppointmentRequest.id == appointment_id).first()
     if not appointment:
         raise HTTPException(status_code=404, detail="Appointment request not found")
-    
+
     # Users can only see their own requests or anonymous requests
     if appointment.user_id and appointment.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to view this appointment request")
-    
+
     return appointment.to_dict()
 
 
@@ -417,24 +415,24 @@ async def update_appointment_request(
     """Update an appointment request (status, notes)."""
     if not DB_AVAILABLE or AppointmentRequest is None:
         raise HTTPException(status_code=503, detail="Database not available")
-    
+
     appointment = db.query(AppointmentRequest).filter(AppointmentRequest.id == appointment_id).first()
     if not appointment:
         raise HTTPException(status_code=404, detail="Appointment request not found")
-    
+
     # Users can only update their own requests
     if appointment.user_id and appointment.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to update this appointment request")
-    
+
     try:
         if update.status:
             appointment.status = update.status
         if update.notes is not None:
             appointment.notes = update.notes
-        
+
         db.commit()
         db.refresh(appointment)
-        
+
         app_logger.info(
             "Appointment request updated",
             {
@@ -443,7 +441,7 @@ async def update_appointment_request(
                 "user_id": current_user.id
             }
         )
-        
+
         return appointment.to_dict()
     except Exception as e:
         db.rollback()
@@ -460,19 +458,19 @@ async def delete_appointment_request(
     """Delete an appointment request."""
     if not DB_AVAILABLE or AppointmentRequest is None:
         raise HTTPException(status_code=503, detail="Database not available")
-    
+
     appointment = db.query(AppointmentRequest).filter(AppointmentRequest.id == appointment_id).first()
     if not appointment:
         raise HTTPException(status_code=404, detail="Appointment request not found")
-    
+
     # Users can only delete their own requests
     if appointment.user_id and appointment.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to delete this appointment request")
-    
+
     try:
         db.delete(appointment)
         db.commit()
-        
+
         app_logger.info(
             "Appointment request deleted",
             {
@@ -480,7 +478,7 @@ async def delete_appointment_request(
                 "user_id": current_user.id
             }
         )
-        
+
         return {"status": "success", "message": "Appointment request deleted successfully"}
     except Exception as e:
         db.rollback()

@@ -60,8 +60,8 @@ RATE_LIMIT_UNAUTHENTICATED_SUFFIX: Final[str] = " Please create an account or lo
 RATE_LIMIT_AUTHENTICATED_SUFFIX: Final[str] = " Please add your own API key for unlimited requests or try again tomorrow."
 
 # LLM error messages
-LLM_MISSING_CONFIG_MESSAGE: Final[str] = "No LLM configuration found. Please configure an LLM provider via the superadmin dashboard or create a personal LLM config."
-LLM_INVALID_KEY_MESSAGE: Final[str] = "LLM API key is invalid or missing. Please configure a valid API key via the superadmin dashboard or create a personal LLM config."
+LLM_MISSING_CONFIG_MESSAGE: Final[str] = "No LLM configuration found. Please configure an LLM provider via environment variables or create a personal LLM config."
+LLM_INVALID_KEY_MESSAGE: Final[str] = "LLM API key is invalid or missing. Please configure a valid API key via environment variables or create a personal LLM config."
 LLM_MISSING_PACKAGE_MESSAGE: Final[str] = "Missing LLM package: {error}\n\nAll required packages should be pre-installed from requirements.txt.\nPlease redeploy after ensuring requirements.txt includes all LLM provider packages."
 
 # Authentication messages
