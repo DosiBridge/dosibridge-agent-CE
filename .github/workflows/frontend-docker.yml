@@ -3,7 +3,6 @@ name: Build and Push Frontend Docker Image
 on:
   push:
     branches:
-      - main
       - master
     paths:
       - 'frontend/**'
