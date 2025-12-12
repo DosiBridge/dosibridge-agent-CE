@@ -41,7 +41,7 @@ export default function ChatPage() {
   // Initialize sidebar state: always start with false to match SSR
   // Then sync with window width after mount to prevent hydration mismatch
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  
+
   // Set initial sidebar state based on window width after mount
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -81,16 +81,16 @@ export default function ChatPage() {
       const originalError = console.error;
       console.error = (...args: any[]) => {
         const errorMessage = args[0]?.toString() || '';
-        const isPermissionError = 
+        const isPermissionError =
           errorMessage.includes("Superadmin access required") ||
           (errorMessage.includes("Superadmin") && errorMessage.includes("required")) ||
-          args.some((arg: any) => 
-            arg?.message?.includes("Superadmin") || 
+          args.some((arg: any) =>
+            arg?.message?.includes("Superadmin") ||
             arg?.detail?.includes("Superadmin") ||
             arg?.isPermissionError ||
             (typeof arg === 'object' && arg?.statusCode === 403)
           );
-        
+
         // Only suppress permission errors during impersonation
         if (!isPermissionError) {
           originalError.apply(console, args);
@@ -219,17 +219,19 @@ export default function ChatPage() {
     setSettingsOpen,
   ]);
 
+  // Load sessions and current session on mount and when dependencies change
   useEffect(() => {
-    loadSessions();
-    loadSession(currentSessionId);
-  }, [loadSessions, loadSession, currentSessionId]);
+    if (!authLoading) {
+      // Load sessions first, then load the current session
+      loadSessions().then(() => {
+        // After sessions are loaded, load the current session messages
+        loadSession(currentSessionId);
+      });
+    }
+  }, [authLoading, loadSessions, loadSession, currentSessionId]);
 
   useEffect(() => {
     if (!authLoading) {
-      // Always load sessions (works for both authenticated and unauthenticated users)
-      // Agent mode works without login, so load browser sessions
-      loadSessions();
-
       if (isAuthenticated) {
         // Load MCP servers only when authenticated
         const loadMCPServers = useStore.getState().loadMCPServers;
@@ -242,7 +244,7 @@ export default function ChatPage() {
         }
       }
     }
-  }, [isAuthenticated, authLoading, loadSessions]);
+  }, [isAuthenticated, authLoading]);
 
   useEffect(() => {
     if (messages.length > 0) {
