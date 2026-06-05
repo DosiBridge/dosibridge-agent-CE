@@ -39,6 +39,10 @@ jobs:
             -t mcp-server:latest \
             backend/
 
+      - name: Verify backend image imports
+        run: |
+          docker run --rm --entrypoint python mcp-server:latest -c "import packaging; from langchain_core.tools import BaseTool, StructuredTool; import src.api; print('backend image imports ok')"
+
       - name: Push Docker image
         run: |
           docker tag mcp-server:latest ${{ secrets.DOCKER_USERNAME }}/mcp-server:latest

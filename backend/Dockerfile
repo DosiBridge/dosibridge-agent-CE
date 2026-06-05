@@ -30,7 +30,7 @@ COPY requirements.txt .
 
 # Install Python dependencies to a specific directory for copying
 RUN --mount=type=cache,target=/root/.cache/pip \
-    python -m pip install --no-cache-dir --prefix=/install -r requirements.txt
+    python -m pip install --no-cache-dir --ignore-installed --prefix=/install -r requirements.txt
 
 # ============================================================================
 # Stage 2: Runtime - Minimal production image
