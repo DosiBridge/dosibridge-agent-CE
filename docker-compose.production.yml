@@ -1,0 +1,96 @@
+services:
+  db:
+    image: postgres:15
+    container_name: agent-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB required}
+    volumes:
+      - agent_pgdata:/var/lib/postgresql/data
+    networks:
+      - agent-dosi-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  agent-backend:
+    image: dosibirdge/mcp-server:latest
+    container_name: agent-backend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8085:8000"
+    environment:
+      PYTHONUNBUFFERED: "1"
+      PYTHONPATH: "/app"
+      PORT: "8000"
+      ENVIRONMENT: "production"
+      NODE_ENV: "production"
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL required}
+      CORS_ORIGINS: "https://agent.dosibridge.com,https://agentapi.dosibridge.com"
+      FRONTEND_URL: "https://agent.dosibridge.com"
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY required}
+      MCP_APIKEY_ENCRYPTION_KEY: ${MCP_APIKEY_ENCRYPTION_KEY:?MCP_APIKEY_ENCRYPTION_KEY required}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_LLM_API_KEY: ${OPENAI_LLM_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      DEEPSEEK_KEY: ${DEEPSEEK_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      FIRECRAWL_API_KEY: ${FIRECRAWL_API_KEY:-}
+      AUTH0_DOMAIN: ${AUTH0_DOMAIN:-}
+      AUTH0_CLIENT_ID: ${AUTH0_CLIENT_ID:-}
+      AUTH0_AUDIENCE: ${AUTH0_AUDIENCE:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-}
+      CONTACT_EMAIL: ${CONTACT_EMAIL:-}
+    volumes:
+      - agent_config:/app/config
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - agent-dosi-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 5
+
+  agent-frontend:
+    image: dosibirdge/agent-frontend-test:latest
+    container_name: agent-frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8086:3000"
+    environment:
+      NODE_ENV: "production"
+      NEXT_PUBLIC_API_BASE_URL: "https://agentapi.dosibridge.com"
+      API_BASE_URL: "https://agentapi.dosibridge.com"
+      NEXT_PUBLIC_AUTH0_DOMAIN: ${NEXT_PUBLIC_AUTH0_DOMAIN:-}
+      NEXT_PUBLIC_AUTH0_CLIENT_ID: ${NEXT_PUBLIC_AUTH0_CLIENT_ID:-}
+      NEXT_PUBLIC_AUTH0_AUDIENCE: ${NEXT_PUBLIC_AUTH0_AUDIENCE:-}
+      AUTH0_DOMAIN: ${AUTH0_DOMAIN:-}
+      AUTH0_CLIENT_ID: ${AUTH0_CLIENT_ID:-}
+      AUTH0_AUDIENCE: ${AUTH0_AUDIENCE:-}
+    depends_on:
+      - agent-backend
+    networks:
+      - agent-dosi-network
+
+networks:
+  agent-dosi-network:
+    driver: bridge
+
+volumes:
+  agent_pgdata:
+    driver: local
+  agent_config:
+    driver: local
