@@ -41,7 +41,13 @@ jobs:
 
       - name: Verify backend image imports
         run: |
-          docker run --rm --entrypoint python mcp-server:latest -c "import packaging; from langchain_core.tools import BaseTool, StructuredTool; import src.api; print('backend image imports ok')"
+          docker run --rm \
+            --entrypoint python \
+            -e DATABASE_URL='postgresql://ci_user:ci_password@localhost:5432/ci_db' \
+            -e JWT_SECRET_KEY='ci-only-dummy-jwt-secret-at-least-32-chars' \
+            -e ENCRYPTION_KEY='ci-only-dummy-encryption-key-at-least-32-chars' \
+            mcp-server:latest \
+            -c "import packaging; from langchain_core.tools import BaseTool, StructuredTool; import src.api; print('backend image imports ok')"
 
       - name: Push Docker image
         run: |
