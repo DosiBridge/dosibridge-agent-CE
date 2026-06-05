@@ -16,6 +16,7 @@ openai
 
 # HTTP requests
 requests
+packaging  # Required by langchain-core callback imports in the production image
 
 # Optional
 typing-extensions
