@@ -158,9 +158,9 @@ export default function Home() {
           backgroundColor="black"
           className="flex items-center flex-col justify-center px-4 sm:px-6 md:px-10 py-6 sm:py-4 w-full h-full"
         >
-          <h2 className="text-white text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-center px-2">
-            Your <FlipWords words={words} /> <br /> AI Assistant
-          </h2>
+          <h1 className="text-white text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-center px-2">
+            DosiBridge Agent: Your <FlipWords words={words} /> <br /> AI Assistant
+          </h1>
           <div className="flex items-center justify-center gap-2 mt-3 sm:mt-4">
             <span className="px-3 py-1 rounded-full bg-green-500/10 border border-green-500/30 text-green-400 text-xs sm:text-sm font-medium">
               🟢 Fully Open Source
