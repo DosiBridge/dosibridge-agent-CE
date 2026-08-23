@@ -89,32 +89,12 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     if (loading) {
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-zinc-950 text-white p-4">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
-                    <p>Loading configuration...</p>
-                </div>
-            </div>
-        );
+        return <>{children}</>;
     }
 
     if (error || !authConfig?.domain || !authConfig?.clientId) {
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-red-950 text-white p-4">
-                <div className="bg-red-900 border border-red-700 p-6 rounded-lg max-w-lg">
-                    <h2 className="text-xl font-bold mb-2">Configuration Error</h2>
-                    <p>Auth0 is not configured. Please set the following environment variables:</p>
-                    <ul className="list-disc list-inside mt-2 font-mono text-sm">
-                        <li>NEXT_PUBLIC_AUTH0_DOMAIN or AUTH0_DOMAIN</li>
-                        <li>NEXT_PUBLIC_AUTH0_CLIENT_ID or AUTH0_CLIENT_ID</li>
-                    </ul>
-                    {error && (
-                        <p className="mt-4 text-sm text-red-300">Error: {error}</p>
-                    )}
-                </div>
-            </div>
-        );
+        console.error(error || "Auth0 configuration is missing");
+        return <>{children}</>;
     }
 
     return (
